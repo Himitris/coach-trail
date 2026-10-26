@@ -1,0 +1,11 @@
+.env
+data/*
+!data/.gitkeep
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+dist/
+*.db
+*.sqlite
+.garmin_tokens/
