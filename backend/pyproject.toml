@@ -16,6 +16,7 @@ dependencies = [
     "apscheduler>=3.10,<4",
     "httpx>=0.27,<1",
     "garminconnect==0.3.20",
+    "mcp>=2.3,<3",
 ]
 
 [project.optional-dependencies]
@@ -44,6 +45,7 @@ extend-exclude = ["alembic/versions"]
 select = ["E", "F", "I", "UP", "B", "SIM", "S"]
 
 [tool.ruff.lint.per-file-ignores]
+"app/mcp_server.py" = ["E501"]  # les docstrings sont les descriptions des outils MCP
 "tests/*" = ["S101", "S105", "S106"]
 
 [tool.mypy]

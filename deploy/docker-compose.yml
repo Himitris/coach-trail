@@ -21,6 +21,7 @@ services:
       - caddy_config:/config
     depends_on:
       - api
+      - mcp
       - web
 
   api:
@@ -42,6 +43,21 @@ services:
       - ${BACKUP_HOST_DIR:?BACKUP_HOST_DIR manquant}:/backup
     expose:
       - "8000"
+
+  # Serveur MCP en lecture seule (phase 3) : n'appelle que des GET de l'API. Jeton optionnel.
+  mcp:
+    build: ../backend
+    restart: unless-stopped
+    command: ["python", "-m", "app.mcp_server", "--transport", "http", "--host", "0.0.0.0", "--port", "8765"]
+    environment:
+      TZ: ${TZ:-Europe/Paris}
+      MCP_API_URL: http://api:8000
+      MCP_TOKEN: ${MCP_TOKEN:-}
+      MCP_ALLOWED_HOSTS: ${MCP_ALLOWED_HOSTS:-localhost:*,127.0.0.1:*,${DOMAIN}:*}
+    expose:
+      - "8765"
+    depends_on:
+      - api
 
   web:
     build: ../frontend

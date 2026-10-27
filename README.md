@@ -26,6 +26,10 @@ Garmin Connect est la source principale. **Intervals.icu** (clé personnelle : `
 
 Export Markdown, JSON versionné et CSV (séries), par période, par widget et par séance ; import d'un plan JSON produit par Claude (aperçu, confirmation, jours réalisés protégés). Voir [`docs/export.md`](docs/export.md) et [`docs/prompt-plan-claude.md`](docs/prompt-plan-claude.md).
 
+## Accès direct par Claude (MCP)
+
+Serveur MCP en lecture seule (profil, semaine, sorties, récupération, charge, plan, export) pour Claude Desktop sur un PC du tailnet, avec jeton partagé facultatif. Voir [`docs/mcp.md`](docs/mcp.md).
+
 ## Installation
 
 Détail pas à pas (Proxmox, Tailscale, clés OVH, DNS) : [`deploy/README.md`](deploy/README.md). En bref, sur l'hôte :

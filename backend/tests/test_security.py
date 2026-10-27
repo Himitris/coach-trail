@@ -136,3 +136,31 @@ def test_logs_never_contain_secrets(tmp_path: Path, capsys: pytest.CaptureFixtur
     assert output.strip(), "le test doit observer de vrais journaux"
     for canary in (canary_key, canary_password, "strava-CANARY-5555"):
         assert canary not in output
+
+
+# --- porte de lecture (API d'export + MCP) --------------------------------------------------------
+
+
+def test_export_routes_are_read_only(tmp_path: Path) -> None:
+    app = create_app(Settings(database_path=str(tmp_path / "r.db"), scheduler_enabled=False))
+    paths = {p: m for p, m in app.openapi()["paths"].items() if p.startswith("/api/export")}
+    assert len(paths) >= 4
+    for path, methods in paths.items():
+        assert set(methods) == {"get"}, path
+
+
+def test_mcp_service_is_internal_and_secret_comes_from_the_environment(
+    compose: dict[str, Any],
+) -> None:
+    mcp = compose["services"]["mcp"]
+    assert "ports" not in mcp and set(mcp["expose"]) == {"8765"}
+    assert mcp["environment"]["MCP_TOKEN"].startswith("${")
+    assert mcp["environment"]["MCP_API_URL"] == "http://api:8000"  # lit l'API, pas la base
+    assert all(
+        "/data" not in str(v) for v in mcp.get("volumes", [])
+    )  # aucun accès direct à la base
+
+
+def test_caddy_routes_mcp_to_the_internal_service() -> None:
+    caddyfile = (DEPLOY / "caddy" / "Caddyfile").read_text()
+    assert "handle /mcp*" in caddyfile and "reverse_proxy mcp:8765" in caddyfile

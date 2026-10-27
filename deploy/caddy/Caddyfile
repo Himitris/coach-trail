@@ -25,6 +25,13 @@
 		-Server
 	}
 
+	# Serveur MCP (lecture seule) pour Claude Desktop, via Tailscale uniquement.
+	handle /mcp* {
+		reverse_proxy mcp:8765 {
+			flush_interval -1
+		}
+	}
+
 	handle /api/* {
 		header Cache-Control "no-store"
 		reverse_proxy api:8000
