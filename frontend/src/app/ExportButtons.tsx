@@ -35,6 +35,8 @@ function useResultToast() {
   return (result: ExportResult, what: string) => {
     if (result.ok) notify(`${what} copié pour Claude (${result.chars} caractères).`);
     else if (result.reason === "empty") notify("Rien à exporter.");
+    else if (result.reason === "clipboard")
+      notify("Copie impossible (presse-papiers bloqué) : utilisez « Télécharger ».", "error");
     else notify("L'export a échoué.", "error");
   };
 }

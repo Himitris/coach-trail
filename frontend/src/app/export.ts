@@ -1,11 +1,36 @@
 import { fetchActivityExport, fetchExportText, type ExportFormat, type ExportPeriod } from "../api/endpoints";
 import type { WidgetDefinition, WidgetSettings } from "../widgets/types";
 
-export type ExportResult = { ok: true; chars: number } | { ok: false; reason: "empty" | "failed" };
+export type ExportResult = { ok: true; chars: number } | { ok: false; reason: "empty" | "failed" | "clipboard" };
+
+/** Copie via l'API moderne, sinon via un textarea temporaire (contexte non sécurisé, Safari après un await). */
+async function writeClipboard(text: string): Promise<boolean> {
+  try {
+    if (typeof navigator.clipboard?.writeText === "function") {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // refus du navigateur : repli ci-dessous
+  }
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.setAttribute("readonly", "");
+  area.style.cssText = "position:fixed;top:0;left:0;opacity:0;pointer-events:none";
+  document.body.appendChild(area);
+  area.select();
+  try {
+    return document.execCommand("copy");
+  } catch {
+    return false;
+  } finally {
+    area.remove();
+  }
+}
 
 async function copy(markdown: string): Promise<ExportResult> {
   if (!markdown.trim()) return { ok: false, reason: "empty" };
-  await navigator.clipboard.writeText(markdown);
+  if (!(await writeClipboard(markdown))) return { ok: false, reason: "clipboard" };
   return { ok: true, chars: markdown.length };
 }
 
