@@ -120,3 +120,52 @@ class SourceStatus(Base):
     unavailable_since: Mapped[datetime | None] = mapped_column(DateTime)
     state: Mapped[str | None] = mapped_column(String)  # ok|degraded|auth_required|down
     message: Mapped[str | None] = mapped_column(String)  # message lisible pour l'UI
+
+
+class EveningEntry(Base):
+    """Saisie du soir. kind='day' : courbatures / malade / note (une par jour) ;
+    kind='session' : RPE d'une séance (une par activité)."""
+
+    __tablename__ = "evening_entry"
+    __table_args__ = (
+        CheckConstraint("kind IN ('day', 'session')", name="ck_entry_kind"),
+        CheckConstraint(
+            "(kind = 'day' AND activity_id IS NULL AND rpe IS NULL)"
+            " OR (kind = 'session' AND rpe IS NOT NULL AND courbatures IS NULL"
+            " AND malade IS NULL AND note IS NULL)",
+            name="ck_entry_shape",
+        ),
+        CheckConstraint("rpe IS NULL OR (rpe >= 0 AND rpe <= 10)", name="ck_entry_rpe"),
+        CheckConstraint(
+            "courbatures IS NULL OR (courbatures >= 0 AND courbatures <= 10)",
+            name="ck_entry_courbatures",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    kind: Mapped[str] = mapped_column(String, nullable=False)
+    date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    activity_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("activity.id", ondelete="SET NULL"), unique=True
+    )
+    # copie du début de séance : permet de rattacher à nouveau la saisie après une reconstruction
+    activity_start_utc: Mapped[datetime | None] = mapped_column(DateTime)
+    rpe: Mapped[int | None] = mapped_column(Integer)
+    courbatures: Mapped[int | None] = mapped_column(Integer)
+    malade: Mapped[bool | None] = mapped_column(Boolean)
+    note: Mapped[str | None] = mapped_column(String)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
+class PlannedSession(Base):
+    __tablename__ = "planned_session"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    titre: Mapped[str] = mapped_column(String, nullable=False)
+    type: Mapped[str] = mapped_column(String, nullable=False)
+    objectif: Mapped[str | None] = mapped_column(String)
+    duree_min: Mapped[int | None] = mapped_column(Integer)
+    zone_cible: Mapped[str | None] = mapped_column(String)
+    dplus_cible: Mapped[int | None] = mapped_column(Integer)
+    consignes: Mapped[str | None] = mapped_column(String)

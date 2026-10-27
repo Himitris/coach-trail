@@ -20,6 +20,7 @@ from app.models import (
     SourceStatus,
     WellnessDaily,
 )
+from app.plan.entries import relink_entries
 from app.sync.dedup import assign_dedup_groups
 from app.sync.streams import encode_stream
 from app.sync.types import (
@@ -86,7 +87,7 @@ class RunReport:
 # --- normalisation (couche 2, reconstruisible depuis les bruts) -------------------------------
 
 
-def _apply_activity(session: Session, source: str, n: NormalizedActivity) -> None:
+def _apply_activity(session: Session, source: str, n: NormalizedActivity) -> Activity:
     act = session.scalars(
         select(Activity).where(Activity.source == source, Activity.external_id == n.external_id)
     ).first()
@@ -106,6 +107,8 @@ def _apply_activity(session: Session, source: str, n: NormalizedActivity) -> Non
         act.gear = n.gear
     if n.is_race:  # la synchro ne retire jamais un drapeau posé à la main
         act.is_race = True
+    session.flush()
+    return act
 
 
 def _apply_profile(session: Session, n: NormalizedProfile) -> None:
@@ -128,7 +131,10 @@ def _apply_profile(session: Session, n: NormalizedProfile) -> None:
 
 
 def normalize_raw(
-    session: Session, raw: RawPayload, normalizers: Mapping[str, SourceNormalizer]
+    session: Session,
+    raw: RawPayload,
+    normalizers: Mapping[str, SourceNormalizer],
+    seen_activities: set[int] | None = None,
 ) -> bool:
     """Applique le brut aux tables normalisées. False si la source n'a pas de normaliseur."""
     norm = normalizers.get(raw.source)
@@ -139,7 +145,9 @@ def normalize_raw(
     if raw.type == RAW_ACTIVITY:
         activity = norm.activity(raw.payload)
         if activity is not None:
-            _apply_activity(session, raw.source, activity)
+            saved = _apply_activity(session, raw.source, activity)
+            if seen_activities is not None:
+                seen_activities.add(saved.id)
     elif raw.type == RAW_STREAM:
         stream = norm.stream(raw.payload)
         act = session.scalars(
@@ -187,9 +195,14 @@ def normalize_raw(
 def rebuild_normalized(
     session: Session, normalizers: Mapping[str, SourceNormalizer]
 ) -> dict[str, int]:
-    """Reconstruit toutes les tables normalisées depuis raw_payload, sans appeler les API."""
+    """Reconstruit les tables normalisées depuis raw_payload, sans appeler les API.
+
+    Les activités sont mises à jour sur place (identifiants conservés : saisies du soir, matériel
+    et drapeau « course » restent rattachés) ; seules celles qui n'ont plus de brut sont retirées.
+    """
+    before = set(session.scalars(select(Activity.id)))
+    seen: set[int] = set()
     session.execute(delete(ActivityStream))
-    session.execute(delete(Activity))
     session.execute(delete(WellnessDaily))
     session.flush()
     counts = {"activities": 0, "streams": 0, "wellness": 0, "skipped": 0}
@@ -203,12 +216,16 @@ def rebuild_normalized(
             select(RawPayload).where(RawPayload.type == raw_type).order_by(RawPayload.id)
         )
         for raw in raws:
-            if normalize_raw(session, raw, normalizers):
+            if normalize_raw(session, raw, normalizers, seen):
                 counts[label] += 1
             else:
                 counts["skipped"] += 1
         session.flush()
+    stale = before - seen
+    if stale:
+        session.execute(delete(Activity).where(Activity.id.in_(stale)))
     assign_dedup_groups(session)
+    relink_entries(session)
     session.commit()
     return counts
 

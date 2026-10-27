@@ -93,3 +93,36 @@ Avant de commiter, **anonymiser** : remplacer `userProfilePK`, `userProfileId`, 
 (`startLatitude`, `startLongitude`, `locationName`), dates ramenées à 2026-10-04 si besoin, et
 vérifier avec `grep -rniE 'mail|@|token|latitude|longitude' tests/fixtures/garmin`. Réduire
 `activityDetailMetrics` à quelques échantillons. Aucun test ne doit appeler le réseau.
+
+## Saisies du soir et programme
+
+- `PUT /api/entries/{date}` : tout est optionnel, seuls les champs fournis changent (`null` efface).
+  `courbatures` (0–10), `malade`, `note` (une saisie par jour) ; `rpe` (0–10) = raccourci pour la
+  séance du jour quand il n'y en a qu'une, sinon `sessions: [{activity_id, rpe}]`. Une seule saisie
+  de RPE par séance réelle (doublons montre / Intervals.icu pris en compte). Dates futures refusées.
+  `GET /api/entries?from=&to=` (30 derniers jours par défaut). Le RPE alimente la charge sRPE
+  (RPE × minutes) de `/api/metrics/week`.
+- `/api/plan/sessions` (CRUD, `type` : footing, cotes, seuil, longue, fractionne, course, renfo,
+  repos, autre ; `zone_cible` « 2 » ou « 1-2 ») et `GET /api/plan/week?date=`. Descriptions
+  uniquement : rien n'est envoyé à la montre.
+- Les identifiants d'activité sont conservés par `rebuild-normalized` ; une saisie dont l'activité
+  aurait disparu est rattachée à nouveau d'après l'heure de début (±60 s).
+- Données de développement : `python -m app.cli seed-demo [--week AAAA-MM-JJ] [--force]`.
+
+### Règle de rapprochement prévu / réalisé
+
+Voir `app/plan/matching.py` (testée dans `tests/test_plan_matching.py`) :
+
+1. Séances réalisées d'un jour = activités dédupliquées de ce **jour local** (minuit local).
+2. Une séance prévue ne se rapproche que d'un sport compatible : course à pied pour footing / côtes /
+   seuil / longue / fractionné / course ; renforcement, fitness, HIIT, cardio indoor, pilates, yoga
+   pour renfo ; tout sport pour « autre ». Une activité marquée course est acceptée pour tous les
+   types de course à pied.
+3. Plusieurs séances prévues le même jour : de la plus longue à la plus courte, chacune prend
+   l'activité libre compatible dont la durée est la plus proche (une activité n'est utilisée qu'une
+   fois ; égalité : la plus tôt).
+4. Statuts : rapprochée → `partiel` si durée < 80 % du prévu, sinon `fait` ; non rapprochée →
+   `manqué` (jour passé) ou `à venir` (aujourd'hui et futur) ; repos prévu → `imprévu` s'il y a une
+   sortie, `fait` si le jour est passé sans activité, `à venir` sinon ; activité sans séance
+   prévue → `imprévu`.
+5. Écarts = réalisé − prévu (durée en minutes, D+ en mètres), absents si une valeur manque.

@@ -15,8 +15,8 @@ from app.config import Settings, get_settings
 from app.db import make_engine, make_session_factory
 from app.garmin.auth import LoginManager
 from app.logging import configure_logging
-from app.metrics.srpe import NullEntryReader
-from app.routes import garmin, goals, health, metrics, profile, sync
+from app.plan.entries import DbEntryReader
+from app.routes import entries, garmin, goals, health, metrics, plan, profile, sync
 from app.sync.registry import build_sources
 from app.sync.scheduler import build_scheduler
 from app.sync.service import SyncService
@@ -73,7 +73,7 @@ def create_app(
     app.state.session_factory = session_factory
     app.state.sync_service = sync_service
     app.state.scheduler = scheduler
-    app.state.entry_reader = NullEntryReader()  # remplacé par les saisies du soir (prompt 06)
+    app.state.entry_reader = DbEntryReader(session_factory)
     app.state.today = lambda: datetime.now(ZoneInfo(settings.tz)).date()
     app.state.garmin_login = login_manager or LoginManager(settings.garmin_token_dir)
     app.add_exception_handler(RequestValidationError, _validation_error)  # type: ignore[arg-type]
@@ -84,6 +84,8 @@ def create_app(
         sync.router,
         garmin.router,
         metrics.router,
+        entries.router,
+        plan.router,
     ):
         app.include_router(router, prefix="/api")
     return app
