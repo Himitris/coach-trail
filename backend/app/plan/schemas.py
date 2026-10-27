@@ -10,6 +10,8 @@ from pydantic import (
     model_validator,
 )
 
+from app.plan.workout import Conformity, DetectedWorkout
+
 SessionType = Literal[
     "footing", "cotes", "seuil", "longue", "fractionne", "course", "renfo", "repos", "autre"
 ]
@@ -112,6 +114,7 @@ class ActivityBrief(BaseModel):
     dplus_m: float | None
     hr_avg: int | None
     is_race: bool
+    workout: DetectedWorkout | None = None
 
 
 class PlannedOut(PlannedIn):
@@ -168,6 +171,8 @@ class SessionMatchOut(BaseModel):
     duration_delta_min: float | None
     duration_ratio: float | None
     dplus_delta_m: float | None
+    conformity: Conformity | None = None
+    conformity_reason: str | None = None
 
 
 class DayPlanOut(BaseModel):

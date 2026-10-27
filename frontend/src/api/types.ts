@@ -61,6 +61,22 @@ export interface Plan {
   nb_seances: number;
 }
 
+export type WorkoutType = "footing" | "cotes" | "seuil" | "longue" | "fractionne" | "course";
+export type Conformity = "atteint" | "partiel" | "ecart";
+
+/** Type de séance déduit de la FC (hypothèse) ou choisi à la main. */
+export interface DetectedWorkout {
+  type: WorkoutType;
+  label: string;
+  confidence: "faible" | "moyenne" | "bonne";
+  source: "calcul" | "manuel";
+  reasons: string[];
+  hard_min: number | null;
+  longest_block_min: number | null;
+  blocks: number | null;
+  evidence: { level: "etabli" | "indicatif" | "non_valide" | "avis_montre"; summary: string };
+}
+
 export interface ActivityBrief {
   id: number;
   sport: string;
@@ -70,6 +86,7 @@ export interface ActivityBrief {
   dplus_m: number | null;
   hr_avg: number | null;
   is_race: boolean;
+  workout?: DetectedWorkout | null;
 }
 
 export interface SessionMatch {
@@ -79,6 +96,8 @@ export interface SessionMatch {
   duration_delta_min: number | null;
   duration_ratio: number | null;
   dplus_delta_m: number | null;
+  conformity?: Conformity | null;
+  conformity_reason?: string | null;
 }
 
 export interface SessionRpe {

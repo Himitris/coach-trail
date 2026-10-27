@@ -133,6 +133,36 @@ describe("Panneau d'import", () => {
     });
   });
 
+  it("importe des séances de renforcement en ignorant les dates déjà connues", async () => {
+    const api = mockApi({
+      "GET /api/strength/sessions": () => ({ body: [{ id: 1, date: "2026-11-02" }] }),
+      "POST /api/strength/sessions": () => ({ body: { id: 2, date: "2026-11-05" } }),
+    });
+    mount("strength");
+    await paste('{"version":1,"renfo":[{"date":"2026-11-02"},{"date":"2026-11-05"}]}');
+    expect(await screen.findByText(/déjà enregistrée, ignorée/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Confirmer l'import" }));
+    await waitFor(() => { expect(api.callsTo("POST /api/strength/sessions")).toHaveLength(1); });
+    expect(api.callsTo("POST /api/strength/sessions")[0]?.body).toEqual({ date: "2026-11-05" });
+  });
+
+  it("rattache la nutrition à la sortie longue du jour, et refuse un jour sans sortie", async () => {
+    const point = { activity_id: 42, day: "2026-11-01", duration_h: 2.5, distance_km: 20, entry_id: null, carbs_g_per_h: null, carbs_total_g: null, gi_score: null, note: null, carbs_change_g_per_h: null };
+    const api = mockApi({
+      "GET /api/fueling/series": () => ({ body: { min_hours: 0.5, points: [point], missing: 1, evidence: { level: "indicatif", summary: "x" } } }),
+      "POST /api/fueling": () => ({ body: {} }),
+    });
+    mount("fueling");
+    await paste('{"version":1,"nutrition":[{"date":"2026-10-30","glucides_g_par_h":60,"score_digestif":4}]}');
+    expect(await screen.findByRole("alert")).toHaveTextContent(/aucune sortie assez longue/);
+
+    await userEvent.clear(screen.getByRole("textbox", { name: /collez la réponse/ }));
+    await paste('{"version":1,"nutrition":[{"date":"2026-11-01","glucides_g_par_h":60,"score_digestif":4}]}');
+    await userEvent.click(await screen.findByRole("button", { name: "Confirmer l'import" }));
+    await waitFor(() => { expect(api.callsTo("POST /api/fueling")).toHaveLength(1); });
+    expect(api.callsTo("POST /api/fueling")[0]?.body).toEqual({ activity_id: 42, glucides_g_par_h: 60, score_digestif: 4, note: null });
+  });
+
   it("propose le prompt de format, la phrase pour le coach et un exemple", () => {
     mockApi({});
     mount("week-plan");

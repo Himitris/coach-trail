@@ -9,12 +9,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.metrics.models import monday
-from app.metrics.service import load_rows
+from app.metrics.service import get_profile, hr_stream, load_rows
 from app.metrics.volume import ActivityRow
-from app.models import Goal, Plan, PlannedSession
+from app.models import ActivityWorkoutLabel, Goal, Plan, PlannedSession
 from app.plan.entries import read_entries
 from app.plan.matching import (
     A_VENIR,
+    RUN_SPORTS,
     DayMatch,
     PlannedRow,
     SessionResult,
@@ -34,9 +35,52 @@ from app.plan.schemas import (
     SessionMatchOut,
     WeekPlanOut,
 )
+from app.plan.workout import (
+    DetectedWorkout,
+    WorkoutInput,
+    classify_workout,
+    conformity,
+    manual_workout,
+)
 
 
-def brief(row: ActivityRow) -> ActivityBrief:
+def detect_workouts(session: Session, rows: Sequence[ActivityRow]) -> dict[int, DetectedWorkout]:
+    """Type de séance des sorties de course à pied données (choix manuel > calcul d'après la FC)."""
+    runs = [r for r in rows if r.sport in RUN_SPORTS or r.is_race]
+    if not runs:
+        return {}
+    fc_max = get_profile(session).fc_max
+    labels = {
+        label.activity_id: label.type
+        for label in session.scalars(
+            select(ActivityWorkoutLabel).where(
+                ActivityWorkoutLabel.activity_id.in_([r.id for r in runs])
+            )
+        )
+    }
+    out: dict[int, DetectedWorkout] = {}
+    for r in runs:
+        if r.id in labels:
+            out[r.id] = manual_workout(labels[r.id])
+            continue
+        stream = hr_stream(session, r.id)
+        found = classify_workout(
+            WorkoutInput(
+                duration_s=r.duration_s,
+                is_race=r.is_race,
+                hr_avg=r.hr_avg,
+                gain_m=r.gain_m,
+                t=stream[0] if stream else [],
+                hr=stream[1] if stream else [],
+            ),
+            fc_max,
+        )
+        if found:
+            out[r.id] = found
+    return out
+
+
+def brief(row: ActivityRow, workout: DetectedWorkout | None = None) -> ActivityBrief:
     return ActivityBrief(
         id=row.id,
         sport=row.sport,
@@ -46,6 +90,7 @@ def brief(row: ActivityRow) -> ActivityBrief:
         dplus_m=row.gain_m,
         hr_avg=row.hr_avg,
         is_race=row.is_race,
+        workout=workout,
     )
 
 
@@ -129,6 +174,7 @@ def _days(
     start: date,
     end: date,
     today: date,
+    with_workouts: bool = False,
 ) -> tuple[list[DayPlanOut], list[PlannedSession], list[ActivityRow]]:
     planned = list(
         session.scalars(
@@ -141,23 +187,34 @@ def _days(
     done = _by_day(rows)
     entries: dict[date, EntryOut] = {e.date: e for e in read_entries(session, start, end)}
     by_id = {p.id: p for p in planned}
+    workouts = detect_workouts(session, rows) if with_workouts else {}
 
     days: list[DayPlanOut] = []
     for offset in range((end - start).days + 1):
         day = start + timedelta(days=offset)
         day_planned = [p for p in planned if p.date == day]
         m = match_day(day, [to_row(p) for p in day_planned], done.get(day, []), today)
-        sessions = [
-            SessionMatchOut(
-                planned=planned_out(by_id[r.planned_id], r.status),
-                status=r.status,
-                activity=brief(r.activity) if r.activity else None,
-                duration_delta_min=r.duration_delta_min,
-                duration_ratio=r.duration_ratio,
-                dplus_delta_m=r.dplus_delta_m,
+        sessions = []
+        for r in m.results:
+            p = by_id[r.planned_id]
+            found = workouts.get(r.activity.id) if r.activity else None
+            verdict = (
+                conformity(p.type, p.duree_min, found, r.activity.duration_s / 60)
+                if found and r.activity
+                else None
             )
-            for r in m.results
-        ]
+            sessions.append(
+                SessionMatchOut(
+                    planned=planned_out(p, r.status),
+                    status=r.status,
+                    activity=brief(r.activity, found) if r.activity else None,
+                    duration_delta_min=r.duration_delta_min,
+                    duration_ratio=r.duration_ratio,
+                    dplus_delta_m=r.dplus_delta_m,
+                    conformity=verdict[0] if verdict else None,
+                    conformity_reason=verdict[1] if verdict else None,
+                )
+            )
         days.append(
             DayPlanOut(
                 date=day,
@@ -165,7 +222,7 @@ def _days(
                 is_today=day == today,
                 status=m.status,
                 sessions=sessions,
-                unplanned_activities=[brief(a) for a in m.unplanned],
+                unplanned_activities=[brief(a, workouts.get(a.id)) for a in m.unplanned],
                 entry=entries.get(day),
             )
         )
@@ -177,7 +234,7 @@ def week_plan(
 ) -> WeekPlanOut:
     start = monday(week_of)
     end = start + timedelta(days=6)
-    days, planned, rows = _days(session, priority, tz, start, end, today)
+    days, planned, rows = _days(session, priority, tz, start, end, today, with_workouts=True)
     return WeekPlanOut(
         week_start=start,
         week_end=end,

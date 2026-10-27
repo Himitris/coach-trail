@@ -1,7 +1,6 @@
 import { useCallback } from "react";
 import { Link, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { DashboardPage } from "../pages/DashboardPage";
-import { CalendarPage } from "../pages/CalendarPage";
 import { CoursesPage } from "../pages/CoursesPage";
 import { DocsPage } from "../pages/DocsPage";
 import { SourcesPage } from "../pages/SourcesPage";
@@ -80,7 +79,7 @@ export function Shell() {
         <Routes>
           <Route path="/" element={<HomeRedirect />} />
           <Route path="/p/:pageId" element={<DashboardPage />} />
-          <Route path="/calendrier" element={<CalendarPage />} />
+          <Route path="/calendrier" element={<Navigate to="/" replace />} />
           <Route path="/courses" element={<CoursesPage />} />
           <Route path="/sources" element={<SourcesPage />} />
           <Route path="/docs" element={<DocsPage />} />

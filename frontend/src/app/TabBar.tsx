@@ -5,25 +5,18 @@ import { MAX_PAGE_TITLE } from "../layout/reducer";
 import { useDashboard } from "./DashboardProvider";
 import { newId } from "./ids";
 import { shortcutLabel } from "./shortcuts";
-import { useSources } from "./useSources";
+import { NavMenu } from "./NavMenu";
 
 /** Barre d'onglets fixe : une page par onglet, glisser pour réordonner, menu ⋯ pour le reste. */
 export function TabBar() {
   const { layout, dispatch } = useDashboard();
   const navigate = useNavigate();
   const pageMatch = useMatch("/p/:pageId");
-  const sourcesMatch = useMatch("/sources");
-  const calendarMatch = useMatch("/calendrier");
-  const coursesMatch = useMatch("/courses");
-  const importMatch = useMatch("/importer");
-  const docsMatch = useMatch("/docs");
-  const sources = useSources();
   const activeId = pageMatch?.params.pageId;
   const [menuId, setMenuId] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
-  const attention = (sources.data ?? []).some((s) => s.state === "auth_required" || s.state === "down");
 
   const createPage = () => {
     const id = newId();
@@ -128,23 +121,7 @@ export function TabBar() {
           +
         </button>
       </div>
-      <div className="tabs-links">
-        <Link to="/calendrier" className={`tab tab-sources${calendarMatch ? " tab-active" : ""}`} title="Calendrier du plan, semaine ou mois">
-          Calendrier
-        </Link>
-        <Link to="/courses" className={`tab tab-sources${coursesMatch ? " tab-active" : ""}`} title="Courses et plans attribués">
-          Courses
-        </Link>
-        <Link to="/importer" className={`tab tab-sources${importMatch ? " tab-active" : ""}`} title="Importer un plan, des courses, des saisies ou du matériel produits par Claude">
-          Importer
-        </Link>
-        <Link to="/docs" className={`tab tab-sources${docsMatch ? " tab-active" : ""}`} title="Widgets, imports et prompts">
-          Doc
-        </Link>
-        <Link to="/sources" className={`tab tab-sources${sourcesMatch ? " tab-active" : ""}`}>
-          Sources{attention && <span className="dot dot-warn" aria-label="Attention requise" />}
-        </Link>
-      </div>
+      <NavMenu />
     </nav>
   );
 }

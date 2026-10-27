@@ -1,15 +1,16 @@
 from collections.abc import Callable
-from datetime import date, timedelta
-from typing import Annotated
+from datetime import UTC, date, datetime, timedelta
+from typing import Annotated, Literal
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.metrics.models import monday
-from app.models import PlannedSession
+from app.models import Activity, ActivityWorkoutLabel, PlannedSession
 from app.plan import importer, service
 from app.plan.plans import refresh_bounds
 from app.plan.schemas import PlannedIn, PlannedOut, RangePlanOut, WeekPlanOut
@@ -194,3 +195,35 @@ def _import_errors(issues: list[importer.ImportIssue]) -> JSONResponse:
             }
         },
     )
+
+
+class WorkoutTypeIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["footing", "cotes", "seuil", "longue", "fractionne", "course"] | None
+
+
+@router.put("/activities/{activity_id}/workout-type", status_code=204)
+def set_workout_type(
+    activity_id: int, body: WorkoutTypeIn, db: Annotated[Session, Depends(get_db)]
+) -> Response:
+    """Corrige à la main le type d'une sortie (`null` : revient au type calculé)."""
+    if db.get(Activity, activity_id) is None:
+        raise HTTPException(404, "Activité introuvable.")
+    label = db.get(ActivityWorkoutLabel, activity_id)
+    if body.type is None:
+        if label is not None:
+            db.delete(label)
+    elif label is None:
+        db.add(
+            ActivityWorkoutLabel(
+                activity_id=activity_id,
+                type=body.type,
+                updated_at=datetime.now(UTC).replace(tzinfo=None),
+            )
+        )
+    else:
+        label.type = body.type
+        label.updated_at = datetime.now(UTC).replace(tzinfo=None)
+    db.commit()
+    return Response(status_code=204)

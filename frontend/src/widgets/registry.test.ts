@@ -48,7 +48,8 @@ describe("page d'accueil par défaut", () => {
     // ordinateur : programme et charge côte à côte ; téléphone : tout en pleine largeur, empilé
     const lg = page?.layouts.lg ?? [];
     expect(lg[0]).toMatchObject({ x: 0, y: 0 });
-    expect(lg[1]).toMatchObject({ x: 6, y: 0 });
+    expect(lg[0]).toMatchObject({ w: 12 }); // le programme est un bandeau pleine largeur
+    expect(lg[1]).toMatchObject({ x: 0, y: 6 });
     const sm = page?.layouts.sm ?? [];
     expect(sm.every((i) => i.x === 0 && i.w === 4)).toBe(true);
     expect(new Set(sm.map((i) => i.y)).size).toBe(5);

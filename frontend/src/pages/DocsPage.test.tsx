@@ -110,7 +110,7 @@ describe("Markdown de la documentation", () => {
   it("décrit l'import unique, les pages et les règles métriques", () => {
     expect(doc).toContain(GLOBAL_EXAMPLE);
     expect(doc).toContain("Import unique");
-    expect(doc).toMatch(/Courses.*Calendrier/s);
+    expect(doc).toMatch(/Courses.*Menu/s);
     expect(doc).toContain("`&` `é`");
     expect(doc).toContain("Vérifier les nouveautés");
     expect(doc).toContain("Pas d'alerte de blessure");

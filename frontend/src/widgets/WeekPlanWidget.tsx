@@ -4,16 +4,20 @@ import {
   createPlanSession,
   deletePlanSession,
   fetchPlanWeek,
+  setWorkoutType,
   updatePlanSession,
 } from "../api/endpoints";
 import type {
   ActivityBrief,
+  Conformity,
+  DetectedWorkout,
   DayPlan,
   PlannedInput,
   PlannedSession,
   PlanStatus,
   SessionMatch,
   SessionType,
+  WorkoutType,
 } from "../api/types";
 import { addDays, formatDay, formatDuration, formatKm, formatMeters, formatSigned } from "../app/format";
 import { EvidenceBadge } from "./common";
@@ -61,11 +65,92 @@ export function gapText(m: SessionMatch): string | null {
   return parts.length ? parts.join(" · ") : null;
 }
 
-function SessionRow({ match, onEdit }: { match: SessionMatch; onEdit: (p: PlannedSession) => void }) {
+const WORKOUT_OPTIONS: { value: WorkoutType; label: string }[] = [
+  { value: "footing", label: "Footing" },
+  { value: "longue", label: "Sortie longue" },
+  { value: "seuil", label: "Seuil" },
+  { value: "fractionne", label: "Fractionné" },
+  { value: "cotes", label: "Côtes" },
+  { value: "course", label: "Course" },
+];
+
+const CONFORMITY_CHIP: Record<Conformity, { text: string; cls: string }> = {
+  atteint: { text: "objectif atteint", cls: "done" },
+  partiel: { text: "objectif partiel", cls: "partial" },
+  ecart: { text: "couru, hors objectif", cls: "missed" },
+};
+
+export function ConformityChip({ conformity, reason }: { conformity: Conformity | null | undefined; reason?: string | null }) {
+  if (!conformity) return null;
+  const chip = CONFORMITY_CHIP[conformity];
+  return (
+    <span className={`chip chip-${chip.cls}`} title={reason ?? undefined}>
+      {chip.text}
+    </span>
+  );
+}
+
+/** Type de la sortie réalisée : calculé d'après la FC (hypothèse), corrigeable à la main. */
+function WorkoutLine({ activityId, workout }: { activityId: number; workout: DetectedWorkout }) {
+  const queryClient = useQueryClient();
+  const change = useMutation({
+    mutationFn: (type: WorkoutType | null) => setWorkoutType(activityId, type),
+    onSettled: () => invalidateTraining(queryClient),
+  });
+  return (
+    <div className="plan-workout">
+      <label>
+        <span className="muted">
+          {workout.source === "manuel" ? "Type choisi" : `Type détecté (confiance ${workout.confidence})`}
+        </span>
+        <select
+          aria-label="Type de la séance réalisée"
+          value={workout.type}
+          disabled={change.isPending}
+          onChange={(event) => { change.mutate(event.target.value as WorkoutType); }}
+        >
+          {WORKOUT_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+      </label>
+      {workout.source === "manuel" && (
+        <button type="button" className="btn btn-small" onClick={() => { change.mutate(null); }}>
+          Recalculer
+        </button>
+      )}
+      {workout.reasons[0] && <span className="muted plan-workout-why">{workout.reasons[0]}</span>}
+      {change.isError && <span className="form-error" role="alert">{change.error.message}</span>}
+    </div>
+  );
+}
+
+const DRAG_TYPE = "application/x-coach-trail-session";
+
+function SessionRow({
+  match,
+  onEdit,
+  onDragStateChange,
+}: {
+  match: SessionMatch;
+  onEdit: (p: PlannedSession) => void;
+  onDragStateChange: (planned: PlannedSession | null) => void;
+}) {
   const { planned, activity } = match;
   const gap = gapText(match);
   return (
-    <div className="plan-session">
+    <div
+      className="plan-session plan-session-draggable"
+      draggable
+      title="Glisser vers un autre jour pour décaler la séance"
+      onDragStart={(event) => {
+        event.dataTransfer.setData(DRAG_TYPE, String(planned.id));
+        event.dataTransfer.setData("text/plain", planned.titre);
+        event.dataTransfer.effectAllowed = "move";
+        onDragStateChange(planned);
+      }}
+      onDragEnd={() => { onDragStateChange(null); }}
+    >
       <button type="button" className="plan-planned" onClick={() => { onEdit(planned); }}>
         <strong>{planned.titre}</strong>
         <span className="muted">
@@ -83,7 +168,14 @@ function SessionRow({ match, onEdit }: { match: SessionMatch; onEdit: (p: Planne
           <span className="muted">—</span>
         )}
       </div>
-      <StatusChip status={match.status} />
+      <div className="plan-chips">
+        <StatusChip status={match.status} />
+        <ConformityChip conformity={match.conformity} reason={match.conformity_reason} />
+      </div>
+      {activity?.workout && <WorkoutLine activityId={activity.id} workout={activity.workout} />}
+      {match.conformity_reason && match.conformity === "ecart" && (
+        <p className="plan-conformity-note">{match.conformity_reason}</p>
+      )}
     </div>
   );
 }
@@ -93,14 +185,41 @@ function DayBlock({
   onEdit,
   onAdd,
   highlighted,
+  dragging,
+  onDragStateChange,
+  onMove,
 }: {
   day: DayPlan;
   onEdit: (p: PlannedSession) => void;
   onAdd: (date: string) => void;
   highlighted?: boolean;
+  /** Séance en cours de glisser (null : aucune). */
+  dragging: PlannedSession | null;
+  onDragStateChange: (planned: PlannedSession | null) => void;
+  onMove: (planned: PlannedSession, date: string) => void;
 }) {
+  const [over, setOver] = useState(false);
+  const accepts = dragging !== null && dragging.date !== day.date;
   return (
-    <section className={`plan-day${highlighted ? " plan-day-today" : ""}`} aria-label={day.weekday}>
+    <section
+      className={`plan-day${highlighted ? " plan-day-today" : ""}${accepts ? " plan-day-droppable" : ""}${over && accepts ? " plan-day-over" : ""}`}
+      aria-label={day.weekday}
+      onDragOver={(event) => {
+        if (!accepts) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        setOver(true);
+      }}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOver(false);
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        setOver(false);
+        if (dragging && accepts) onMove(dragging, day.date);
+        onDragStateChange(null);
+      }}
+    >
       <header>
         <h3>
           {highlighted && <span className="plan-today-tag">Aujourd'hui · </span>}
@@ -118,13 +237,14 @@ function DayBlock({
         </button>
       </header>
       {day.sessions.map((m) => (
-        <SessionRow key={m.planned.id} match={m} onEdit={onEdit} />
+        <SessionRow key={m.planned.id} match={m} onEdit={onEdit} onDragStateChange={onDragStateChange} />
       ))}
       {day.unplanned_activities.map((a) => (
         <div className="plan-session" key={a.id}>
           <span className="plan-planned muted">Sortie non prévue</span>
           <div className="plan-done">{activityText(a)}</div>
           <StatusChip status="imprévu" />
+          {a.workout && <WorkoutLine activityId={a.id} workout={a.workout} />}
         </div>
       ))}
       {highlighted && day.sessions.some((s) => s.planned.consignes) && (
@@ -162,8 +282,29 @@ export function WeekPlanWidget() {
   const [weekDate, setWeekDate] = useState<string | undefined>(undefined);
   const query = useWeekPlan(weekDate);
   const [editing, setEditing] = useState<PlannedSession | { date: string } | null>(null);
+  const [dragging, setDragging] = useState<PlannedSession | null>(null);
+  const queryClient = useQueryClient();
+  const move = useMutation({
+    mutationFn: ({ planned, date }: { planned: PlannedSession; date: string }) =>
+      updatePlanSession(planned.id, {
+        date,
+        titre: planned.titre,
+        type: planned.type,
+        objectif: planned.objectif,
+        duree_min: planned.duree_min,
+        zone_cible: planned.zone_cible,
+        dplus_cible: planned.dplus_cible,
+        consignes: planned.consignes,
+      }),
+    onSettled: () => invalidateTraining(queryClient),
+  });
   return (
     <>
+      {move.isError && (
+        <p className="form-error" role="alert">
+          Le déplacement a échoué : {move.error.message}
+        </p>
+      )}
       {query.data && <WeekNav start={query.data.week_start} current={weekDate === undefined} onGo={setWeekDate} />}
       <WidgetData
         query={query}
@@ -171,7 +312,6 @@ export function WeekPlanWidget() {
         emptyMessage="Aucune séance prévue ni réalisée cette semaine."
       >
         {(week) => {
-          const today = week.days.find((d) => d.is_today);
           return (
             <div className="plan">
               <p className="plan-summary">
@@ -179,12 +319,20 @@ export function WeekPlanWidget() {
                 <strong>{formatDuration(week.planned_min)}</strong> · réalisé{" "}
                 <strong>{formatDuration(week.done_min)}</strong>
               </p>
-              {today && <DayBlock day={today} highlighted onEdit={setEditing} onAdd={(date) => { setEditing({ date }); }} />}
-              {week.days
-                .filter((d) => !d.is_today)
-                .map((d) => (
-                  <DayBlock key={d.date} day={d} onEdit={setEditing} onAdd={(date) => { setEditing({ date }); }} />
-                ))}
+              <div className="plan-days">
+              {week.days.map((d) => (
+                <DayBlock
+                  key={d.date}
+                  day={d}
+                  highlighted={d.is_today}
+                  onEdit={setEditing}
+                  onAdd={(date) => { setEditing({ date }); }}
+                  dragging={dragging}
+                  onDragStateChange={setDragging}
+                  onMove={(planned, date) => { move.mutate({ planned, date }); }}
+                />
+              ))}
+              </div>
               <p className="evidence-note">
                 <EvidenceBadge evidence={{ level: "etabli", summary: "Rapprochement par date locale et sport compatible ; « partiel » sous 80 % de la durée prévue." }} />{" "}
                 Descriptions uniquement : rien n'est envoyé à la montre.
@@ -356,7 +504,7 @@ registerWidget({
   id: "week-plan",
   title: "Programme de la semaine",
   description: "La séance du jour, les 7 jours avec leur statut, et le réalisé à côté du prévu.",
-  defaultSize: { w: 6, h: 9 },
+  defaultSize: { w: 12, h: 6 },
   minSize: { w: 4, h: 4 },
   defaultSettings: {},
   settingsSchema: [],

@@ -51,7 +51,7 @@ export function DocsPage() {
       <h2 id="principe">Principe</h2>
       <p>
         Le coach (ton projet Claude) décide ; l'appli <strong>garde et affiche</strong> ce qu'il a dit. Tu importes le plan validé
-        une fois, tu le retrouves ensuite dans le <Link to="/calendrier">Calendrier</Link> et sur la page{" "}
+        une fois, tu le retrouves ensuite dans le « Programme de la semaine » et sur la page{" "}
         <Link to="/courses">Courses</Link>, sans fouiller la conversation. Tu exportes vers Claude seulement quand tu le décides.
       </p>
       <p className="hint">

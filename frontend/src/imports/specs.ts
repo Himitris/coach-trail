@@ -1,5 +1,17 @@
 import { ApiError } from "../api/client";
-import { createGear, createGoal, fetchGear, fetchGoals, importPlan, putEntry } from "../api/endpoints";
+import {
+  addStrengthSession,
+  createFueling,
+  createGear,
+  createGoal,
+  fetchFuelingSeries,
+  fetchGear,
+  fetchGoals,
+  fetchStrengthSessions,
+  importPlan,
+  putEntry,
+  updateFueling,
+} from "../api/endpoints";
 import { formatDay } from "../app/format";
 import { invalidateTraining } from "../widgets/queries";
 import type { ImportContext, ImportPreview, ImportSpec } from "./types";
@@ -440,6 +452,177 @@ const gearSpec: ImportSpec = {
   },
 };
 
+// --- Renforcement ------------------------------------------------------------------------------
+
+const STRENGTH_FORMAT = `Réponds uniquement avec un bloc de code JSON, sans commentaire autour, au format exact (version 1) :
+{
+  "version": 1,
+  "renfo": [
+    { "date": "2026-11-02" },
+    { "date": "2026-11-05" }
+  ]
+}
+
+Règles :
+- Une entrée par séance de renforcement faite (« date » au format AAAA-MM-JJ, obligatoire). Aucun autre champ.
+- Les dates déjà enregistrées sont ignorées.`;
+
+const STRENGTH_EXAMPLE = `{
+  "version": 1,
+  "renfo": [
+    { "date": "2026-11-02" },
+    { "date": "2026-11-05" }
+  ]
+}`;
+
+function checkStrength(doc: unknown): { errors: string[]; dates: string[] } {
+  const errors: string[] = [];
+  checkRoot(doc, ["renfo"], errors);
+  const dates: string[] = [];
+  listOf(doc, "renfo", errors).forEach((raw, i) => {
+    const where = `Séance ${i + 1}`;
+    if (!isObject(raw)) {
+      errors.push(`${where} : doit être un objet JSON.`);
+      return;
+    }
+    checkUnknownKeys(raw, ["date"], where, errors);
+    if (checkDate(raw.date, where, errors)) dates.push(raw.date);
+  });
+  return { errors, dates };
+}
+
+async function newStrength(dates: string[]) {
+  const sorted = [...dates].sort();
+  const known = new Set((await fetchStrengthSessions(sorted[0] ?? "", sorted[sorted.length - 1] ?? "")).map((s) => s.date));
+  const seen = new Set<string>();
+  return dates.map((date) => {
+    const skip = known.has(date) || seen.has(date);
+    seen.add(date);
+    return { date, known: skip };
+  });
+}
+
+const strengthSpec: ImportSpec = {
+  widgetId: "strength",
+  label: "Séances de renforcement",
+  format: "Des dates de séances de renforcement faites. Les dates déjà enregistrées sont ignorées.",
+  prompt: `Extrais du document ci-joint mes séances de renforcement musculaire faites, pour mon application Coach Trail.\n\n${STRENGTH_FORMAT}`,
+  coachSentence: `Peux-tu me renvoyer les dates de mes séances de renforcement sous forme d'un JSON au format ci-dessous ?\n\n${STRENGTH_EXAMPLE}`,
+  example: STRENGTH_EXAMPLE,
+  sectionKeys: ["renfo"],
+  rules: rulesOf(STRENGTH_FORMAT),
+  async preview(doc) {
+    const { errors, dates } = checkStrength(doc);
+    if (errors.length) return { errors, lines: [] };
+    const rows = await newStrength(dates);
+    return {
+      errors: [],
+      lines: rows.map((r) => `${formatDay(r.date)} : ${r.known ? "déjà enregistrée, ignorée" : "sera ajoutée"}`),
+      nothingToDo: rows.every((r) => r.known),
+    };
+  },
+  async apply(doc, ctx) {
+    const { dates } = checkStrength(doc);
+    const rows = (await newStrength(dates)).filter((r) => !r.known);
+    for (const r of rows) await addStrengthSession(r.date);
+    await ctx.queryClient.invalidateQueries({ queryKey: ["metrics", "strength"] });
+    return `${rows.length} séance(s) de renforcement ajoutée(s).`;
+  },
+};
+
+// --- Nutrition en course -----------------------------------------------------------------------
+
+const FUELING_FORMAT = `Réponds uniquement avec un bloc de code JSON, sans commentaire autour, au format exact (version 1) :
+{
+  "version": 1,
+  "nutrition": [
+    { "date": "2026-11-01", "glucides_g_par_h": 60, "score_digestif": 4, "note": "Gels + boisson, aucun souci" }
+  ]
+}
+
+Règles :
+- Une entrée par sortie longue (plus de 30 min), rattachée à la sortie la plus longue de la date « date » (AAAA-MM-JJ, obligatoire).
+- « glucides_g_par_h » : nombre de 0 à 300, obligatoire. « score_digestif » : entier de 0 (très mauvais) à 5 (parfait), obligatoire. « note » : texte de 300 caractères au plus, facultatif.
+- Aucun autre champ. Une nutrition déjà saisie pour la sortie est remplacée.`;
+
+const FUELING_EXAMPLE = `{
+  "version": 1,
+  "nutrition": [
+    { "date": "2026-11-01", "glucides_g_par_h": 60, "score_digestif": 4, "note": "Gels + boisson, aucun souci" }
+  ]
+}`;
+
+const FUELING_FIELDS = ["date", "glucides_g_par_h", "score_digestif", "note"];
+
+function checkFueling(doc: unknown): { errors: string[]; items: Record<string, unknown>[] } {
+  const errors: string[] = [];
+  checkRoot(doc, ["nutrition"], errors);
+  const items: Record<string, unknown>[] = [];
+  listOf(doc, "nutrition", errors).forEach((raw, i) => {
+    const where = `Sortie ${i + 1}`;
+    if (!isObject(raw)) {
+      errors.push(`${where} : doit être un objet JSON.`);
+      return;
+    }
+    checkUnknownKeys(raw, FUELING_FIELDS, where, errors);
+    checkDate(raw.date, where, errors);
+    if (typeof raw.glucides_g_par_h !== "number") errors.push(`${where} : « glucides_g_par_h » est obligatoire (nombre de 0 à 300).`);
+    else checkNumber(raw.glucides_g_par_h, "glucides_g_par_h", 0, 300, where, errors);
+    if (typeof raw.score_digestif !== "number") errors.push(`${where} : « score_digestif » est obligatoire (entier de 0 à 5).`);
+    else checkInt(raw.score_digestif, "score_digestif", 0, 5, where, errors);
+    checkText(raw.note, "note", 300, where, errors);
+    items.push(raw);
+  });
+  return { errors, items };
+}
+
+async function matchFueling(items: Record<string, unknown>[]) {
+  const series = await fetchFuelingSeries(0.5);
+  return items.map((item) => {
+    const day = String(item.date);
+    const outing = series.points.filter((p) => p.day === day).sort((a, b) => b.duration_h - a.duration_h)[0];
+    return { item, outing };
+  });
+}
+
+const fuelingSpec: ImportSpec = {
+  widgetId: "fueling",
+  label: "Nutrition en course",
+  format: "Glucides par heure et confort digestif des sorties longues, rattachés à la sortie la plus longue du jour.",
+  prompt: `Extrais du document ci-joint ma nutrition pendant mes sorties longues, pour mon application Coach Trail.\n\n${FUELING_FORMAT}`,
+  coachSentence: `Peux-tu me renvoyer ma nutrition par sortie longue (glucides par heure, confort digestif) sous forme d'un JSON au format ci-dessous ?\n\n${FUELING_EXAMPLE}`,
+  example: FUELING_EXAMPLE,
+  sectionKeys: ["nutrition"],
+  rules: rulesOf(FUELING_FORMAT),
+  async preview(doc) {
+    const { errors, items } = checkFueling(doc);
+    if (errors.length) return { errors, lines: [] };
+    const rows = await matchFueling(items);
+    const missing = rows.filter((r) => !r.outing).map((r) => `${formatDay(String(r.item.date))} : aucune sortie assez longue ce jour-là.`);
+    if (missing.length) return { errors: missing, lines: [] };
+    return {
+      errors: [],
+      lines: rows.map((r) => `${formatDay(String(r.item.date))} — ${String(r.item.glucides_g_par_h)} g/h : ${r.outing?.entry_id ? "remplacera la saisie existante" : "sera ajoutée"}`),
+    };
+  },
+  async apply(doc, ctx) {
+    const { items } = checkFueling(doc);
+    const rows = await matchFueling(items);
+    for (const { item, outing } of rows) {
+      if (!outing) continue;
+      const body = {
+        glucides_g_par_h: item.glucides_g_par_h as number,
+        score_digestif: item.score_digestif as number,
+        note: (item.note as string | undefined) ?? null,
+      };
+      if (outing.entry_id) await updateFueling(outing.entry_id, body);
+      else await createFueling(outing.activity_id, body);
+    }
+    await ctx.queryClient.invalidateQueries({ queryKey: ["fueling"] });
+    return `${rows.length} nutrition(s) importée(s).`;
+  },
+};
+
 // --- Note libre --------------------------------------------------------------------------------
 
 const NOTE_FORMAT = `Réponds uniquement avec le texte de la note, en markdown simple (titres #, listes -, liens), sans bloc de code ni commentaire autour.
@@ -479,7 +662,7 @@ const noteSpec: ImportSpec = {
   },
 };
 
-const SPECS: ImportSpec[] = [planSpec, entrySpec, goalSpec, gearSpec, noteSpec];
+const SPECS: ImportSpec[] = [planSpec, entrySpec, goalSpec, gearSpec, strengthSpec, fuelingSpec, noteSpec];
 
 export function getImportSpec(widgetId: string): ImportSpec | undefined {
   return SPECS.find((s) => s.widgetId === widgetId);

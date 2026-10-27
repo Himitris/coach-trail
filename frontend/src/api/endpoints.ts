@@ -21,6 +21,7 @@ import type {
   StrengthReport,
   IntensityReport,
   PlannedInput,
+  WorkoutType,
   PlannedSession,
   RecoveryMetrics,
   WeekMetrics,
@@ -105,6 +106,10 @@ export const createPlanSession = (body: PlannedInput): Promise<PlannedSession> =
 
 export const updatePlanSession = (id: number, body: PlannedInput): Promise<PlannedSession> =>
   request("PUT", `/api/plan/sessions/${id}`, { body });
+
+/** Corrige à la main le type d'une sortie ; `null` revient au type calculé. */
+export const setWorkoutType = (activityId: number, type: WorkoutType | null): Promise<null> =>
+  request("PUT", `/api/plan/activities/${activityId}/workout-type`, { body: { type } });
 
 export const deletePlanSession = (id: number): Promise<null> =>
   request("DELETE", `/api/plan/sessions/${id}`);
@@ -252,6 +257,9 @@ export const fetchStrength = (weeks: number): Promise<StrengthReport> =>
 
 export const addStrengthSession = (date: string): Promise<unknown> =>
   request("POST", "/api/strength/sessions", { body: { date } });
+
+export const fetchStrengthSessions = (from: string, to: string): Promise<{ id: number; date: string }[]> =>
+  request("GET", `/api/strength/sessions${search({ from, to })}`);
 
 export const setStrengthTarget = (target: number | null): Promise<unknown> =>
   request("PUT", "/api/profile", { body: { renfo_objectif_hebdo: target } });

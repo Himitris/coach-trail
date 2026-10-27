@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { DetectedWorkout } from "../api/types";
 import { day, match, planned, totals, weekMetrics, weekPlan } from "../test/fixtures";
 import { mockApi } from "../test/mockApi";
 import { renderWithApp, widgetProps } from "../test/render";
@@ -45,6 +46,91 @@ describe("Programme de la semaine", () => {
       { status: "à venir", sessions: [match({ planned: planned({ id: 3, date: "2026-10-28", titre: "Seuil 3 × 8 min", type: "seuil", type_label: "Seuil" }) })] },
       { status: "imprévu", unplanned_activities: [{ ...brief, id: 9, sport: "cycling" }] },
     ]);
+
+  it("garde les jours dans l'ordre de la semaine, le jour courant étant seulement mis en évidence", async () => {
+    mockApi({ "GET /api/plan/week": () => ({ body: plan() }) });
+    renderWithApp(<WeekPlanWidget />);
+    await screen.findByRole("region", { name: "mardi" });
+    const order = screen.getAllByRole("region").map((r) => r.getAttribute("aria-label"));
+    expect(order).toEqual(["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]);
+  });
+
+  it("montre le type détecté, la validation de l'objectif, et permet de corriger le type", async () => {
+    const workout: DetectedWorkout = {
+      type: "footing",
+      label: "Footing",
+      confidence: "bonne",
+      source: "calcul",
+      reasons: ["FC sous 85 % de la FC max presque tout le long (0 min au-dessus)."],
+      hard_min: 0,
+      longest_block_min: 0,
+      blocks: 0,
+      evidence: { level: "indicatif", summary: "hypothèse" },
+    };
+    const body = weekPlan([
+      {
+        is_today: true,
+        status: "fait",
+        sessions: [
+          match({
+            planned: planned({ id: 3, titre: "Seuil 40 min", type: "seuil", type_label: "Seuil" }),
+            status: "fait",
+            activity: { ...brief, workout },
+            conformity: "ecart",
+            conformity_reason: "Prévu « seuil », mais la FC est restée sous le seuil : séance facile.",
+          }),
+        ],
+      },
+    ]);
+    const api = mockApi({
+      "GET /api/plan/week": () => ({ body }),
+      "PUT /api/plan/activities/7/workout-type": () => ({ status: 204, body: null }),
+    });
+    renderWithApp(<WeekPlanWidget />);
+    expect(await screen.findByText("couru, hors objectif")).toBeInTheDocument();
+    expect(screen.getByText(/FC est restée sous le seuil/)).toBeInTheDocument();
+    const select = screen.getByRole("combobox", { name: "Type de la séance réalisée" });
+    expect(select).toHaveValue("footing");
+    await userEvent.selectOptions(select, "seuil");
+    await waitFor(() => { expect(api.callsTo("PUT /api/plan/activities/7/workout-type")).toHaveLength(1); });
+    expect(api.callsTo("PUT /api/plan/activities/7/workout-type")[0]?.body).toEqual({ type: "seuil" });
+  });
+
+  it("décaler une séance à la souris envoie la nouvelle date avec tous ses champs", async () => {
+    const api = mockApi({
+      "GET /api/plan/week": () => ({ body: plan() }),
+      "PUT /api/plan/sessions/3": ({ body }) => ({ body: { ...(body as object), id: 3, type_label: "Seuil", status: "à venir" } }),
+    });
+    renderWithApp(<WeekPlanWidget />);
+    const wednesday = await screen.findByRole("region", { name: "mercredi" });
+    const thursday = screen.getByRole("region", { name: "jeudi" });
+    const row = within(wednesday).getByText("Seuil 3 × 8 min").closest(".plan-session") as HTMLElement;
+    const store: Record<string, string> = {};
+    const dataTransfer = { setData: (k: string, v: string) => { store[k] = v; }, getData: (k: string) => store[k] ?? "", effectAllowed: "", dropEffect: "" };
+
+    fireEvent.dragStart(row, { dataTransfer });
+    fireEvent.dragOver(thursday, { dataTransfer });
+    fireEvent.drop(thursday, { dataTransfer });
+
+    await waitFor(() => { expect(api.callsTo("PUT /api/plan/sessions/3")).toHaveLength(1); });
+    expect(api.callsTo("PUT /api/plan/sessions/3")[0]?.body).toMatchObject({
+      date: "2026-10-29",
+      titre: "Seuil 3 × 8 min",
+      type: "seuil",
+    });
+  });
+
+  it("déposer une séance sur son propre jour ne fait rien", async () => {
+    const api = mockApi({ "GET /api/plan/week": () => ({ body: plan() }) });
+    renderWithApp(<WeekPlanWidget />);
+    const wednesday = await screen.findByRole("region", { name: "mercredi" });
+    const row = within(wednesday).getByText("Seuil 3 × 8 min").closest(".plan-session") as HTMLElement;
+    const dataTransfer = { setData: () => undefined, getData: () => "", effectAllowed: "", dropEffect: "" };
+    fireEvent.dragStart(row, { dataTransfer });
+    fireEvent.drop(wednesday, { dataTransfer });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(api.calls.filter((c) => c.method === "PUT")).toHaveLength(0);
+  });
 
   it("met en avant le jour, affiche les statuts et le réalisé à côté du prévu", async () => {
     mockApi({ "GET /api/plan/week": () => ({ body: plan() }) });

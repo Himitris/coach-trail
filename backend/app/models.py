@@ -271,3 +271,15 @@ class GearAssignment(Base):
     gear_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("gear_item.id", ondelete="CASCADE"), nullable=False, index=True
     )
+
+
+class ActivityWorkoutLabel(Base):
+    """Type de séance choisi à la main pour une activité (prime sur le type calculé)."""
+
+    __tablename__ = "activity_workout_label"
+
+    activity_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("activity.id", ondelete="CASCADE"), primary_key=True
+    )
+    type: Mapped[str] = mapped_column(String, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

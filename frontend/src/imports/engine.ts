@@ -93,6 +93,8 @@ const SECTION_TITLES: Record<string, string> = {
   "race-goal": "Courses : clé « objectifs »",
   "evening-entry": "Saisies du soir : clé « saisies »",
   gear: "Matériel : clé « materiel »",
+  strength: "Renforcement : clé « renfo »",
+  fueling: "Nutrition en course : clé « nutrition »",
 };
 
 /** Le prompt unique à donner au coach : un seul format pour tous les imports. */

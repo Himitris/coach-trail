@@ -72,8 +72,7 @@ button:disabled { cursor: default; opacity: 0.5; }
   display: flex; align-items: stretch; background: var(--surface-2); border-bottom: 1px solid var(--border);
 }
 .tabs { display: flex; flex: 1; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
-.tabs-links { display: flex; flex: 0 1 auto; min-width: 0; max-width: calc(100% - 6.5rem); overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
-.tabs { min-width: 6.5rem; } /* les pages de l'utilisateur restent atteignables sur téléphone */
+.tabs { min-width: 0; }
 .tab {
   position: relative; display: flex; align-items: center; flex: none; gap: 0.25rem;
   padding: 0 0.75rem; text-decoration: none; color: var(--muted); border: 0; background: none;
@@ -85,7 +84,6 @@ button:disabled { cursor: default; opacity: 0.5; }
 .tab-dragging { opacity: 0.4; }
 .tab-index { font-size: 0.7rem; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
 .tab-add { font-size: 1.25rem; }
-.tab-sources { border-left: 1px solid var(--border); }
 .tab-menu-btn { background: none; border: 0; color: var(--muted); padding: 0 0.25rem; font-size: 1.1rem; }
 .tab-rename { width: 10rem; padding: 0.2rem 0.4rem; border: 1px solid var(--accent); border-radius: 6px; background: var(--surface); }
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-left: 0.3rem; }
@@ -491,3 +489,53 @@ body {
 .docs-import { border-top: 1px solid var(--border); padding-top: 0.8rem; margin-top: 0.8rem; }
 .docs-page .data-table td, .docs-page .data-table th { white-space: normal; vertical-align: top; }
 .docs-page .data-table td:nth-child(2) { min-width: 16rem; }
+
+/* Programme : décaler une séance à la souris */
+.plan-session-draggable { cursor: grab; }
+.plan-session-draggable:active { cursor: grabbing; }
+.plan-day-droppable { outline: 1px dashed var(--border); outline-offset: -2px; transition: background .12s; }
+.plan-day-over { outline: 2px solid var(--accent); background: var(--surface-2); }
+
+/* Programme de la semaine : une colonne par jour quand le cadre est large (bandeau d'accueil). */
+.plan { container-type: inline-size; }
+.plan-chips { display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; }
+.plan-workout { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.4rem 0.6rem; align-items: center; font-size: 0.78rem; }
+.plan-workout label { display: flex; align-items: center; gap: 0.35rem; }
+.plan-workout select { font-size: 0.78rem; padding: 0.1rem 0.25rem; }
+.plan-workout-why { flex-basis: 100%; }
+.plan-conformity-note { grid-column: 1 / -1; margin: 0; font-size: 0.78rem; color: var(--warn); }
+@container (min-width: 820px) {
+  .plan-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.4rem; align-items: start; }
+  .plan-days .plan-day { margin-bottom: 0; min-width: 0; }
+  .plan-days .plan-session { grid-template-columns: 1fr; gap: 0.25rem; }
+  .plan-days .plan-day header { flex-wrap: wrap; gap: 0.25rem; }
+  .plan-days .plan-day h3 { flex-basis: 100%; }
+  .plan-days .plan-day:hover { transform: none; }
+}
+
+/* Menu de navigation (☰) : liste de pages et d'outils ; fiche plein écran sur téléphone. */
+.nav-menu-btn { display: inline-flex; align-items: center; gap: 0.45rem; margin: 0 0.4rem; padding: 0 0.7rem; height: 100%; background: none; border: 0; border-left: 1px solid var(--border); color: var(--text); font: inherit; cursor: pointer; }
+.nav-menu-btn:hover { background: var(--surface); }
+.nav-menu-icon { font-size: 1.15rem; }
+.nav-menu-current { display: none; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.nav-menu-backdrop { position: fixed; inset: 0; z-index: 60; background: rgb(0 0 0 / 45%); }
+.nav-menu { position: absolute; top: calc(var(--header-h) + var(--tabbar-h) - 4px); right: 0.5rem; width: min(360px, calc(100vw - 1rem)); max-height: calc(100vh - var(--header-h) - var(--tabbar-h)); overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.5rem 0.75rem; box-shadow: 0 12px 32px rgb(0 0 0 / 40%); }
+.nav-menu-head { display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0.5rem; }
+.nav-menu-title { margin: 0.6rem 0.5rem 0.2rem; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.nav-menu ul { list-style: none; margin: 0; padding: 0; }
+.nav-menu a { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.1rem 0.5rem; min-height: 44px; padding: 0.45rem 0.6rem; border-radius: 8px; color: var(--text); text-decoration: none; }
+.nav-menu a small { flex-basis: 100%; }
+.nav-menu a:hover { background: var(--surface-2); }
+.nav-menu a[aria-current="page"] { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--accent); font-weight: 600; }
+.nav-menu kbd { font-size: 0.7rem; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
+@media (max-width: 640px) {
+  .tabs { display: none; }
+  .tabbar { justify-content: flex-start; }
+  .nav-menu-btn { flex: 1; margin: 0; border-left: 0; padding: 0 0.9rem; }
+  .nav-menu-current { display: inline; flex: 1; text-align: left; }
+  .nav-menu-label { color: var(--muted); font-size: 0.8rem; }
+  .nav-menu { top: auto; right: 0; bottom: 0; left: 0; width: auto; max-height: 85vh; border-radius: 14px 14px 0 0; }
+}
+@container (min-width: 820px) {
+  .plan-days .plan-workout label { flex-direction: column; align-items: flex-start; gap: 0.1rem; }
+}
