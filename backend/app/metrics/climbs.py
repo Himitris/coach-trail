@@ -28,6 +28,7 @@ class Climb(BaseModel):
     avg_grade_pct: float
     duration_s: float | None
     avg_hr: float | None
+    vam_m_per_h: float | None = None  # vitesse ascensionnelle : D+ par heure de montée
 
 
 @dataclass(frozen=True)
@@ -148,6 +149,7 @@ def detect_climbs(
                 avg_grade_pct=grade,
                 duration_s=duration,
                 avg_hr=sum(hrs) / len(hrs) if hrs else None,
+                vam_m_per_h=gain / duration * 3600 if duration else None,
             )
         )
     return climbs

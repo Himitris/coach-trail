@@ -305,12 +305,17 @@ export interface Climb {
   avg_grade_pct: number;
   duration_s: number | null;
   avg_hr: number | null;
+  /** Vitesse ascensionnelle (m de D+ par heure de montée). */
+  vam_m_per_h: number | null;
 }
 
 export interface ActivityDetail extends Activity {
   stream: ActivityStream | null;
   zones: ActivityZones | null;
   climbs: Climb[];
+  /** Allure normalisée (moyenne d'ordre 4 des 30 s glissantes, à plat équivalent). */
+  ngp_s_per_km: number | null;
+  ascent_speed_m_per_h: number | null;
   notes: string[];
   evidence: Evidence;
 }

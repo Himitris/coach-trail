@@ -28,6 +28,7 @@ class AthleteProfile(Base):
     fc_repos: Mapped[int | None] = mapped_column(Integer)
     seuil_lactique_fc: Mapped[int | None] = mapped_column(Integer)
     zones: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False)
+    renfo_objectif_hebdo: Mapped[int | None] = mapped_column(Integer)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
@@ -184,3 +185,35 @@ class DashboardLayoutRow(Base):
     revision: Mapped[int] = mapped_column(Integer, nullable=False)
     data: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
+class FuelingEntry(Base):
+    """Nutrition d'une sortie : glucides réellement consommés et score digestif (saisie)."""
+
+    __tablename__ = "fueling_entry"
+    __table_args__ = (
+        CheckConstraint(
+            "glucides_g_par_h >= 0 AND glucides_g_par_h <= 300", name="ck_fueling_carbs"
+        ),
+        CheckConstraint("score_digestif >= 0 AND score_digestif <= 5", name="ck_fueling_gi"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    activity_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("activity.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    glucides_g_par_h: Mapped[float] = mapped_column(Float, nullable=False)
+    score_digestif: Mapped[int] = mapped_column(Integer, nullable=False)
+    note: Mapped[str | None] = mapped_column(String)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
+class StrengthSession(Base):
+    """Séance de renforcement saisie à la main (la montre ne l'a pas enregistrée)."""
+
+    __tablename__ = "strength_session"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    duree_min: Mapped[int | None] = mapped_column(Integer)
+    note: Mapped[str | None] = mapped_column(String)

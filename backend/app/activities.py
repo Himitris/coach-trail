@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.metrics import service
 from app.metrics.climbs import Climb, detect_climbs
 from app.metrics.intensity import low_share_pct, time_in_zones, zone_floors_from_profile
 from app.metrics.models import Evidence
@@ -56,7 +57,7 @@ class ActivityOut(BaseModel):
     is_race: bool
     rpe: int | None
     pace_s_per_km: float | None  # allure moyenne (durée totale / distance)
-    gap_s_per_km: float | None  # allure ajustée à la pente : pas encore calculée (phase 2)
+    gap_s_per_km: float | None  # allure ajustée à la pente (modèle de Minetti)
 
 
 class StreamOut(BaseModel):
@@ -79,8 +80,17 @@ class ActivityDetailOut(ActivityOut):
     stream: StreamOut | None
     zones: ZonesOut | None
     climbs: list[Climb]
+    ngp_s_per_km: float | None  # allure normalisée (moyenne d'ordre 4 des 30 s glissantes)
+    ascent_speed_m_per_h: float | None  # D+ des côtes détectées / temps passé à les monter
     notes: list[str]
     evidence: Evidence
+
+
+def ascent_speed(climbs: Sequence[Climb]) -> float | None:
+    """Vitesse ascensionnelle moyenne (m/h) sur l'ensemble des côtes dont la durée est connue."""
+    timed = [c for c in climbs if c.duration_s]
+    seconds = sum(c.duration_s or 0.0 for c in timed)
+    return sum(c.gain_m for c in timed) / seconds * 3600 if seconds > 0 else None
 
 
 def rpe_by_group(session: Session) -> dict[int, int]:
@@ -93,7 +103,9 @@ def rpe_by_group(session: Session) -> dict[int, int]:
     return {(group or aid): rpe for rpe, group, aid in rows if rpe is not None}
 
 
-def to_out(act: Activity, tz: ZoneInfo, rpe: dict[int, int]) -> ActivityOut:
+def to_out(
+    act: Activity, tz: ZoneInfo, rpe: dict[int, int], gap_s_per_km: float | None = None
+) -> ActivityOut:
     distance_km = act.distance_m / 1000 if act.distance_m else None
     gain = act.elevation_gain_m
     return ActivityOut(
@@ -114,7 +126,7 @@ def to_out(act: Activity, tz: ZoneInfo, rpe: dict[int, int]) -> ActivityOut:
         is_race=act.is_race,
         rpe=rpe.get(act.dedup_group_id or act.id),
         pace_s_per_km=act.duration_s / distance_km if distance_km else None,
-        gap_s_per_km=None,
+        gap_s_per_km=gap_s_per_km,
     )
 
 
@@ -151,6 +163,8 @@ def list_activities(
             continue
         if races_only and not item.is_race:
             continue
+        pace = service.pace_summary_for(db, act.id)
+        item.gap_s_per_km = pace.gap_s_per_km if pace else None
         out.append(item)
         if len(out) >= limit:
             break
@@ -166,7 +180,14 @@ def activity_detail(
     if act is None:
         raise HTTPException(404, "Sortie introuvable.")
     base = to_out(act, tz, rpe_by_group(db))
-    notes = ["Allure ajustée à la pente (GAP) non disponible : calcul prévu en phase 2."]
+    notes: list[str] = []
+    pace = service.pace_summary_for(db, act.id)
+    if pace is None:
+        notes.append(
+            "Allure ajustée à la pente (GAP) non calculable : distance ou altitude absentes."
+        )
+    else:
+        base.gap_s_per_km = pace.gap_s_per_km
     stream_out: StreamOut | None = None
     zones_out: ZonesOut | None = None
     climbs: list[Climb] = []
@@ -180,7 +201,7 @@ def activity_detail(
         speed = s.get("speed", [])
         dist = s.get("distance", [])
         if not dist and speed and t:
-            dist = _integrate_distance(t, speed)
+            dist = service.integrate_distance(t, speed)
         down = downsample(
             {
                 "t": t,
@@ -224,25 +245,15 @@ def activity_detail(
         stream=stream_out,
         zones=zones_out,
         climbs=climbs,
+        ngp_s_per_km=pace.ngp_s_per_km if pace else None,
+        ascent_speed_m_per_h=ascent_speed(climbs),
         notes=notes,
         evidence=Evidence(
             level="indicatif",
             summary=(
                 "Profil, FC et zones viennent de la montre ; les côtes sont détectées sur le "
-                "profil lissé (dénivelé ≥ 50 m, pente ≥ 3 %) : ordre de grandeur, pas une mesure."
+                "profil lissé (dénivelé ≥ 50 m, pente ≥ 3 %) : ordre de grandeur, pas une mesure. "
+                "GAP/NGP : modèle de coût énergétique de Minetti (2002), non individualisé."
             ),
         ),
     )
-
-
-def _integrate_distance(
-    t: Sequence[float | None], speed: Sequence[float | None]
-) -> list[float | None]:
-    """Distance cumulée (m) reconstruite depuis la vitesse quand le flux n'en fournit pas."""
-    total = 0.0
-    out: list[float | None] = []
-    for i, (ti, v) in enumerate(zip(t, speed, strict=False)):
-        if i > 0 and ti is not None and t[i - 1] is not None and v is not None:
-            total += max(0.0, ti - float(t[i - 1] or 0)) * v
-        out.append(total)
-    return out

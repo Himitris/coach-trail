@@ -111,7 +111,7 @@ export function formatActivityDetail(a: ActivityDetail): string {
     `## Détail de séance — ${sportLabel(a.sport)} du ${formatDay(a.day)}${a.is_race ? " (course)" : ""}`,
     "",
     `Durée ${formatDuration(a.duration_min)} · distance ${a.distance_km === null ? "—" : formatKm(a.distance_km)} · D+ ${a.dplus_m === null ? "—" : formatMeters(a.dplus_m)} · D− ${a.dminus_m === null ? "—" : formatMeters(a.dminus_m)} · FC moy. ${cell(a.hr_avg)} · FC max ${cell(a.hr_max)} · RPE ${cell(a.rpe)}`,
-    `Allure moyenne : ${formatPace(a.pace_s_per_km)} (allure ajustée à la pente : ${a.gap_s_per_km === null ? "non disponible" : formatPace(a.gap_s_per_km)})`,
+    `Allure moyenne : ${formatPace(a.pace_s_per_km)} (allure ajustée à la pente : ${a.gap_s_per_km === null ? "non calculable" : formatPace(a.gap_s_per_km)}${a.ngp_s_per_km === null ? "" : `, allure normalisée : ${formatPace(a.ngp_s_per_km)}`})`,
   ];
   if (a.zones && a.zones.hr_time_s > 0) {
     const total = a.zones.hr_time_s;
@@ -132,7 +132,7 @@ export function formatActivityDetail(a: ActivityDetail): string {
       "Côtes détectées (profil lissé, ordre de grandeur) :",
       "",
       table(
-        ["#", "Km", "D+", "Longueur", "Pente moy.", "Durée", "FC moy."],
+        ["#", "Km", "D+", "Longueur", "Pente moy.", "Durée", "FC moy.", "VAM (m/h)"],
         a.climbs.map((c, i) =>
           row(
             i + 1,
@@ -142,6 +142,7 @@ export function formatActivityDetail(a: ActivityDetail): string {
             `${formatNumber(c.avg_grade_pct, 1)} %`,
             c.duration_s === null ? null : formatDurationS(c.duration_s),
             c.avg_hr === null ? null : formatNumber(c.avg_hr),
+            c.vam_m_per_h === null ? null : formatNumber(c.vam_m_per_h),
           ),
         ),
       ),

@@ -161,3 +161,21 @@ python -m app.cli restore /backup/daily/coach-2026-10-15.db   # API arrêtée ; 
 - Durée d'une séance Intervals.icu = `moving_time` (≈ chronomètre de la montre), pour rester dans la tolérance de déduplication.
 
 Tests : `tests/test_intervals.py` (faux serveur `httpx.MockTransport`, scénario « Garmin coupé → bascule → Garmin revient »).
+
+## Métriques et saisies de phase 2
+
+Chaque métrique expose un `evidence` (niveau de preuve + une phrase), aucune n'est un score unique ni un prédicteur de blessure.
+
+| Endpoint | Contenu |
+|---|---|
+| `GET /api/metrics/monotony?weeks=12` | Monotonie (moyenne ÷ écart-type des 7 charges quotidiennes) et tension (charge × monotonie) par semaine ; repère à 2 ; **alerte douce** (information) si monotonie > 2 et charge > 110 % de la moyenne des 4 semaines précédentes. |
+| `GET /api/activities/{id}` | Ajoute `gap_s_per_km`, `ngp_s_per_km`, `ascent_speed_m_per_h` et `vam_m_per_h` par côte. `GET /api/activities` renseigne `gap_s_per_km`. |
+| `GET /api/metrics/fatigue?weeks=8` | D− hebdomadaire, séances à fort D− (≥ 800 m, ou ≥ 400 m et ≥ 80 m/km), courbatures saisies à J+2, rappel informatif « 2 à 3 jours faciles » dans les 3 jours suivant une grosse descente. |
+| `GET /api/metrics/strength?weeks=8` | Séances de renforcement par semaine (détectées + saisies, `max` par jour) face à l'objectif `renfo_objectif_hebdo` du profil (`PUT /api/profile`). |
+| `GET/POST/DELETE /api/strength/sessions` | Séances de renforcement saisies à la main. |
+| `GET /api/metrics/race-goal?goal_id=` | Prochaine course (ou celle choisie) : jours restants, 4 dernières semaines vs distance/D+ de la course, prédictions Garmin (estimations de la montre), TSB projeté à la date de course (repos complet / charge récente maintenue). |
+| `GET/POST/PUT/DELETE /api/fueling`, `GET /api/fueling/series?min_hours=2.5` | Nutrition en sortie (glucides g/h, score digestif 0–5, note) ; série des sorties longues et variation vs la sortie longue renseignée précédente. L'appli enregistre, elle ne prescrit pas. |
+
+**GAP / NGP** (`app/metrics/gap.py`) : coût énergétique de Minetti et al. (2002), `C(i) = 155,4 i⁵ − 30,4 i⁴ − 43,3 i³ + 46,3 i² + 19,5 i + 3,6` (J/kg/m, pente `i` en fraction) ; vitesse à plat équivalente `v × C(i)/3,6`. GAP = temps en mouvement ÷ distance équivalente ; NGP = moyenne d'ordre 4 des vitesses équivalentes lissées sur 30 s. Modèle moyen non individualisé.
+
+La course du jour reste exclue des comparaisons de FC (intensités, zones) ; son allure (GAP) est calculée normalement. Tests : `tests/test_metrics_phase2.py` (valeurs calculées à la main) et `tests/test_phase2_api.py`.

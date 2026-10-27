@@ -114,9 +114,10 @@ describe("Détail de séance", () => {
     expect(within(climbs).getByText("120 m")).toBeInTheDocument();
     expect(within(climbs).getByText("10,9 %")).toBeInTheDocument();
     expect(climbs).toHaveTextContent("0,4–1,5");
-    // GAP : jamais inventé
-    expect(screen.getAllByText(/GAP/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/non disponible pour l'instant/)).toBeInTheDocument();
+    // GAP, NGP et vitesse ascensionnelle (par côte et moyenne)
+    expect(within(climbs).getByText("800 m/h")).toBeInTheDocument();
+    expect(screen.getByText(/allure normalisée \(NGP\)/)).toBeInTheDocument();
+    expect(screen.getByText(/vitesse ascensionnelle : 800 m\/h/)).toBeInTheDocument();
     expect(screen.getByText("indicatif")).toBeInTheDocument();
   });
 

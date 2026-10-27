@@ -104,7 +104,7 @@ def test_list_order_fields_and_filters(client: TestClient) -> None:
     assert trail["duration_min"] == 90 and trail["distance_km"] == 12 and trail["dplus_m"] == 600
     assert trail["dplus_per_km"] == pytest.approx(50.0)
     assert trail["pace_s_per_km"] == pytest.approx(90 * 60 / 12)  # 7 min 30 s / km
-    assert trail["gap_s_per_km"] is None  # pas encore calculée : jamais inventée
+    assert trail["gap_s_per_km"] is None  # sans flux : jamais inventée
     assert trail["sport_group"] == "trail" and road["sport_group"] == "run"
     assert strength["sport_group"] == "other"
     assert strength["distance_km"] is None and strength["pace_s_per_km"] is None
@@ -179,8 +179,11 @@ def test_detail_with_stream_zones_and_climbs(client: TestClient) -> None:
     assert climb["duration_s"] == pytest.approx(400, abs=60)
     assert climb["avg_hr"] is not None
 
-    assert any("GAP" in note for note in body["notes"])
-    assert body["gap_s_per_km"] is None
+    # GAP : 1000 m plats + 1000 m à 10 % (coût Minetti 5,968 / 3,6 = 1,658) + 1000 m plats
+    assert body["gap_s_per_km"] == pytest.approx(1200 / (2000 + 1000 * 1.6578) * 1000, abs=8)
+    assert body["pace_s_per_km"] == pytest.approx(400) and body["ngp_s_per_km"] is not None
+    assert body["ascent_speed_m_per_h"] == pytest.approx(900, rel=0.2)  # ≈ 100 m en 400 s
+    assert not any("non calculable" in note for note in body["notes"])
     assert body["evidence"]["level"] == "indicatif"
 
 

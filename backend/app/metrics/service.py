@@ -16,6 +16,7 @@ from app.metrics.fitness import (
     load_from_average,
     load_from_stream,
 )
+from app.metrics.gap import PaceSummary, pace_summary
 from app.metrics.intensity import (
     ActivityZones,
     IntensityReport,
@@ -73,6 +74,34 @@ def hr_stream(
     return (t, hr) if t and hr else None
 
 
+def pace_summary_for(session: Session, activity_id: int) -> PaceSummary | None:
+    """GAP / NGP d'une sortie d'après son flux (distance reconstruite depuis la vitesse)."""
+    row = stream_row(session, activity_id)
+    if row is None:
+        return None
+    s = decode_stream(row.samples)
+    t, alt = s.get("t", []), s.get("altitude", [])
+    dist = s.get("distance", [])
+    if not dist and s.get("speed") and t:
+        dist = integrate_distance(t, s["speed"])
+    if not (t and dist and alt):
+        return None
+    return pace_summary(t, dist, alt)
+
+
+def integrate_distance(
+    t: Sequence[float | None], speed: Sequence[float | None]
+) -> list[float | None]:
+    """Distance cumulée (m) reconstruite depuis la vitesse quand le flux n'en fournit pas."""
+    total = 0.0
+    out: list[float | None] = []
+    for i, (ti, v) in enumerate(zip(t, speed, strict=False)):
+        if i > 0 and ti is not None and t[i - 1] is not None and v is not None:
+            total += max(0.0, ti - float(t[i - 1] or 0)) * v
+        out.append(total)
+    return out
+
+
 def get_profile(session: Session) -> AthleteProfile:
     profile = session.get(AthleteProfile, 1)
     if profile is None:
@@ -105,9 +134,10 @@ def intensity(
 # --- forme / charge -------------------------------------------------------------------------
 
 
-def fitness(
-    session: Session, rows: Sequence[ActivityRow], today: date, start: date, end: date
-) -> FitnessReport:
+def daily_loads(
+    session: Session, rows: Sequence[ActivityRow], end: date
+) -> tuple[dict[date, float], date | None, list[str]]:
+    """Charge quotidienne (points FC) jusqu'à `end`, premier jour de données, notes à afficher."""
     profile = get_profile(session)
     params, notes = hr_params(profile.fc_max, profile.fc_repos, profile.seuil_lactique_fc)
     age_days = (datetime.now(UTC).replace(tzinfo=None) - profile.updated_at).days
@@ -141,6 +171,13 @@ def fitness(
         notes.append(f"{estimated} séance(s) sans flux de FC : charge estimée avec la FC moyenne.")
     if without_hr:
         notes.append(f"{without_hr} séance(s) sans donnée de FC ignorée(s) dans la charge.")
+    return daily, first_day, notes
+
+
+def fitness(
+    session: Session, rows: Sequence[ActivityRow], today: date, start: date, end: date
+) -> FitnessReport:
+    daily, first_day, notes = daily_loads(session, rows, end)
     return fitness_report(daily, first_day, start, end, notes)
 
 

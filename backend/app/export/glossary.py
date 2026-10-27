@@ -67,6 +67,21 @@ GLOSSARY: tuple[GlossaryEntry, ...] = (
         "mesure.",
     ),
     GlossaryEntry(
+        "monotonie",
+        "Monotonie et tension",
+        "indicatif",
+        "Monotonie = moyenne ÷ écart-type des charges quotidiennes sur 7 jours ; tension = charge "
+        "× monotonie. Repère à 2, alerte douce seulement avec une charge élevée. Observationnel, "
+        "petit échantillon : jamais un prédicteur de blessure.",
+    ),
+    GlossaryEntry(
+        "gap",
+        "Allure ajustée à la pente (GAP) et allure normalisée (NGP)",
+        "indicatif",
+        "Modèle de coût énergétique de Minetti (2002), non individualisé : à comparer entre "
+        "séances, pas une mesure exacte. Vitesse ascensionnelle (VAM) = D+ par heure de montée.",
+    ),
+    GlossaryEntry(
         "course",
         "Jour de course",
         "établi",

@@ -113,6 +113,7 @@ function ClimbsBlock({ climbs, hasProfile }: { climbs: Climb[]; hasProfile: bool
             <th scope="col">Pente moy.</th>
             <th scope="col">Durée</th>
             <th scope="col">FC moy.</th>
+            <th scope="col" title="Vitesse ascensionnelle : mètres de D+ par heure de montée">VAM</th>
           </tr>
         </thead>
         <tbody>
@@ -127,6 +128,7 @@ function ClimbsBlock({ climbs, hasProfile }: { climbs: Climb[]; hasProfile: bool
               <td>{formatNumber(c.avg_grade_pct, 1)} %</td>
               <td>{c.duration_s === null ? "—" : formatDurationS(c.duration_s)}</td>
               <td>{c.avg_hr === null ? "—" : formatNumber(c.avg_hr)}</td>
+              <td>{c.vam_m_per_h === null ? "—" : `${formatNumber(c.vam_m_per_h)} m/h`}</td>
             </tr>
           ))}
         </tbody>
@@ -191,7 +193,10 @@ function ProfileCharts({ detail }: { detail: ActivityDetail }) {
         <p className="muted">Allure indisponible (pas de vitesse enregistrée).</p>
       )}
       <p className="muted">
-        Allure ajustée à la pente (GAP) : {detail.gap_s_per_km === null ? "non disponible pour l'instant (calcul prévu en phase 2)." : formatPace(detail.gap_s_per_km)}
+        Allure ajustée à la pente (GAP) :{" "}
+        {detail.gap_s_per_km === null ? "non calculable (distance ou altitude absentes)." : formatPace(detail.gap_s_per_km)}
+        {detail.ngp_s_per_km !== null && ` · allure normalisée (NGP) : ${formatPace(detail.ngp_s_per_km)}`}
+        {detail.ascent_speed_m_per_h !== null && ` · vitesse ascensionnelle : ${formatNumber(detail.ascent_speed_m_per_h)} m/h`}
       </p>
     </>
   );
@@ -213,6 +218,7 @@ export function ActivityDetailView({ activityId }: { activityId: number }) {
             <Stat label="Distance" value={formatKm(d.distance_km)} />
             <Stat label="D+ / D−" value={`${formatMeters(d.dplus_m)} / ${formatMeters(d.dminus_m)}`} />
             <Stat label="Allure moy." value={formatPace(d.pace_s_per_km)} />
+            <Stat label="Allure ajustée (GAP)" value={formatPace(d.gap_s_per_km)} />
             <Stat label="FC moy. / max" value={`${d.hr_avg ?? "—"} / ${d.hr_max ?? "—"}`} />
             <Stat label="RPE" value={d.rpe ?? "—"} />
           </div>

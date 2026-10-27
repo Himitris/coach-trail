@@ -147,9 +147,11 @@ export const detail = (over: Partial<ActivityDetail> = {}): ActivityDetail => ({
     low_share_pct: 48,
   },
   climbs: [
-    { start_km: 0.4, end_km: 1.5, length_m: 1100, gain_m: 120, avg_grade_pct: 10.9, duration_s: 540, avg_hr: 152 },
+    { start_km: 0.4, end_km: 1.5, length_m: 1100, gain_m: 120, avg_grade_pct: 10.9, duration_s: 540, avg_hr: 152, vam_m_per_h: 800 },
   ],
-  notes: ["Allure ajustée à la pente (GAP) non disponible : calcul prévu en phase 2."],
+  ngp_s_per_km: 455,
+  ascent_speed_m_per_h: 800,
+  notes: [],
   evidence: evidence("indicatif", "Les côtes sont détectées sur le profil lissé."),
   ...over,
 });

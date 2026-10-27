@@ -11,6 +11,7 @@ class ProfileOut(BaseModel):
     fc_repos: int | None
     seuil_lactique_fc: int | None
     zones: list[dict[str, Any]]
+    renfo_objectif_hebdo: int | None = None
     updated_at: datetime
 
 
@@ -18,6 +19,7 @@ class ProfileUpdate(BaseModel):
     fc_max: int | None = Field(default=None, ge=100, le=250)
     fc_repos: int | None = Field(default=None, ge=20, le=120)
     seuil_lactique_fc: int | None = Field(default=None, ge=80, le=250)
+    renfo_objectif_hebdo: int | None = Field(default=None, ge=0, le=14)
     zones: list[dict[str, Any]] | None = None
 
     @model_validator(mode="after")

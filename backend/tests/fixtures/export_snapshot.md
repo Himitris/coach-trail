@@ -105,6 +105,8 @@ Jours déclarés malade : 12 oct.
 - **Training Readiness, Body Battery, plage HRV Garmin** — preuve : avis de la montre. Indicateurs propriétaires de Garmin, repris tels quels, non validés. À ne pas traiter comme une mesure.
 - **ACWR** — preuve : non validé. Valeur Garmin affichée à titre d'information. Aucune alerte de blessure n'en est tirée.
 - **Côtes détectées** — preuve : indicatif. Découpage du profil lissé (dénivelé ≥ 50 m, pente ≥ 3 %) : ordre de grandeur, pas une mesure.
+- **Monotonie et tension** — preuve : indicatif. Monotonie = moyenne ÷ écart-type des charges quotidiennes sur 7 jours ; tension = charge × monotonie. Repère à 2, alerte douce seulement avec une charge élevée. Observationnel, petit échantillon : jamais un prédicteur de blessure.
+- **Allure ajustée à la pente (GAP) et allure normalisée (NGP)** — preuve : indicatif. Modèle de coût énergétique de Minetti (2002), non individualisé : à comparer entre séances, pas une mesure exacte. Vitesse ascensionnelle (VAM) = D+ par heure de montée.
 - **Jour de course** — preuve : établi. La FC de compétition n'est pas comparée à celle des séances.
 
 ## Limites et sources

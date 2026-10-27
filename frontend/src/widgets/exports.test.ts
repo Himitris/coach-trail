@@ -59,13 +59,14 @@ describe("exports Markdown des widgets", () => {
     expect(formatRecentActivities([activity({ gap_s_per_km: 390 })])).toContain("6:30 /km");
   });
 
-  it("détail : zones, côtes et notes (GAP non disponible)", () => {
-    const md = n(formatActivityDetail(detail()));
+  it("détail : zones, côtes (avec VAM), GAP et NGP ; jamais de valeur inventée", () => {
+    const md = n(formatActivityDetail(detail({ gap_s_per_km: 420 })));
     expect(md).toContain("Détail de séance — Trail du 25 oct.");
-    expect(md).toContain("allure ajustée à la pente : non disponible");
+    expect(md).toContain("allure ajustée à la pente : 7:00 /km, allure normalisée : 7:35 /km");
     expect(md).toMatch(/\| Z3 \| 1 h 00 \| 48 % \|/);
-    expect(md).toMatch(/\| 1 \| 0,4–1,5 \| 120 m \| 1 100 m \| 10,9 % \| 9 min \| 152 \|/);
-    expect(md).toContain("_Allure ajustée à la pente (GAP) non disponible");
+    expect(md).toMatch(/\| 1 \| 0,4–1,5 \| 120 m \| 1 100 m \| 10,9 % \| 9 min \| 152 \| 800 \|/);
+    const unknown = n(formatActivityDetail(detail({ gap_s_per_km: null, ngp_s_per_km: null })));
+    expect(unknown).toContain("allure ajustée à la pente : non calculable)");
     const bare = formatActivityDetail(detail({ zones: null, climbs: [], stream: null, notes: [] }));
     expect(bare).not.toContain("Temps par zone");
     expect(bare).not.toContain("Côtes détectées");
