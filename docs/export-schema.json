@@ -1,0 +1,1395 @@
+{
+  "$defs": {
+    "BaselineComparison": {
+      "properties": {
+        "recent_mean": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Recent Mean"
+        },
+        "recent_n": {
+          "title": "Recent N",
+          "type": "integer"
+        },
+        "baseline_mean": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Baseline Mean"
+        },
+        "baseline_sd": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Baseline Sd"
+        },
+        "baseline_n": {
+          "title": "Baseline N",
+          "type": "integer"
+        },
+        "baseline_days": {
+          "title": "Baseline Days",
+          "type": "integer"
+        },
+        "delta": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Delta"
+        },
+        "delta_pct": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Delta Pct"
+        },
+        "delta_sd": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Delta Sd"
+        },
+        "sufficient": {
+          "title": "Sufficient",
+          "type": "boolean"
+        },
+        "trend": {
+          "$ref": "#/$defs/Trend"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "recent_mean",
+        "recent_n",
+        "baseline_mean",
+        "baseline_sd",
+        "baseline_n",
+        "baseline_days",
+        "delta",
+        "delta_pct",
+        "delta_sd",
+        "sufficient",
+        "trend",
+        "evidence"
+      ],
+      "title": "BaselineComparison",
+      "type": "object"
+    },
+    "EntryOut": {
+      "properties": {
+        "date": {
+          "format": "date",
+          "title": "Date",
+          "type": "string"
+        },
+        "courbatures": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Courbatures"
+        },
+        "malade": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Malade"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Note"
+        },
+        "sessions": {
+          "items": {
+            "$ref": "#/$defs/SessionRpeOut"
+          },
+          "title": "Sessions",
+          "type": "array"
+        },
+        "updated_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Updated At"
+        }
+      },
+      "required": [
+        "date",
+        "courbatures",
+        "malade",
+        "note",
+        "sessions",
+        "updated_at"
+      ],
+      "title": "EntryOut",
+      "type": "object"
+    },
+    "Evidence": {
+      "properties": {
+        "level": {
+          "enum": [
+            "etabli",
+            "indicatif",
+            "non_valide",
+            "avis_montre"
+          ],
+          "title": "Level",
+          "type": "string"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "level",
+        "summary"
+      ],
+      "title": "Evidence",
+      "type": "object"
+    },
+    "ExportActivity": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "day": {
+          "format": "date",
+          "title": "Day",
+          "type": "string"
+        },
+        "sport": {
+          "title": "Sport",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "is_race": {
+          "title": "Is Race",
+          "type": "boolean"
+        },
+        "duration_min": {
+          "title": "Duration Min",
+          "type": "number"
+        },
+        "distance_km": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Distance Km"
+        },
+        "dplus_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Dplus M"
+        },
+        "dminus_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Dminus M"
+        },
+        "hr_avg": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Hr Avg"
+        },
+        "hr_max": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Hr Max"
+        },
+        "rpe": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Rpe"
+        },
+        "zone_seconds": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Zone Seconds"
+        },
+        "hr_time_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Hr Time S"
+        },
+        "low_share_pct": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Low Share Pct"
+        },
+        "has_stream": {
+          "title": "Has Stream",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "day",
+        "sport",
+        "source",
+        "is_race",
+        "duration_min",
+        "distance_km",
+        "dplus_m",
+        "dminus_m",
+        "hr_avg",
+        "hr_max",
+        "rpe",
+        "zone_seconds",
+        "hr_time_s",
+        "low_share_pct",
+        "has_stream"
+      ],
+      "title": "ExportActivity",
+      "type": "object"
+    },
+    "FallbackNotice": {
+      "description": "Garmin indisponible et Intervals.icu en repli : ce que l'on ne peut pas avoir.",
+      "properties": {
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "since": {
+          "format": "date",
+          "title": "Since",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "since",
+        "message"
+      ],
+      "title": "FallbackNotice",
+      "type": "object"
+    },
+    "FitnessSummary": {
+      "properties": {
+        "date": {
+          "format": "date",
+          "title": "Date",
+          "type": "string"
+        },
+        "ctl": {
+          "title": "Ctl",
+          "type": "number"
+        },
+        "atl": {
+          "title": "Atl",
+          "type": "number"
+        },
+        "tsb": {
+          "title": "Tsb",
+          "type": "number"
+        },
+        "ctl_ramp_4w": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ctl Ramp 4W"
+        },
+        "trend": {
+          "$ref": "#/$defs/Trend"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "date",
+        "ctl",
+        "atl",
+        "tsb",
+        "ctl_ramp_4w",
+        "trend",
+        "warnings",
+        "evidence"
+      ],
+      "title": "FitnessSummary",
+      "type": "object"
+    },
+    "GarminAcwr": {
+      "description": "ACWR : jamais calculé ici ; uniquement la valeur Garmin, en gris, sans alerte.",
+      "properties": {
+        "value": {
+          "title": "Value",
+          "type": "number"
+        },
+        "date": {
+          "format": "date",
+          "title": "Date",
+          "type": "string"
+        },
+        "label": {
+          "default": "non validé",
+          "title": "Label",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "value",
+        "date",
+        "evidence"
+      ],
+      "title": "GarminAcwr",
+      "type": "object"
+    },
+    "GlossaryItem": {
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "evidence": {
+          "title": "Evidence",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "name",
+        "evidence",
+        "text"
+      ],
+      "title": "GlossaryItem",
+      "type": "object"
+    },
+    "GoalOut": {
+      "properties": {
+        "nom": {
+          "title": "Nom",
+          "type": "string"
+        },
+        "date": {
+          "format": "date",
+          "title": "Date",
+          "type": "string"
+        },
+        "days_left": {
+          "title": "Days Left",
+          "type": "integer"
+        },
+        "distance_km": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Distance Km"
+        },
+        "dplus_m": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Dplus M"
+        },
+        "priorite": {
+          "title": "Priorite",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "nom",
+        "date",
+        "days_left",
+        "distance_km",
+        "dplus_m",
+        "priorite"
+      ],
+      "title": "GoalOut",
+      "type": "object"
+    },
+    "IntensityReport": {
+      "properties": {
+        "target_min_pct": {
+          "default": 75.0,
+          "title": "Target Min Pct",
+          "type": "number"
+        },
+        "target_max_pct": {
+          "default": 80.0,
+          "title": "Target Max Pct",
+          "type": "number"
+        },
+        "zone_floors_bpm": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Zone Floors Bpm",
+          "type": "array"
+        },
+        "weeks": {
+          "items": {
+            "$ref": "#/$defs/IntensityWeek"
+          },
+          "title": "Weeks",
+          "type": "array"
+        },
+        "average_low_share_pct": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Average Low Share Pct"
+        },
+        "trend": {
+          "$ref": "#/$defs/Trend"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "zone_floors_bpm",
+        "weeks",
+        "average_low_share_pct",
+        "trend",
+        "evidence"
+      ],
+      "title": "IntensityReport",
+      "type": "object"
+    },
+    "IntensityWeek": {
+      "properties": {
+        "week_start": {
+          "format": "date",
+          "title": "Week Start",
+          "type": "string"
+        },
+        "week_end": {
+          "format": "date",
+          "title": "Week End",
+          "type": "string"
+        },
+        "zone_seconds": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Zone Seconds",
+          "type": "array"
+        },
+        "hr_time_s": {
+          "title": "Hr Time S",
+          "type": "number"
+        },
+        "low_share_pct": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Low Share Pct"
+        },
+        "delta_to_target_pct": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Delta To Target Pct"
+        },
+        "activities_counted": {
+          "title": "Activities Counted",
+          "type": "integer"
+        },
+        "activities_without_hr_stream": {
+          "title": "Activities Without Hr Stream",
+          "type": "integer"
+        },
+        "races_excluded": {
+          "title": "Races Excluded",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "week_start",
+        "week_end",
+        "zone_seconds",
+        "hr_time_s",
+        "low_share_pct",
+        "delta_to_target_pct",
+        "activities_counted",
+        "activities_without_hr_stream",
+        "races_excluded"
+      ],
+      "title": "IntensityWeek",
+      "type": "object"
+    },
+    "PlanItem": {
+      "properties": {
+        "date": {
+          "format": "date",
+          "title": "Date",
+          "type": "string"
+        },
+        "titre": {
+          "title": "Titre",
+          "type": "string"
+        },
+        "type_label": {
+          "title": "Type Label",
+          "type": "string"
+        },
+        "duree_min": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Duree Min"
+        },
+        "zone_cible": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Zone Cible"
+        },
+        "dplus_cible": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Dplus Cible"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "done_min": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Done Min"
+        },
+        "done_dplus_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Done Dplus M"
+        }
+      },
+      "required": [
+        "date",
+        "titre",
+        "type_label",
+        "duree_min",
+        "zone_cible",
+        "dplus_cible",
+        "status",
+        "done_min",
+        "done_dplus_m"
+      ],
+      "title": "PlanItem",
+      "type": "object"
+    },
+    "ProfileSection": {
+      "properties": {
+        "fc_max": {
+          "title": "Fc Max",
+          "type": "integer"
+        },
+        "fc_repos": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Fc Repos"
+        },
+        "seuil_lactique_fc": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Seuil Lactique Fc"
+        },
+        "zone_floors_bpm": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Zone Floors Bpm",
+          "type": "array"
+        },
+        "updated_on": {
+          "format": "date",
+          "title": "Updated On",
+          "type": "string"
+        },
+        "goals": {
+          "items": {
+            "$ref": "#/$defs/GoalOut"
+          },
+          "title": "Goals",
+          "type": "array"
+        }
+      },
+      "required": [
+        "fc_max",
+        "fc_repos",
+        "seuil_lactique_fc",
+        "zone_floors_bpm",
+        "updated_on",
+        "goals"
+      ],
+      "title": "ProfileSection",
+      "type": "object"
+    },
+    "ProprietaryMetric": {
+      "description": "Indicateur du fabricant, repris tel quel (jamais recombiné).",
+      "properties": {
+        "date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Date"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        },
+        "previous_7d_mean": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Previous 7D Mean"
+        },
+        "label": {
+          "default": "avis Garmin, non validé",
+          "title": "Label",
+          "type": "string"
+        },
+        "trend": {
+          "$ref": "#/$defs/Trend"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "date",
+        "value",
+        "previous_7d_mean",
+        "trend",
+        "evidence"
+      ],
+      "title": "ProprietaryMetric",
+      "type": "object"
+    },
+    "RecoverySection": {
+      "properties": {
+        "as_of": {
+          "format": "date",
+          "title": "As Of",
+          "type": "string"
+        },
+        "fallback": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FallbackNotice"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "baseline_days": {
+          "title": "Baseline Days",
+          "type": "integer"
+        },
+        "hrv": {
+          "$ref": "#/$defs/BaselineComparison"
+        },
+        "resting_hr": {
+          "$ref": "#/$defs/BaselineComparison"
+        },
+        "sleep_duration_h": {
+          "$ref": "#/$defs/BaselineComparison"
+        },
+        "sleep_efficiency_pct": {
+          "$ref": "#/$defs/BaselineComparison"
+        },
+        "training_readiness": {
+          "$ref": "#/$defs/ProprietaryMetric"
+        },
+        "body_battery_max": {
+          "$ref": "#/$defs/ProprietaryMetric"
+        },
+        "body_battery_min": {
+          "$ref": "#/$defs/ProprietaryMetric"
+        },
+        "garmin_hrv_reference": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Garmin Hrv Reference"
+        },
+        "acwr": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GarminAcwr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "entries": {
+          "items": {
+            "$ref": "#/$defs/EntryOut"
+          },
+          "title": "Entries",
+          "type": "array"
+        },
+        "sick_days": {
+          "items": {
+            "format": "date",
+            "type": "string"
+          },
+          "title": "Sick Days",
+          "type": "array"
+        }
+      },
+      "required": [
+        "as_of",
+        "fallback",
+        "baseline_days",
+        "hrv",
+        "resting_hr",
+        "sleep_duration_h",
+        "sleep_efficiency_pct",
+        "training_readiness",
+        "body_battery_max",
+        "body_battery_min",
+        "garmin_hrv_reference",
+        "acwr",
+        "entries",
+        "sick_days"
+      ],
+      "title": "RecoverySection",
+      "type": "object"
+    },
+    "SessionRpeOut": {
+      "properties": {
+        "activity_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Activity Id"
+        },
+        "rpe": {
+          "title": "Rpe",
+          "type": "integer"
+        },
+        "sport": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sport"
+        },
+        "duration_min": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Duration Min"
+        }
+      },
+      "required": [
+        "activity_id",
+        "rpe",
+        "sport",
+        "duration_min"
+      ],
+      "title": "SessionRpeOut",
+      "type": "object"
+    },
+    "SourceInfo": {
+      "properties": {
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "state": {
+          "title": "State",
+          "type": "string"
+        },
+        "unavailable_since": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Unavailable Since"
+        },
+        "message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Message"
+        },
+        "activities": {
+          "title": "Activities",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "source",
+        "state",
+        "unavailable_since",
+        "message",
+        "activities"
+      ],
+      "title": "SourceInfo",
+      "type": "object"
+    },
+    "Trend": {
+      "properties": {
+        "direction": {
+          "enum": [
+            "hausse",
+            "baisse",
+            "stable",
+            "indetermine"
+          ],
+          "title": "Direction",
+          "type": "string"
+        },
+        "delta": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Delta"
+        },
+        "delta_pct": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Delta Pct"
+        },
+        "window": {
+          "title": "Window",
+          "type": "string"
+        }
+      },
+      "required": [
+        "direction",
+        "window"
+      ],
+      "title": "Trend",
+      "type": "object"
+    },
+    "VolumeSection": {
+      "properties": {
+        "weeks": {
+          "items": {
+            "$ref": "#/$defs/WeekVolume"
+          },
+          "title": "Weeks",
+          "type": "array"
+        },
+        "total": {
+          "$ref": "#/$defs/VolumeTotals"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "weeks",
+        "total",
+        "evidence"
+      ],
+      "title": "VolumeSection",
+      "type": "object"
+    },
+    "VolumeTotals": {
+      "properties": {
+        "time_s": {
+          "default": 0.0,
+          "title": "Time S",
+          "type": "number"
+        },
+        "distance_m": {
+          "default": 0.0,
+          "title": "Distance M",
+          "type": "number"
+        },
+        "gain_m": {
+          "default": 0.0,
+          "title": "Gain M",
+          "type": "number"
+        },
+        "loss_m": {
+          "default": 0.0,
+          "title": "Loss M",
+          "type": "number"
+        },
+        "sessions": {
+          "default": 0.0,
+          "title": "Sessions",
+          "type": "number"
+        },
+        "gain_per_km": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gain Per Km"
+        }
+      },
+      "title": "VolumeTotals",
+      "type": "object"
+    },
+    "WeekVolume": {
+      "properties": {
+        "week_start": {
+          "format": "date",
+          "title": "Week Start",
+          "type": "string"
+        },
+        "complete": {
+          "title": "Complete",
+          "type": "boolean"
+        },
+        "totals": {
+          "$ref": "#/$defs/VolumeTotals"
+        }
+      },
+      "required": [
+        "week_start",
+        "complete",
+        "totals"
+      ],
+      "title": "WeekVolume",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "generated_on": {
+      "format": "date",
+      "title": "Generated On",
+      "type": "string"
+    },
+    "start": {
+      "format": "date",
+      "title": "Start",
+      "type": "string"
+    },
+    "end": {
+      "format": "date",
+      "title": "End",
+      "type": "string"
+    },
+    "days": {
+      "title": "Days",
+      "type": "integer"
+    },
+    "sections": {
+      "items": {
+        "enum": [
+          "profile",
+          "activities",
+          "plan",
+          "recovery",
+          "glossary"
+        ],
+        "type": "string"
+      },
+      "title": "Sections",
+      "type": "array"
+    },
+    "profile": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ProfileSection"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "volume": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/VolumeSection"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "intensity": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/IntensityReport"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "fitness": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FitnessSummary"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "activities": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ExportActivity"
+      },
+      "title": "Activities",
+      "type": "array"
+    },
+    "activities_truncated": {
+      "default": 0,
+      "title": "Activities Truncated",
+      "type": "integer"
+    },
+    "plan": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PlanItem"
+      },
+      "title": "Plan",
+      "type": "array"
+    },
+    "recovery": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RecoverySection"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "sources": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/SourceInfo"
+      },
+      "title": "Sources",
+      "type": "array"
+    },
+    "limits": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Limits",
+      "type": "array"
+    },
+    "glossary": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/GlossaryItem"
+      },
+      "title": "Glossary",
+      "type": "array"
+    },
+    "streams_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Streams Url"
+    }
+  },
+  "required": [
+    "generated_on",
+    "start",
+    "end",
+    "days",
+    "sections"
+  ],
+  "title": "ExportData",
+  "type": "object"
+}

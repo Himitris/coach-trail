@@ -1,4 +1,4 @@
-import { fetchActivityExport, fetchExportMarkdown, type ExportPeriod } from "../api/endpoints";
+import { fetchActivityExport, fetchExportText, type ExportFormat, type ExportPeriod } from "../api/endpoints";
 import type { WidgetDefinition, WidgetSettings } from "../widgets/types";
 
 export type ExportResult = { ok: true; chars: number } | { ok: false; reason: "empty" | "failed" };
@@ -9,10 +9,14 @@ async function copy(markdown: string): Promise<ExportResult> {
   return { ok: true, chars: markdown.length };
 }
 
-/** Export global (bouton « Copier pour Claude ») : le Markdown de la période est copié. */
-export async function exportPeriod(period: ExportPeriod): Promise<ExportResult> {
+/** Export global (bouton « Copier pour Claude ») : le texte de la période est copié. */
+export async function exportPeriod(
+  period: ExportPeriod,
+  format: ExportFormat = "md",
+  series = "activities",
+): Promise<ExportResult> {
   try {
-    return await copy(await fetchExportMarkdown(period));
+    return await copy(await fetchExportText(period, format, series));
   } catch {
     return { ok: false, reason: "failed" };
   }

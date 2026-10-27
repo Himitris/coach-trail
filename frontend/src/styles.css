@@ -298,3 +298,13 @@ button.plan-planned:hover { background: var(--surface-2); }
 
 .notice { margin: 0.5rem 0; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid var(--border); font-size: 0.875rem; }
 .notice-warn { background: var(--surface-2); border-left: 3px solid var(--warn, #b7791f); }
+
+.export-menu { position: relative; display: inline-block; }
+.export-menu-list { right: 0; left: auto; min-width: 12rem; }
+.dropzone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 1.25rem; text-align: center; margin: 0.75rem 0; }
+.dropzone-on { border-color: var(--accent); background: var(--surface-2); }
+.import-errors { border-left: 3px solid var(--danger); padding: 0.25rem 0.75rem; margin: 0.75rem 0; }
+.import-errors ul { margin: 0.25rem 0 0; padding-left: 1.2rem; }
+.import-blocked { background: var(--surface-2); }
+.import-unchanged { color: var(--muted); }
+.plan-import { max-width: 60rem; }

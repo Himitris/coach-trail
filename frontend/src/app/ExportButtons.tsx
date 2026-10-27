@@ -1,5 +1,13 @@
 import { useEffect, useState } from "react";
-import { exportJsonUrl, exportStreamsUrl, type ExportPeriod } from "../api/endpoints";
+import {
+  CSV_SERIES,
+  EXPORT_FORMATS,
+  exportStreamsUrl,
+  exportUrl,
+  widgetExportUrl,
+  type ExportFormat,
+  type ExportPeriod,
+} from "../api/endpoints";
 import { Overlay } from "../widgets/Overlay";
 import { addDays, todayIso } from "./format";
 import { exportActivity, exportPeriod, type ExportResult } from "./export";
@@ -36,6 +44,8 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   const [preset, setPreset] = useState<Preset>("4w");
   const [custom, setCustom] = useState<ExportPeriod>({ from: addDays(todayIso(), -27), to: todayIso() });
   const [busy, setBusy] = useState(false);
+  const [format, setFormat] = useState<ExportFormat>("md");
+  const [series, setSeries] = useState("activities");
   const report = useResultToast();
   const period = periodFor(preset, custom);
   const invalid = !period.from || !period.to || period.from > period.to;
@@ -50,7 +60,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
 
   const copy = () => {
     setBusy(true);
-    void exportPeriod(period).then((result) => {
+    void exportPeriod(period, format, series).then((result) => {
       setBusy(false);
       report(result, "Export");
       if (result.ok) onClose();
@@ -112,6 +122,33 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
             </div>
           </div>
         )}
+        <fieldset className="export-periods">
+          <legend>Format</legend>
+          {EXPORT_FORMATS.map((f) => (
+            <label key={f.value}>
+              <input
+                type="radio"
+                name="export-format"
+                value={f.value}
+                checked={format === f.value}
+                onChange={() => { setFormat(f.value); }}
+              />{" "}
+              {f.label}
+            </label>
+          ))}
+        </fieldset>
+        {format === "csv" && (
+          <div className="field">
+            <label htmlFor="export-series">Série</label>
+            <select id="export-series" value={series} onChange={(event) => { setSeries(event.target.value); }}>
+              {CSV_SERIES.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         {invalid && <p className="export-error">La date de début doit précéder la date de fin.</p>}
         <div className="export-actions">
           <button type="button" className="btn btn-primary" disabled={busy || invalid} onClick={copy}>
@@ -119,8 +156,8 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           </button>
           {!invalid && (
             <>
-              <a className="btn" href={exportJsonUrl(period)} download>
-                Télécharger le JSON complet
+              <a className="btn" href={exportUrl(period, format, series)} download>
+                {format === "json" ? "Télécharger le JSON complet" : `Télécharger (${format === "csv" ? "CSV" : "Markdown"})`}
               </a>
               <a className="btn" href={exportStreamsUrl(period)} download>
                 Flux de séances (JSON)
@@ -162,5 +199,53 @@ export function ActivityExportButton({ activityId }: { activityId: number }) {
     >
       ⤓
     </button>
+  );
+}
+
+/** Menu de format d'un widget : Markdown copié, JSON ou CSV téléchargés (série du widget). */
+export function WidgetExportMenu({ widgetId, title }: { widgetId: string; title: string }) {
+  const [open, setOpen] = useState(false);
+  const { notify } = useToast();
+  const download = (format: ExportFormat) => {
+    setOpen(false);
+    void fetch(widgetExportUrl(widgetId, format))
+      .then(async (response) => {
+        if (!response.ok) {
+          const detail = (await response.json().catch(() => null)) as { detail?: unknown } | null;
+          notify(typeof detail?.detail === "string" ? detail.detail : "L'export a échoué.", "error");
+          return;
+        }
+        const url = URL.createObjectURL(await response.blob());
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${widgetId}.${format}`;
+        link.click();
+        URL.revokeObjectURL(url);
+      })
+      .catch(() => { notify("L'export a échoué.", "error"); });
+  };
+  return (
+    <span className="export-menu">
+      <button
+        type="button"
+        className="icon-btn"
+        aria-label={`Autres formats : ${title}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => { setOpen(!open); }}
+      >
+        ▾
+      </button>
+      {open && (
+        <div role="menu" className="menu export-menu-list">
+          <button type="button" role="menuitem" onClick={() => { download("json"); }}>
+            Télécharger en JSON
+          </button>
+          <button type="button" role="menuitem" onClick={() => { download("csv"); }}>
+            Télécharger en CSV
+          </button>
+        </div>
+      )}
+    </span>
   );
 }

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { exportWidget } from "../app/export";
+import { WidgetExportMenu } from "../app/ExportButtons";
 import { useDashboard } from "../app/DashboardProvider";
 import { useToast } from "../app/toasts";
 import type { WidgetInstance } from "../layout/model";
@@ -77,6 +78,7 @@ export function WidgetFrame({
           >
             ⤓
           </button>
+          <WidgetExportMenu widgetId={widget.id} title={definition.title} />
           {editMode && (
             <button type="button" className="icon-btn icon-btn-danger" aria-label={`Supprimer : ${definition.title}`} onClick={remove}>
               ✕

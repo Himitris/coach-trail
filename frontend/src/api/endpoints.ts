@@ -140,13 +140,41 @@ export interface ExportPeriod {
   to: string;
 }
 
-/** Markdown de l'export global (texte brut, jamais interprété). */
-export const fetchExportMarkdown = (period: ExportPeriod): Promise<string> =>
-  request("GET", `/api/export${search({ from: period.from, to: period.to })}`);
+export type ExportFormat = "md" | "json" | "csv";
 
-/** Liens de téléchargement : export complet (JSON) et flux de séance sous-échantillonnés. */
-export const exportJsonUrl = (period: ExportPeriod): string =>
-  `/api/export${search({ from: period.from, to: period.to, format: "json" })}`;
+export const EXPORT_FORMATS: readonly { value: ExportFormat; label: string }[] = [
+  { value: "md", label: "Markdown" },
+  { value: "json", label: "JSON" },
+  { value: "csv", label: "CSV (une série)" },
+];
+
+/** Séries disponibles en CSV (colonnes explicites, dates ISO). */
+export const CSV_SERIES: readonly { value: string; label: string }[] = [
+  { value: "activities", label: "Séances" },
+  { value: "wellness", label: "Bien-être (HRV, FC repos, sommeil…)" },
+  { value: "hrv", label: "HRV quotidienne" },
+  { value: "load", label: "Charge (CTL / ATL / TSB)" },
+  { value: "intensity", label: "Intensités par semaine" },
+  { value: "monotony", label: "Monotonie et tension" },
+  { value: "fatigue", label: "D− hebdomadaire" },
+  { value: "strength", label: "Renforcement" },
+  { value: "fueling", label: "Nutrition en course" },
+  { value: "plan", label: "Plan prévu vs réalisé" },
+  { value: "entries", label: "Saisies du soir" },
+];
+
+/** Lien de téléchargement de l'export global dans le format choisi. */
+export const exportUrl = (period: ExportPeriod, format: ExportFormat, series = "activities"): string =>
+  `/api/export${search({ from: period.from, to: period.to, format, series: format === "csv" ? series : undefined })}`;
+
+/** Texte de l'export global (Markdown, CSV ; le JSON est remis en forme lisible). */
+export const fetchExportText = async (period: ExportPeriod, format: ExportFormat, series = "activities"): Promise<string> => {
+  const body = await request<unknown>("GET", exportUrl(period, format, series));
+  return typeof body === "string" ? body : JSON.stringify(body, null, 2);
+};
+
+export const widgetExportUrl = (widgetId: string, format: ExportFormat): string =>
+  `/api/export/widget/${encodeURIComponent(widgetId)}${search({ format })}`;
 
 export const exportStreamsUrl = (period: ExportPeriod): string =>
   `/api/export/streams${search({ from: period.from, to: period.to })}`;
@@ -213,3 +241,54 @@ export const addStrengthSession = (date: string): Promise<unknown> =>
 
 export const setStrengthTarget = (target: number | null): Promise<unknown> =>
   request("PUT", "/api/profile", { body: { renfo_objectif_hebdo: target } });
+
+// --- import de plan -----------------------------------------------------------------------------
+
+export interface PlanLine {
+  titre: string;
+  type: string;
+  type_label: string;
+  objectif: string | null;
+  duree_min: number | null;
+  zone_cible: string | null;
+  dplus_cible: number | null;
+  consignes: string | null;
+}
+
+export interface PlanImportDay {
+  date: string;
+  action: "create" | "replace" | "unchanged" | "blocked";
+  reason: string | null;
+  existing: PlanLine[];
+  incoming: PlanLine[];
+}
+
+export interface PlanImportReport {
+  dry_run: boolean;
+  applied: boolean;
+  summary: {
+    sessions_in_file: number;
+    days_in_file: number;
+    created_days: number;
+    replaced_days: number;
+    unchanged_days: number;
+    blocked_days: number;
+    sessions_added: number;
+    sessions_removed: number;
+  };
+  days: PlanImportDay[];
+}
+
+export interface PlanImportIssue {
+  session: number | null;
+  field: string | null;
+  message: string;
+}
+
+export const importPlan = (
+  doc: unknown,
+  options: { dryRun: boolean; confirmPastDone?: boolean },
+): Promise<PlanImportReport> =>
+  request("POST", `/api/plan/import${search({ dry_run: options.dryRun, confirm_past_done: options.confirmPastDone ?? false })}`, {
+    body: doc,
+  });

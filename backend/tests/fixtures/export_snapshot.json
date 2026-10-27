@@ -1,0 +1,569 @@
+{
+  "activities": [
+    {
+      "day": "2026-10-11",
+      "distance_km": 30.0,
+      "dminus_m": 1500.0,
+      "dplus_m": 1500.0,
+      "duration_min": 180.0,
+      "has_stream": true,
+      "hr_avg": 160,
+      "hr_max": null,
+      "hr_time_s": null,
+      "id": 3,
+      "is_race": true,
+      "low_share_pct": null,
+      "rpe": null,
+      "source": "garmin",
+      "sport": "trail_running",
+      "zone_seconds": null
+    },
+    {
+      "day": "2026-10-09",
+      "distance_km": 8.0,
+      "dminus_m": 40.0,
+      "dplus_m": 40.0,
+      "duration_min": 45.0,
+      "has_stream": false,
+      "hr_avg": 138,
+      "hr_max": null,
+      "hr_time_s": null,
+      "id": 2,
+      "is_race": false,
+      "low_share_pct": null,
+      "rpe": null,
+      "source": "garmin",
+      "sport": "running",
+      "zone_seconds": null
+    },
+    {
+      "day": "2026-10-06",
+      "distance_km": 10.0,
+      "dminus_m": 400.0,
+      "dplus_m": 400.0,
+      "duration_min": 60.0,
+      "has_stream": true,
+      "hr_avg": 150,
+      "hr_max": null,
+      "hr_time_s": 1200.0,
+      "id": 1,
+      "is_race": false,
+      "low_share_pct": 50.0,
+      "rpe": 7,
+      "source": "garmin",
+      "sport": "trail_running",
+      "zone_seconds": [
+        0.0,
+        0.0,
+        600.0,
+        0.0,
+        600.0,
+        0.0
+      ]
+    }
+  ],
+  "activities_truncated": 0,
+  "days": 25,
+  "end": "2026-10-15",
+  "fitness": {
+    "atl": 4.713122350850496,
+    "ctl": 2.059581152745921,
+    "ctl_ramp_4w": 1.3525636578342204,
+    "date": "2026-10-15",
+    "evidence": {
+      "level": "indicatif",
+      "summary": "Courbes de tendance (constantes 42 j / 7 j) calculées depuis la FC des séances ; approximation du modèle charge/fatigue, pas un verdict ni un prédicteur de blessure."
+    },
+    "trend": {
+      "delta": 1.3525636578342204,
+      "delta_pct": null,
+      "direction": "hausse",
+      "window": "CTL sur 4 semaines"
+    },
+    "tsb": -2.6535411981045747,
+    "warnings": [
+      "FC repos absente du profil : 55 bpm utilisée par défaut.",
+      "Seuil lactique absent du profil : estimé à 88 % de la FC max (172 bpm).",
+      "2 séance(s) sans flux de FC : charge estimée avec la FC moyenne.",
+      "Moins de 42 jours d'historique avant le début de la période : le CTL est sous-estimé (montée en charge incomplète)."
+    ]
+  },
+  "generated_on": "2026-10-15",
+  "glossary": [
+    {
+      "evidence": "établi",
+      "key": "volume",
+      "name": "Volume (temps, distance, D+)",
+      "text": "Mesuré par la montre. Hausse de temps d'une semaine à l'autre : repère de bon sens d'environ +10 %, jamais un prédicteur de blessure."
+    },
+    {
+      "evidence": "indicatif",
+      "key": "intensite",
+      "name": "Répartition des intensités",
+      "text": "Temps par zone de FC (zones 1–2 = « bas d'intensité », cible 75–80 % du temps), agrégé par semaine. Les courses sont exclues. Aucun jugement à la séance."
+    },
+    {
+      "evidence": "indicatif",
+      "key": "ctl",
+      "name": "CTL / ATL / TSB",
+      "text": "Charge d'entraînement estimée depuis la FC (constantes 42 j et 7 j). Courbe de tendance simplifiée, pas un verdict ni un score de forme."
+    },
+    {
+      "evidence": "indicatif",
+      "key": "hrv",
+      "name": "HRV nocturne, FC de repos, sommeil",
+      "text": "Mesures de la montre lues en tendance : moyenne 7 j comparée à la base individuelle (30–60 j). Une nuit isolée ne dit rien ; pas de feu vert/rouge quotidien."
+    },
+    {
+      "evidence": "établi",
+      "key": "srpe",
+      "name": "Charge perçue (RPE × minutes)",
+      "text": "Saisie de l'athlète, en unités arbitraires."
+    },
+    {
+      "evidence": "avis de la montre",
+      "key": "readiness",
+      "name": "Training Readiness, Body Battery, plage HRV Garmin",
+      "text": "Indicateurs propriétaires de Garmin, repris tels quels, non validés. À ne pas traiter comme une mesure."
+    },
+    {
+      "evidence": "non validé",
+      "key": "acwr",
+      "name": "ACWR",
+      "text": "Valeur Garmin affichée à titre d'information. Aucune alerte de blessure n'en est tirée."
+    },
+    {
+      "evidence": "indicatif",
+      "key": "climbs",
+      "name": "Côtes détectées",
+      "text": "Découpage du profil lissé (dénivelé ≥ 50 m, pente ≥ 3 %) : ordre de grandeur, pas une mesure."
+    },
+    {
+      "evidence": "indicatif",
+      "key": "monotonie",
+      "name": "Monotonie et tension",
+      "text": "Monotonie = moyenne ÷ écart-type des charges quotidiennes sur 7 jours ; tension = charge × monotonie. Repère à 2, alerte douce seulement avec une charge élevée. Observationnel, petit échantillon : jamais un prédicteur de blessure."
+    },
+    {
+      "evidence": "indicatif",
+      "key": "gap",
+      "name": "Allure ajustée à la pente (GAP) et allure normalisée (NGP)",
+      "text": "Modèle de coût énergétique de Minetti (2002), non individualisé : à comparer entre séances, pas une mesure exacte. Vitesse ascensionnelle (VAM) = D+ par heure de montée."
+    },
+    {
+      "evidence": "établi",
+      "key": "course",
+      "name": "Jour de course",
+      "text": "La FC de compétition n'est pas comparée à celle des séances."
+    }
+  ],
+  "intensity": {
+    "average_low_share_pct": 50.0,
+    "evidence": {
+      "level": "indicatif",
+      "summary": "Zones 1–2 Garmin = bas d'intensité ; cible 75–80 % du temps sur la semaine (approche 80/20). Repère de répartition, pas un verdict par séance. Zones du profil actuel appliquées à tout l'historique ; courses exclues."
+    },
+    "target_max_pct": 80.0,
+    "target_min_pct": 75.0,
+    "trend": {
+      "delta": null,
+      "delta_pct": null,
+      "direction": "indetermine",
+      "window": "dernière semaine vs précédente"
+    },
+    "weeks": [
+      {
+        "activities_counted": 0,
+        "activities_without_hr_stream": 0,
+        "delta_to_target_pct": null,
+        "hr_time_s": 0.0,
+        "low_share_pct": null,
+        "races_excluded": 0,
+        "week_end": "2026-09-27",
+        "week_start": "2026-09-21",
+        "zone_seconds": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "activities_counted": 0,
+        "activities_without_hr_stream": 0,
+        "delta_to_target_pct": null,
+        "hr_time_s": 0.0,
+        "low_share_pct": null,
+        "races_excluded": 0,
+        "week_end": "2026-10-04",
+        "week_start": "2026-09-28",
+        "zone_seconds": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "activities_counted": 1,
+        "activities_without_hr_stream": 1,
+        "delta_to_target_pct": -25.0,
+        "hr_time_s": 1200.0,
+        "low_share_pct": 50.0,
+        "races_excluded": 1,
+        "week_end": "2026-10-11",
+        "week_start": "2026-10-05",
+        "zone_seconds": [
+          0.0,
+          0.0,
+          600.0,
+          0.0,
+          600.0,
+          0.0
+        ]
+      },
+      {
+        "activities_counted": 0,
+        "activities_without_hr_stream": 0,
+        "delta_to_target_pct": null,
+        "hr_time_s": 0.0,
+        "low_share_pct": null,
+        "races_excluded": 0,
+        "week_end": "2026-10-18",
+        "week_start": "2026-10-12",
+        "zone_seconds": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    ],
+    "zone_floors_bpm": [
+      98,
+      117,
+      137,
+      156,
+      176
+    ]
+  },
+  "limits": [
+    "1 séance(s) sans flux détaillé (pas de temps par zone).",
+    "Source garmin indisponible depuis le 2026-10-13 : dernières valeurs connues conservées."
+  ],
+  "plan": [
+    {
+      "date": "2026-10-06",
+      "done_dplus_m": 400.0,
+      "done_min": 60.0,
+      "dplus_cible": 400,
+      "duree_min": 60,
+      "status": "fait",
+      "titre": "Côtes",
+      "type_label": "Côtes",
+      "zone_cible": "3-4"
+    },
+    {
+      "date": "2026-10-08",
+      "done_dplus_m": null,
+      "done_min": null,
+      "dplus_cible": null,
+      "duree_min": 45,
+      "status": "manqué",
+      "titre": "Footing",
+      "type_label": "Footing",
+      "zone_cible": null
+    }
+  ],
+  "profile": {
+    "fc_max": 195,
+    "fc_repos": null,
+    "goals": [
+      {
+        "date": "2026-11-08",
+        "days_left": 24,
+        "distance_km": 31.0,
+        "dplus_m": 1600,
+        "nom": "Trail des 3 Rocs",
+        "priorite": 1
+      },
+      {
+        "date": "2027-02-15",
+        "days_left": 123,
+        "distance_km": 39.0,
+        "dplus_m": null,
+        "nom": "Trail de Bruniquel",
+        "priorite": 2
+      }
+    ],
+    "seuil_lactique_fc": null,
+    "updated_on": "2099-01-01",
+    "zone_floors_bpm": [
+      98,
+      117,
+      137,
+      156,
+      176
+    ]
+  },
+  "recovery": {
+    "acwr": null,
+    "as_of": "2026-10-15",
+    "baseline_days": 60,
+    "body_battery_max": {
+      "date": "2026-10-15",
+      "evidence": {
+        "level": "avis_montre",
+        "summary": "Body Battery (max) : indicateur propriétaire Garmin, algorithme non publié, non validé ; affiché tel quel, sans interprétation."
+      },
+      "label": "avis Garmin, non validé",
+      "previous_7d_mean": null,
+      "trend": {
+        "delta": null,
+        "delta_pct": null,
+        "direction": "indetermine",
+        "window": "dernière valeur vs 7 j précédents"
+      },
+      "value": 85.0
+    },
+    "body_battery_min": {
+      "date": null,
+      "evidence": {
+        "level": "avis_montre",
+        "summary": "Body Battery (min) : indicateur propriétaire Garmin, algorithme non publié, non validé ; affiché tel quel, sans interprétation."
+      },
+      "label": "avis Garmin, non validé",
+      "previous_7d_mean": null,
+      "trend": {
+        "delta": null,
+        "delta_pct": null,
+        "direction": "indetermine",
+        "window": "dernière valeur vs 7 j précédents"
+      },
+      "value": null
+    },
+    "entries": [
+      {
+        "courbatures": null,
+        "date": "2026-10-06",
+        "malade": null,
+        "note": null,
+        "sessions": [
+          {
+            "activity_id": 1,
+            "duration_min": 60.0,
+            "rpe": 7,
+            "sport": "trail_running"
+          }
+        ],
+        "updated_at": "2026-10-06T21:00:00"
+      },
+      {
+        "courbatures": 6,
+        "date": "2026-10-12",
+        "malade": true,
+        "note": "Gorge | prise\nfroid",
+        "sessions": [],
+        "updated_at": "2026-10-12T21:00:00"
+      }
+    ],
+    "fallback": null,
+    "garmin_hrv_reference": null,
+    "hrv": {
+      "baseline_days": 60,
+      "baseline_mean": 61.0,
+      "baseline_n": 60,
+      "baseline_sd": 0.8233869695926183,
+      "delta": -4.142857142857146,
+      "delta_pct": -6.791569086651059,
+      "delta_sd": -5.03148251776061,
+      "evidence": {
+        "level": "indicatif",
+        "summary": "HRV nocturne : moyenne 7 j comparée à la base individuelle, en tendance. Pas de seuil quotidien feu vert/rouge : une nuit isolée ne dit rien."
+      },
+      "recent_mean": 56.857142857142854,
+      "recent_n": 7,
+      "sufficient": true,
+      "trend": {
+        "delta": -4.142857142857146,
+        "delta_pct": -6.791569086651059,
+        "direction": "baisse",
+        "window": "moyenne 7 j vs base 60 j"
+      }
+    },
+    "resting_hr": {
+      "baseline_days": 60,
+      "baseline_mean": 48.5,
+      "baseline_n": 60,
+      "baseline_sd": 0.5042194840896107,
+      "delta": -0.0714285714285694,
+      "delta_pct": -0.14727540500735958,
+      "delta_sd": -0.14166166457755328,
+      "evidence": {
+        "level": "indicatif",
+        "summary": "FC de repos : moyenne 7 j vs base individuelle ; lecture en tendance uniquement."
+      },
+      "recent_mean": 48.42857142857143,
+      "recent_n": 7,
+      "sufficient": true,
+      "trend": {
+        "delta": -0.0714285714285694,
+        "delta_pct": -0.14727540500735958,
+        "direction": "stable",
+        "window": "moyenne 7 j vs base 60 j"
+      }
+    },
+    "sick_days": [
+      "2026-10-12"
+    ],
+    "sleep_duration_h": {
+      "baseline_days": 60,
+      "baseline_mean": 7.25,
+      "baseline_n": 60,
+      "baseline_sd": 0.18791150700070713,
+      "delta": -0.03571428571428559,
+      "delta_pct": -0.49261083743842193,
+      "delta_sd": -0.1900590670807147,
+      "evidence": {
+        "level": "indicatif",
+        "summary": "Sommeil mesuré par la montre (durée ; efficacité = temps endormi / fenêtre estimée)."
+      },
+      "recent_mean": 7.214285714285714,
+      "recent_n": 7,
+      "sufficient": true,
+      "trend": {
+        "delta": -0.03571428571428559,
+        "delta_pct": -0.49261083743842193,
+        "direction": "stable",
+        "window": "moyenne 7 j vs base 60 j"
+      }
+    },
+    "sleep_efficiency_pct": {
+      "baseline_days": 60,
+      "baseline_mean": 88.0,
+      "baseline_n": 60,
+      "baseline_sd": 0.0,
+      "delta": 0.0,
+      "delta_pct": 0.0,
+      "delta_sd": null,
+      "evidence": {
+        "level": "indicatif",
+        "summary": "Sommeil mesuré par la montre (durée ; efficacité = temps endormi / fenêtre estimée)."
+      },
+      "recent_mean": 88.0,
+      "recent_n": 7,
+      "sufficient": true,
+      "trend": {
+        "delta": 0.0,
+        "delta_pct": 0.0,
+        "direction": "stable",
+        "window": "moyenne 7 j vs base 60 j"
+      }
+    },
+    "training_readiness": {
+      "date": "2026-10-15",
+      "evidence": {
+        "level": "avis_montre",
+        "summary": "Training Readiness : indicateur propriétaire Garmin, algorithme non publié, non validé ; affiché tel quel, sans interprétation."
+      },
+      "label": "avis Garmin, non validé",
+      "previous_7d_mean": null,
+      "trend": {
+        "delta": null,
+        "delta_pct": null,
+        "direction": "indetermine",
+        "window": "dernière valeur vs 7 j précédents"
+      },
+      "value": 62.0
+    }
+  },
+  "schema_version": 1,
+  "sections": [
+    "profile",
+    "activities",
+    "plan",
+    "recovery",
+    "glossary"
+  ],
+  "sources": [
+    {
+      "activities": 3,
+      "message": "Session expirée",
+      "source": "garmin",
+      "state": "down",
+      "unavailable_since": "2026-10-13"
+    }
+  ],
+  "start": "2026-09-21",
+  "streams_url": "/api/export/streams?from=2026-09-21&to=2026-10-15",
+  "volume": {
+    "evidence": {
+      "level": "etabli",
+      "summary": "Volumes mesurés par la montre. Hausse de temps ≈ +10 % par semaine : repère de bon sens, jamais un prédicteur de blessure."
+    },
+    "total": {
+      "distance_m": 48000.0,
+      "gain_m": 1940.0,
+      "gain_per_km": 40.416666666666664,
+      "loss_m": 1940.0,
+      "sessions": 3.0,
+      "time_s": 17100.0
+    },
+    "weeks": [
+      {
+        "complete": true,
+        "totals": {
+          "distance_m": 0.0,
+          "gain_m": 0.0,
+          "gain_per_km": null,
+          "loss_m": 0.0,
+          "sessions": 0.0,
+          "time_s": 0.0
+        },
+        "week_start": "2026-09-21"
+      },
+      {
+        "complete": true,
+        "totals": {
+          "distance_m": 0.0,
+          "gain_m": 0.0,
+          "gain_per_km": null,
+          "loss_m": 0.0,
+          "sessions": 0.0,
+          "time_s": 0.0
+        },
+        "week_start": "2026-09-28"
+      },
+      {
+        "complete": true,
+        "totals": {
+          "distance_m": 48000.0,
+          "gain_m": 1940.0,
+          "gain_per_km": 40.416666666666664,
+          "loss_m": 1940.0,
+          "sessions": 3.0,
+          "time_s": 17100.0
+        },
+        "week_start": "2026-10-05"
+      },
+      {
+        "complete": false,
+        "totals": {
+          "distance_m": 0.0,
+          "gain_m": 0.0,
+          "gain_per_km": null,
+          "loss_m": 0.0,
+          "sessions": 0.0,
+          "time_s": 0.0
+        },
+        "week_start": "2026-10-12"
+      }
+    ]
+  }
+}

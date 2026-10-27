@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy.orm import Session
 
 from app import activities as activities_api
-from app.export import builder
+from app.export import builder, series
 from app.export import markdown as md
 from app.metrics import service
 from app.metrics.intensity import zone_floors_from_profile
@@ -156,3 +156,78 @@ def find_widget(session: Session, widget_id: str) -> tuple[str, dict[str, Any]] 
             if w.get("id") == widget_id:
                 return str(w.get("type")), dict(w.get("settings") or {})
     return None
+
+
+def widget_table(
+    session: Session,
+    widget_type: str,
+    settings: dict[str, Any],
+    *,
+    priority: Sequence[str],
+    tz: ZoneInfo,
+    today: date,
+) -> series.Table | None:
+    """Série tabulaire (CSV / JSON) d'un widget ; None si ce type de widget n'en a pas."""
+
+    def ctx(start: date, end: date, **extra: Any) -> series.Ctx:
+        return series.Ctx(session, priority, tz, today, start, end, **extra)
+
+    if widget_type == "fitness":
+        weeks = _weeks(settings.get("period"), 26)
+        return series.load_table(ctx(today - timedelta(weeks=weeks), today))
+    if widget_type == "intensity":
+        weeks = min(_weeks(settings.get("period"), 8), builder.MAX_INTENSITY_WEEKS)
+        return series.intensity_table(ctx(monday(today) - timedelta(weeks=weeks - 1), today))
+    if widget_type == "recovery":
+        window = _days(settings.get("window"), 28)
+        return series.wellness_table(ctx(today - timedelta(days=window - 1), today))
+    if widget_type in ("monotony", "fatigue", "strength"):
+        weeks = _weeks(settings.get("weeks"), 12 if widget_type == "monotony" else 8)
+        c = ctx(monday(today) - timedelta(weeks=weeks - 1), today)
+        return {
+            "monotony": series.monotony_table,
+            "fatigue": series.fatigue_table,
+            "strength": series.strength_table,
+        }[widget_type](c)
+    if widget_type == "fueling":
+        try:
+            hours = float(str(settings.get("minHours", 2.5)))
+        except ValueError:
+            hours = 2.5
+        return series.fueling_table(
+            ctx(today - timedelta(days=365), today, min_hours=min(max(hours, 0.5), 24))
+        )
+    if widget_type == "week-plan":
+        start = monday(today)
+        return series.plan_table(ctx(start, start + timedelta(days=6)))
+    if widget_type == "week-load":
+        start = monday(today - timedelta(days=7 if settings.get("week") == "last" else 0))
+        return series.activities_table(ctx(start, start + timedelta(days=6)))
+    if widget_type == "evening-entry":
+        d = today - timedelta(days=1) if settings.get("day") == "yesterday" else today
+        return series.entries_table(ctx(d, d))
+    if widget_type == "recent-activities":
+        try:
+            count = min(max(int(str(settings.get("count", DEFAULT_RECENT))), 1), 20)
+        except ValueError:
+            count = DEFAULT_RECENT
+        group = str(settings.get("sport", "all"))
+        acts = [
+            a
+            for a in builder.reversed_activities(session, priority)
+            if group == "all" or activities_api.sport_group(a.sport) == group
+        ][:count]
+        return series.activities_table(ctx(today - timedelta(days=365), today), acts)
+    if widget_type == "activity-detail":
+        wanted = settings.get("activityId")
+        acts = builder.reversed_activities(session, priority)
+        chosen = [a for a in acts if a.id == wanted] if isinstance(wanted, int) else acts[:1]
+        return series.activities_table(ctx(today - timedelta(days=365), today), chosen)
+    return None
+
+
+def _days(value: Any, default: int) -> int:
+    try:
+        return min(max(int(str(value)), 1), 365)
+    except ValueError:
+        return default

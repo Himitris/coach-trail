@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import activities as activities_api
+from app.export.glossary import GLOSSARY
 from app.metrics import service
 from app.metrics.fitness import FitnessReport
 from app.metrics.intensity import (
@@ -29,7 +30,7 @@ from app.plan.schemas import TYPE_LABELS, EntryOut
 from app.plan.service import match_planned, status_by_id
 from app.sync.dedup import primary_activities, stream_row
 
-EXPORT_VERSION = 1
+EXPORT_VERSION = 1  # schema_version du JSON ; à incrémenter si la structure change
 MAX_SPAN_DAYS = 366
 MAX_ACTIVITIES = 150
 MAX_INTENSITY_WEEKS = 52
@@ -135,8 +136,15 @@ class SourceInfo(BaseModel):
     activities: int
 
 
+class GlossaryItem(BaseModel):
+    key: str
+    name: str
+    evidence: str
+    text: str
+
+
 class ExportData(BaseModel):
-    version: int = EXPORT_VERSION
+    schema_version: int = EXPORT_VERSION
     generated_on: date
     start: date
     end: date
@@ -152,6 +160,8 @@ class ExportData(BaseModel):
     recovery: RecoverySection | None = None
     sources: list[SourceInfo] = []
     limits: list[str] = []
+    glossary: list[GlossaryItem] = []
+    streams_url: str | None = None  # flux sous-échantillonnés : fichier JSON séparé
 
 
 class ExportError(ValueError):
@@ -399,6 +409,11 @@ def _limits(data: ExportData, wellness_days: int) -> list[str]:
     return limits
 
 
+def reversed_activities(session: Session, priority: Sequence[str]) -> list[Activity]:
+    """Activités dédupliquées, de la plus récente à la plus ancienne."""
+    return list(reversed(primary_activities(session, priority)))
+
+
 def build_export(
     session: Session,
     *,
@@ -447,4 +462,8 @@ def build_export(
         data.recovery = recovery_section(session, priority, end, start, 60)
         wellness_days = len(service.wellness_points(session, priority, start, end))
     data.limits = _limits(data, wellness_days)
+    if "glossary" in sections:
+        data.glossary = [
+            GlossaryItem(key=g.key, name=g.name, evidence=g.evidence, text=g.text) for g in GLOSSARY
+        ]
     return data

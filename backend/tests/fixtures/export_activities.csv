@@ -1,0 +1,4 @@
+id,date,sport,source,course,duree_min,distance_km,dplus_m,dminus_m,fc_moyenne_bpm,fc_max_bpm,rpe_0_10,bas_intensite_pct,allure_ajustee_pente_s_par_km
+1,2026-10-06,trail_running,garmin,0,60,10,400,400,150,,7,50,328
+2,2026-10-09,running,garmin,0,45,8,40,40,138,,,,
+3,2026-10-11,trail_running,garmin,1,180,30,1500,1500,160,,,,328

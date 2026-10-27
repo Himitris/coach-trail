@@ -24,6 +24,7 @@ dev = [
     "pytest-asyncio>=0.24",
     "ruff>=0.8",
     "pyyaml>=6",
+    "jsonschema>=4",
     "mypy>=1.13",
 ]
 
@@ -52,5 +53,5 @@ plugins = ["pydantic.mypy"]
 files = ["app", "tests", "alembic"]
 
 [[tool.mypy.overrides]]
-module = ["apscheduler.*", "yaml"]
+module = ["apscheduler.*", "yaml", "jsonschema"]
 ignore_missing_imports = true

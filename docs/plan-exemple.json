@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "sessions": [
+    {
+      "date": "2026-11-02",
+      "type": "repos",
+      "titre": "Repos",
+      "objectif": "Récupération avant la dernière semaine de préparation",
+      "consignes": "Mobilité douce possible, pas de course."
+    },
+    {
+      "date": "2026-11-03",
+      "type": "footing",
+      "titre": "Footing facile",
+      "objectif": "Endurance de base",
+      "duree_min": 50,
+      "zone_cible": "1-2",
+      "dplus_cible": 80,
+      "consignes": "Allure conversationnelle, FC en zones 1 et 2."
+    },
+    {
+      "date": "2026-11-05",
+      "type": "cotes",
+      "titre": "Côtes courtes 6 × 1 min",
+      "objectif": "Garder du tonus en montée sans fatigue durable",
+      "duree_min": 55,
+      "zone_cible": "3-4",
+      "dplus_cible": 250,
+      "consignes": "Échauffement 15 min, 6 côtes de 1 min, récupération en descendant, retour au calme 10 min."
+    },
+    {
+      "date": "2026-11-08",
+      "type": "course",
+      "titre": "Trail des 3 Rocs",
+      "objectif": "Course objectif",
+      "dplus_cible": 1600,
+      "consignes": "Départ prudent, s'alimenter toutes les 30 minutes."
+    }
+  ]
+}

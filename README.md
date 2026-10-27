@@ -22,6 +22,10 @@ data/      Base SQLite et JSON bruts (non versionné)
 
 Garmin Connect est la source principale. **Intervals.icu** (clé personnelle : `INTERVALS_ATHLETE_ID` et `INTERVALS_API_KEY` dans `deploy/.env`) sert de repli silencieux : appelé seulement si Garmin est indisponible, avec le badge « Garmin indisponible depuis le … » et les dernières valeurs conservées. Training Readiness et Body Battery restent vides pendant un repli (« non disponible via Intervals.icu »). Détails : `backend/README.md`.
 
+## Exports et import de plan
+
+Export Markdown, JSON versionné et CSV (séries), par période, par widget et par séance ; import d'un plan JSON produit par Claude (aperçu, confirmation, jours réalisés protégés). Voir [`docs/export.md`](docs/export.md) et [`docs/prompt-plan-claude.md`](docs/prompt-plan-claude.md).
+
 ## Installation
 
 Détail pas à pas (Proxmox, Tailscale, clés OVH, DNS) : [`deploy/README.md`](deploy/README.md). En bref, sur l'hôte :

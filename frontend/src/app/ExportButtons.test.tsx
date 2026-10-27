@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockApi } from "../test/mockApi";
 import { renderWithApp } from "../test/render";
-import { ActivityExportButton, ExportButton } from "./ExportButtons";
+import { ActivityExportButton, ExportButton, WidgetExportMenu } from "./ExportButtons";
 
 const writeText = vi.fn<(text: string) => Promise<void>>();
 
@@ -36,7 +36,7 @@ describe("Copier pour Claude", () => {
     await user.click(within(dialog).getByRole("button", { name: "Copier" }));
 
     await waitFor(() => { expect(writeText).toHaveBeenCalledWith("# Coach Trail — export\n"); });
-    expect(api.calls[0]?.query).toEqual({ from: "2026-09-18", to: "2026-10-15" }); // 4 semaines par défaut
+    expect(api.calls[0]?.query).toEqual({ from: "2026-09-18", to: "2026-10-15", format: "md" }); // 4 semaines par défaut
     expect(await screen.findByText(/Export copié pour Claude/)).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
@@ -48,10 +48,12 @@ describe("Copier pour Claude", () => {
     await user.click(screen.getByRole("button", { name: "Copier pour Claude" }));
     await user.click(screen.getByLabelText("7 jours"));
 
+    await user.click(screen.getByLabelText("JSON"));
     expect(screen.getByRole("link", { name: "Télécharger le JSON complet" })).toHaveAttribute(
       "href",
       "/api/export?from=2026-10-09&to=2026-10-15&format=json",
     );
+    await user.click(screen.getByLabelText("Markdown"));
     expect(screen.getByRole("link", { name: "Flux de séances (JSON)" })).toHaveAttribute(
       "href",
       "/api/export/streams?from=2026-10-09&to=2026-10-15",
@@ -96,5 +98,60 @@ describe("Export d'une séance", () => {
     await waitFor(() => { expect(writeText).toHaveBeenCalledWith("## Détail de séance\n"); });
     expect(api.calls).toHaveLength(1);
     expect(await screen.findByText(/Séance copié/)).toBeInTheDocument();
+  });
+});
+
+describe("Formats d'export", () => {
+  it("CSV : choix de la série, lien de téléchargement et copie du texte CSV", async () => {
+    const api = mockApi({ "GET /api/export": () => ({ body: "date,hrv_nuit_ms\n2026-10-15,61\n" }) });
+    const user = setupUser();
+    renderWithApp(<ExportButton />);
+    await user.click(screen.getByRole("button", { name: "Copier pour Claude" }));
+    await user.click(screen.getByLabelText("CSV (une série)"));
+    await user.selectOptions(screen.getByLabelText("Série"), "hrv");
+    expect(screen.getByRole("link", { name: "Télécharger (CSV)" })).toHaveAttribute(
+      "href",
+      "/api/export?from=2026-09-18&to=2026-10-15&format=csv&series=hrv",
+    );
+    await user.click(screen.getByRole("button", { name: "Copier" }));
+    await waitFor(() => { expect(writeText).toHaveBeenCalledWith("date,hrv_nuit_ms\n2026-10-15,61\n"); });
+    expect(api.calls[0]?.query).toMatchObject({ format: "csv", series: "hrv" });
+  });
+
+  it("JSON : copié mis en forme", async () => {
+    mockApi({ "GET /api/export": () => ({ body: { schema_version: 1, days: 28 } }) });
+    const user = setupUser();
+    renderWithApp(<ExportButton />);
+    await user.click(screen.getByRole("button", { name: "Copier pour Claude" }));
+    await user.click(screen.getByLabelText("JSON"));
+    await user.click(screen.getByRole("button", { name: "Copier" }));
+    await waitFor(() => { expect(writeText).toHaveBeenCalledWith('{\n  "schema_version": 1,\n  "days": 28\n}'); });
+  });
+
+  it("widget : menu JSON / CSV, téléchargement ou message d'erreur du serveur", async () => {
+    const urls: string[] = [];
+    const created = vi.fn(() => "blob:x");
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: created, revokeObjectURL: vi.fn() }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        urls.push(url);
+        return Promise.resolve(
+          url.includes("format=json")
+            ? new Response(JSON.stringify({ detail: "Ce widget (« note ») n'a pas de série à exporter en JSON." }), { status: 422 })
+            : new Response("date,x\n", { status: 200 }),
+        );
+      }),
+    );
+    const user = setupUser();
+    renderWithApp(<WidgetExportMenu widgetId="w 1" title="Forme" />);
+    await user.click(screen.getByRole("button", { name: "Autres formats : Forme" }));
+    await user.click(screen.getByRole("menuitem", { name: "Télécharger en JSON" }));
+    expect(await screen.findByText(/n'a pas de série à exporter en JSON/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Autres formats : Forme" }));
+    await user.click(screen.getByRole("menuitem", { name: "Télécharger en CSV" }));
+    await waitFor(() => { expect(created).toHaveBeenCalled(); });
+    expect(urls).toEqual(["/api/export/widget/w%201?format=json", "/api/export/widget/w%201?format=csv"]);
   });
 });

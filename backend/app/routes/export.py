@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlalchemy.orm import Session
 
 from app import activities as activities_api
-from app.export import builder, details, markdown, streams
+from app.export import builder, details, markdown, series, streams
 from app.metrics import service
 from app.models import Activity
 from app.routes.deps import get_db
@@ -45,10 +45,24 @@ def export(
     from_: Annotated[date | None, Query(alias="from")] = None,
     to: date | None = None,
     scope: str | None = None,
-    format: Literal["md", "json"] = "md",  # noqa: A002
+    format: Literal["md", "json", "csv"] = "md",  # noqa: A002
+    series_name: Annotated[str, Query(alias="series")] = "activities",
 ) -> Response:
+    """Export du paquet pour Claude : Markdown, JSON versionné ou une série en CSV."""
     priority, tz, today = _ctx(request)
     start, end = _period(request, from_, to)
+    if format == "csv":
+        ctx = series.Ctx(db, priority, tz, today, start, end)
+        try:
+            table = series.build_table(series_name, ctx)
+        except series.SeriesError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        name = f"coach-trail-{table.name}_{start.isoformat()}_{end.isoformat()}.csv"
+        return Response(
+            series.to_csv(table),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{name}"'},
+        )
     try:
         data = builder.build_export(
             db,
@@ -61,11 +75,19 @@ def export(
         )
     except builder.ExportError as exc:
         raise HTTPException(422, str(exc)) from exc
-    if format == "json":
-        return JSONResponse(data.model_dump(mode="json"))
     name = _streams_name(start, end)
-    ref = f"GET /api/export/streams?from={start.isoformat()}&to={end.isoformat()} ({name})"
-    return Response(markdown.render_markdown(data, ref), media_type=MD_TYPE)
+    streams_url = f"/api/export/streams?from={start.isoformat()}&to={end.isoformat()}"
+    if format == "json":
+        data.streams_url = streams_url
+        return JSONResponse(
+            data.model_dump(mode="json"),
+            headers={
+                "Content-Disposition": f'attachment; filename="coach-trail_{start}_{end}.json"'
+            },
+        )
+    return Response(
+        markdown.render_markdown(data, f"GET {streams_url} ({name})"), media_type=MD_TYPE
+    )
 
 
 @router.get("/streams")
@@ -128,14 +150,34 @@ def export_activity(
 
 @router.get("/widget/{widget_id}")
 def export_widget(
-    widget_id: str, request: Request, db: Annotated[Session, Depends(get_db)]
+    widget_id: str,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    format: Literal["md", "json", "csv"] = "md",  # noqa: A002
 ) -> Response:
-    """Markdown d'un widget de la disposition, d'après son type et ses réglages."""
+    """Export d'un widget de la disposition : Markdown, ou sa série en JSON / CSV."""
     found = details.find_widget(db, widget_id)
     if found is None:
         raise HTTPException(404, "Widget introuvable.")
     priority, tz, today = _ctx(request)
-    text = details.widget_markdown(db, *found, priority=priority, tz=tz, today=today)
-    if text is None:
-        return PlainTextResponse("", status_code=204)
-    return Response(text, media_type=MD_TYPE)
+    if format == "md":
+        text = details.widget_markdown(db, *found, priority=priority, tz=tz, today=today)
+        if text is None:
+            return PlainTextResponse("", status_code=204)
+        return Response(text, media_type=MD_TYPE)
+    table = details.widget_table(db, *found, priority=priority, tz=tz, today=today)
+    if table is None:
+        raise HTTPException(
+            422, f"Ce widget (« {found[0]} ») n'a pas de série à exporter en {format.upper()}."
+        )
+    name = f"coach-trail-{found[0]}-{table.name}"
+    if format == "csv":
+        return Response(
+            series.to_csv(table),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{name}.csv"'},
+        )
+    return JSONResponse(
+        series.to_json(table, {"widget": found[0], "generated_on": today.isoformat()}),
+        headers={"Content-Disposition": f'attachment; filename="{name}.json"'},
+    )

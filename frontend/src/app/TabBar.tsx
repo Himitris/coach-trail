@@ -12,6 +12,7 @@ export function TabBar() {
   const navigate = useNavigate();
   const pageMatch = useMatch("/p/:pageId");
   const sourcesMatch = useMatch("/sources");
+  const importMatch = useMatch("/plan/import");
   const sources = useSources();
   const activeId = pageMatch?.params.pageId;
   const [menuId, setMenuId] = useState<string | null>(null);
@@ -141,6 +142,14 @@ export function TabBar() {
           + Course
         </button>
       </div>
+      <Link
+        to="/plan/import"
+        className={`tab tab-sources${importMatch ? " tab-active" : ""}`}
+        title="Importer un plan JSON produit par Claude"
+        aria-label="Importer un plan"
+      >
+        Plan
+      </Link>
       <Link to="/sources" className={`tab tab-sources${sourcesMatch ? " tab-active" : ""}`}>
         Sources{attention && <span className="dot dot-warn" aria-label="Attention requise" />}
       </Link>

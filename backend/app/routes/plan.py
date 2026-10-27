@@ -4,12 +4,13 @@ from typing import Annotated
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.metrics.models import monday
 from app.models import PlannedSession
-from app.plan import service
+from app.plan import importer, service
 from app.plan.schemas import PlannedIn, PlannedOut, WeekPlanOut
 from app.routes.deps import get_db
 
@@ -115,3 +116,54 @@ def delete_session(session_id: int, db: Annotated[Session, Depends(get_db)]) -> 
     db.delete(_get(db, session_id))
     db.commit()
     return Response(status_code=204)
+
+
+@router.post("/import", response_model=importer.ImportReport)
+async def import_plan(
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    dry_run: bool = True,
+    confirm_past_done: bool = False,
+) -> importer.ImportReport | JSONResponse:
+    """Importe un plan JSON. `dry_run=true` (défaut) : aperçu sans rien écrire.
+
+    Les jours passés dont la séance est déjà réalisée ne sont modifiés qu'avec `confirm_past_done`.
+    """
+    priority, tz, today = _ctx(request)
+    try:
+        data = await request.json()
+    except ValueError:
+        return _import_errors(
+            [
+                importer.ImportIssue(
+                    session=None, field=None, message="Le fichier n'est pas un JSON valide."
+                )
+            ]
+        )
+    parsed, issues = importer.parse_document(data, today)
+    if issues:
+        return _import_errors(issues)
+    return importer.plan_import(
+        db,
+        parsed,
+        today=today,
+        priority=priority,
+        tz=tz,
+        dry_run=dry_run,
+        confirm_past_done=confirm_past_done,
+    )
+
+
+def _import_errors(issues: list[importer.ImportIssue]) -> JSONResponse:
+    n = len(issues)
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": {
+                "message": (
+                    f"Le plan contient {n} erreur{'s' if n > 1 else ''} : rien n'a été enregistré."
+                ),
+                "errors": [i.model_dump() for i in issues],
+            }
+        },
+    )
