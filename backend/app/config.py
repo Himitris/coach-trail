@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     intervals_api_key: SecretStr = SecretStr("")
     strava_client_id: str = ""
     strava_client_secret: SecretStr = SecretStr("")
+    # Strava est optionnel et désactivé par défaut (conditions de l'API : voir README).
+    strava_enabled: bool = False
+    strava_token_dir: str = "/data/strava_tokens"  # noqa: S105
+    strava_redirect_uri: str = "https://coach.himitris.fr/api/strava/callback"
+    strava_history_months: int = 12
 
     sync_time: str = "03:30"
     source_priority: str = "garmin,intervals,strava"

@@ -24,6 +24,13 @@ _dynamic_secrets: set[str] = set()
 _dynamic_lock = threading.Lock()
 
 
+def remember_secret(value: str) -> None:
+    """Masque `value` dans tous les logs pour le reste du processus (ex. jeton d'accès)."""
+    if len(value) >= 4:
+        with _dynamic_lock:
+            _dynamic_secrets.add(value)
+
+
 @contextmanager
 def mask_secret(value: str) -> Iterator[None]:
     """Masque `value` dans tous les logs le temps du bloc (ex. mot de passe d'une requête)."""

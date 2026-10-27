@@ -20,7 +20,8 @@ from app.plan.entries import DbEntryReader
 from app.routes import backup as backup_routes
 from app.routes import entries, garmin, goals, health, metrics, phase2, plan, profile, sync
 from app.routes import export as export_routes
-from app.sync.registry import build_sources
+from app.routes import strava as strava_routes
+from app.sync.registry import build_sources, build_strava_auth
 from app.sync.scheduler import build_scheduler
 from app.sync.service import SyncService
 
@@ -81,6 +82,7 @@ def create_app(
     app.state.sync_service = sync_service
     app.state.scheduler = scheduler
     app.state.backup = backup
+    app.state.strava_auth = build_strava_auth(settings)
     app.state.entry_reader = DbEntryReader(session_factory)
     app.state.today = lambda: datetime.now(ZoneInfo(settings.tz)).date()
     app.state.garmin_login = login_manager or LoginManager(settings.garmin_token_dir)
@@ -99,6 +101,7 @@ def create_app(
         export_routes.router,
         backup_routes.router,
         phase2.router,
+        strava_routes.router,
     ):
         app.include_router(router, prefix="/api")
     return app

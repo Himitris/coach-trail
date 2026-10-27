@@ -292,3 +292,21 @@ export const importPlan = (
   request("POST", `/api/plan/import${search({ dry_run: options.dryRun, confirm_past_done: options.confirmPastDone ?? false })}`, {
     body: doc,
   });
+
+// --- Strava (optionnel) -------------------------------------------------------------------------
+
+export interface StravaStatus {
+  /** STRAVA_ENABLED vrai et identifiants présents. */
+  enabled: boolean;
+  requested: boolean;
+  configured: boolean;
+  connected: boolean;
+  scope: string;
+  redirect_uri: string;
+  warning: string;
+  limits: string;
+}
+
+export const fetchStravaStatus = (): Promise<StravaStatus> => request("GET", "/api/strava/status");
+export const stravaAuthorize = (): Promise<{ url: string }> => request("POST", "/api/strava/authorize");
+export const stravaDisconnect = (): Promise<null> => request("POST", "/api/strava/disconnect");

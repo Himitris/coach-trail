@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SourceHealth } from "../api/endpoints";
 import { ToastProvider } from "../app/toasts";
 import { mockApi } from "../test/mockApi";
+import { navigateExternal } from "../app/navigation";
 import { SourcesPage } from "./SourcesPage";
 
 const source = (over: Partial<SourceHealth>): SourceHealth => ({
@@ -47,8 +48,12 @@ const backup = {
 
 const status = { running: false, nightly_time: "03:30", next_run_at: null };
 
+vi.mock("../app/navigation", () => ({ navigateExternal: vi.fn() }));
+
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.mocked(navigateExternal).mockClear();
+  window.history.replaceState(null, "", "/");
 });
 
 describe("Santé des sources", () => {
@@ -218,5 +223,83 @@ describe("Santé des sources", () => {
     mount();
     const card = within(await screen.findByLabelText("Sauvegardes"));
     expect(await card.findByText("Aucune sauvegarde")).toBeInTheDocument();
+  });
+
+  const strava = (over: Record<string, unknown> = {}) => ({
+    enabled: false,
+    requested: false,
+    configured: false,
+    connected: false,
+    scope: "read,activity:read_all",
+    redirect_uri: "https://coach.himitris.fr/api/strava/callback",
+    warning: "Avant d'activer Strava, lisez les conditions de l'API Strava du 1er juin 2026 : elles interdisent l'entraînement d'IA avec les données Strava.",
+    limits: "Quotas par défaut : 200 requêtes / 15 min et 2 000 / jour.",
+    ...over,
+  });
+  const baseRoutes = () => ({
+    "GET /api/sources/health": () => ({ body: [source({})] }),
+    "GET /api/sync/status": () => ({ body: status }),
+    "GET /api/backup/status": () => ({ body: backup }),
+  });
+
+  it("Strava désactivé : avertissement sur les conditions de l'API et marche à suivre, aucun bouton", async () => {
+    mockApi({ ...baseRoutes(), "GET /api/strava/status": () => ({ body: strava() }) });
+    mount();
+    const card = within(await screen.findByLabelText("Strava"));
+    expect(await card.findByText("Désactivé")).toBeInTheDocument();
+    expect(card.getByRole("note")).toHaveTextContent(/1er juin 2026.*entraînement d'IA/);
+    expect(card.getByText(/STRAVA_ENABLED=true/)).toBeInTheDocument();
+    expect(card.getByText("https://coach.himitris.fr/api/strava/callback")).toBeInTheDocument();
+    expect(card.queryByRole("button")).toBeNull();
+    expect(card.getByText(/Garmin prévaut/)).toBeInTheDocument();
+  });
+
+  it("Strava activé : « Connecter Strava » envoie vers l'autorisation de Strava", async () => {
+    const api = mockApi({
+      ...baseRoutes(),
+      "GET /api/strava/status": () => ({ body: strava({ enabled: true, requested: true, configured: true }) }),
+      "POST /api/strava/authorize": () => ({ body: { url: "https://www.strava.com/oauth/authorize?client_id=1&state=abc" } }),
+    });
+    mount();
+    const card = within(await screen.findByLabelText("Strava"));
+    expect(await card.findByText("À connecter")).toBeInTheDocument();
+    await userEvent.click(card.getByRole("button", { name: "Connecter Strava" }));
+    await waitFor(() => { expect(navigateExternal).toHaveBeenCalledWith("https://www.strava.com/oauth/authorize?client_id=1&state=abc"); });
+    expect(api.callsTo("POST /api/strava/authorize")).toHaveLength(1);
+  });
+
+  it("Strava demandé sans identifiants : dit ce qui manque", async () => {
+    mockApi({ ...baseRoutes(), "GET /api/strava/status": () => ({ body: strava({ requested: true }) }) });
+    mount();
+    const card = within(await screen.findByLabelText("Strava"));
+    expect(await card.findByText(/STRAVA_CLIENT_ID et STRAVA_CLIENT_SECRET sont requis/)).toBeInTheDocument();
+  });
+
+  it("Strava connecté : déconnexion après confirmation", async () => {
+    let connected = true;
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const api = mockApi({
+      ...baseRoutes(),
+      "GET /api/strava/status": () => ({ body: strava({ enabled: true, requested: true, configured: true, connected }) }),
+      "POST /api/strava/disconnect": () => {
+        connected = false;
+        return { status: 204 };
+      },
+    });
+    mount();
+    const card = within(await screen.findByLabelText("Strava"));
+    expect(await card.findByText("Connecté")).toBeInTheDocument();
+    await userEvent.click(card.getByRole("button", { name: "Déconnecter Strava" }));
+    await waitFor(() => { expect(api.callsTo("POST /api/strava/disconnect")).toHaveLength(1); });
+    expect(await card.findByText("À connecter")).toBeInTheDocument();
+    expect(await screen.findByText("Strava déconnecté.")).toBeInTheDocument();
+  });
+
+  it("retour de Strava : message selon le résultat, adresse nettoyée", async () => {
+    window.history.replaceState(null, "", "/sources?strava=refuse");
+    mockApi({ ...baseRoutes(), "GET /api/strava/status": () => ({ body: strava() }) });
+    mount();
+    expect(await screen.findByText("Connexion Strava refusée ou expirée.")).toBeInTheDocument();
+    expect(window.location.search).toBe("");
   });
 });

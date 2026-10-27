@@ -26,6 +26,12 @@ Garmin Connect est la source principale. **Intervals.icu** (clé personnelle : `
 
 Export Markdown, JSON versionné et CSV (séries), par période, par widget et par séance ; import d'un plan JSON produit par Claude (aperçu, confirmation, jours réalisés protégés). Voir [`docs/export.md`](docs/export.md) et [`docs/prompt-plan-claude.md`](docs/prompt-plan-claude.md).
 
+## Strava (optionnel, désactivé par défaut)
+
+> **À lire avant d'activer** : les conditions de l'API Strava du **1er juin 2026** interdisent l'entraînement d'IA avec les données Strava. Envoyer vos propres séances à Claude pour analyse n'est pas de l'entraînement, mais lisez le texte officiel avant de connecter Strava.
+
+Activation : créer une application sur strava.com/settings/api (domaine de retour : `coach.himitris.fr`), puis dans `deploy/.env` : `STRAVA_ENABLED=true`, `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, redémarrer, et cliquer sur **Connecter Strava** dans *Sources* (autorisation en lecture seule). Les jetons sont stockés en `600` dans `/data/strava_tokens`, jamais journalisés. Strava ne fournit ni HRV, ni sommeil, ni FC de repos : seules les activités et leurs flux sont importés, dédupliqués avec Garmin (priorité la plus basse). Quotas lus dans les en-têtes de réponse (200 requêtes / 15 min, 2 000 / jour) : les appels sont ralentis dès la moitié d'un quota et la synchronisation s'arrête proprement avant le blocage.
+
 ## Accès direct par Claude (MCP)
 
 Serveur MCP en lecture seule (profil, semaine, sorties, récupération, charge, plan, export) pour Claude Desktop sur un PC du tailnet, avec jeton partagé facultatif. Voir [`docs/mcp.md`](docs/mcp.md).

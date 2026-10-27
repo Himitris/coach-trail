@@ -35,6 +35,9 @@ services:
       GARMIN_TOKEN_DIR: /data/garmin_tokens
       INTERVALS_ATHLETE_ID: ${INTERVALS_ATHLETE_ID:-}
       INTERVALS_API_KEY: ${INTERVALS_API_KEY:-}
+      STRAVA_ENABLED: ${STRAVA_ENABLED:-false}
+      STRAVA_TOKEN_DIR: /data/strava_tokens
+      STRAVA_REDIRECT_URI: https://${DOMAIN}/api/strava/callback
       STRAVA_CLIENT_ID: ${STRAVA_CLIENT_ID:-}
       STRAVA_CLIENT_SECRET: ${STRAVA_CLIENT_SECRET:-}
     volumes:

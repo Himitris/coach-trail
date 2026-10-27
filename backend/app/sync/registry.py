@@ -7,7 +7,28 @@ from app.garmin.connector import GarminAPI, GarminConnector
 from app.garmin.normalize import GARMIN_NORMALIZER
 from app.intervals.connector import IntervalsConnector
 from app.intervals.normalize import INTERVALS_NORMALIZER
+from app.strava.auth import StravaAuth
+from app.strava.connector import StravaConnector
+from app.strava.normalize import STRAVA_NORMALIZER
 from app.sync.types import SourceConnector, SourceNormalizer
+
+
+def strava_enabled(settings: Settings) -> bool:
+    """Strava : désactivé par défaut ; activé seulement avec STRAVA_ENABLED et les identifiants."""
+    return bool(
+        settings.strava_enabled
+        and settings.strava_client_id
+        and settings.strava_client_secret.get_secret_value()
+    )
+
+
+def build_strava_auth(settings: Settings) -> StravaAuth:
+    return StravaAuth(
+        settings.strava_token_dir,
+        settings.strava_client_id,
+        settings.strava_client_secret.get_secret_value(),
+        settings.strava_redirect_uri,
+    )
 
 
 def build_sources(
@@ -35,4 +56,9 @@ def build_sources(
             history_months=settings.intervals_history_months,
         )
         normalizers["intervals"] = INTERVALS_NORMALIZER
+    if strava_enabled(settings):
+        connectors["strava"] = StravaConnector(
+            build_strava_auth(settings), history_months=settings.strava_history_months
+        )
+        normalizers["strava"] = STRAVA_NORMALIZER
     return connectors, normalizers

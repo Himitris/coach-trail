@@ -1,8 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { ApiError } from "../api/client";
-import { fetchBackupStatus, fetchSyncStatus, runSync, type SourceHealth } from "../api/endpoints";
+import {
+  fetchBackupStatus,
+  fetchStravaStatus,
+  fetchSyncStatus,
+  runSync,
+  stravaAuthorize,
+  stravaDisconnect,
+  type SourceHealth,
+} from "../api/endpoints";
 import { formatBytes, formatDateTime, STATE_LABELS } from "../app/format";
+import { navigateExternal } from "../app/navigation";
 import { useToast } from "../app/toasts";
 import { useSources } from "../app/useSources";
 import { GarminLogin } from "./GarminLogin";
@@ -35,6 +44,67 @@ function SourceCard({ source }: { source: SourceHealth }) {
         </button>
       )}
       {needsLogin && <GarminLogin onDone={() => { setLoginOpen(false); }} />}
+    </li>
+  );
+}
+
+/** Strava : optionnel, désactivé par défaut ; l'avertissement sur les conditions de l'API est toujours visible. */
+function StravaCard() {
+  const queryClient = useQueryClient();
+  const { notify } = useToast();
+  const status = useQuery({ queryKey: ["strava"], queryFn: fetchStravaStatus });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["strava"] });
+  const connect = useMutation({
+    mutationFn: stravaAuthorize,
+    onSuccess: ({ url }) => { navigateExternal(url); },
+    onError: (error) => { notify(error.message, "error"); },
+  });
+  const disconnect = useMutation({
+    mutationFn: stravaDisconnect,
+    onSuccess: async () => {
+      notify("Strava déconnecté.");
+      await refresh();
+    },
+  });
+  const s = status.data;
+  const state = s?.connected ? "ok" : s?.enabled ? "auth_required" : "jamais_synchronise";
+  const label = s === undefined ? "Chargement…" : s.connected ? "Connecté" : s.enabled ? "À connecter" : "Désactivé";
+  return (
+    <li className={`source source-${state}`} aria-label="Strava">
+      <div className="source-head">
+        <h2>Strava</h2>
+        <span className={`badge badge-${state}`}>{label}</span>
+      </div>
+      {status.isError && <p>Impossible de lire l'état de Strava : {status.error.message}</p>}
+      {s && (
+        <>
+          <p className="source-badge" role="note">{s.warning}</p>
+          <p className="muted">{s.limits} Source optionnelle, priorité la plus basse (Garmin prévaut).</p>
+          {!s.enabled && (
+            <p>
+              {s.requested
+                ? "STRAVA_CLIENT_ID et STRAVA_CLIENT_SECRET sont requis."
+                : "Désactivé par défaut : définir STRAVA_ENABLED=true, STRAVA_CLIENT_ID et STRAVA_CLIENT_SECRET."}{" "}
+              URL de retour à déclarer chez Strava : <code>{s.redirect_uri}</code>
+            </p>
+          )}
+          {s.enabled && !s.connected && (
+            <button type="button" className="btn btn-small" disabled={connect.isPending} onClick={() => { connect.mutate(); }}>
+              Connecter Strava
+            </button>
+          )}
+          {s.connected && (
+            <button
+              type="button"
+              className="btn btn-small"
+              disabled={disconnect.isPending}
+              onClick={() => { if (window.confirm("Déconnecter Strava ? Les séances déjà importées sont conservées.")) disconnect.mutate(); }}
+            >
+              Déconnecter Strava
+            </button>
+          )}
+        </>
+      )}
     </li>
   );
 }
@@ -77,6 +147,18 @@ export function SourcesPage() {
   const sources = useSources();
   const queryClient = useQueryClient();
   const { notify } = useToast();
+  // Retour de Strava (/sources?strava=ok|refuse|erreur) : on le dit, puis on nettoie l'adresse.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get("strava");
+    if (result === null) return;
+    notify(
+      result === "ok" ? "Strava connecté : première synchronisation lancée." : result === "refuse" ? "Connexion Strava refusée ou expirée." : "La connexion Strava a échoué.",
+      result === "ok" ? "info" : "error",
+    );
+    void queryClient.invalidateQueries({ queryKey: ["strava"] });
+    window.history.replaceState(null, "", "/sources");
+  }, [notify, queryClient]);
   const status = useQuery({
     queryKey: ["sync-status"],
     queryFn: fetchSyncStatus,
@@ -147,6 +229,7 @@ export function SourcesPage() {
           {sources.data.map((source) => (
             <SourceCard key={source.source} source={source} />
           ))}
+          <StravaCard />
           <BackupCard />
         </ul>
       )}
