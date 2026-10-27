@@ -244,3 +244,19 @@ def test_same_source_activities_never_merged(factory: sessionmaker[Session]) -> 
     make_service(factory, g).run_all()
     with factory() as s:
         assert len({a.dedup_group_id for a in s.scalars(select(Activity))}) == 2
+
+
+def test_sync_never_clears_a_manual_race_flag(factory: sessionmaker[Session]) -> None:
+    connector = garmin()
+    service = make_service(factory, connector)
+    service.run_all()
+    with factory() as s:
+        act = s.scalars(select(Activity).where(Activity.external_id == "a1")).one()
+        assert act.is_race is False
+        act.is_race = True
+        s.commit()
+    connector.activities[0] = activity_payload("a1", duration=3700)  # force la mise à jour
+    service.run_all()
+    with factory() as s:
+        act = s.scalars(select(Activity).where(Activity.external_id == "a1")).one()
+        assert act.duration_s == 3700 and act.is_race is True

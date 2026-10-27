@@ -170,3 +170,14 @@ def test_profile_bad_zones_are_ignored() -> None:
     payload = copy.deepcopy({"heart_rate_zones": [{"sport": "DEFAULT", "zone1Floor": 98}]})
     prof = _profile(payload)
     assert prof is None
+
+
+def test_race_flag_from_event_type() -> None:
+    payload = activity_payload()
+    a = N.activity(payload)
+    assert a is not None and a.is_race is False
+    summary = payload["summary"]
+    assert isinstance(summary, dict)
+    summary["eventType"] = {"typeId": 1, "typeKey": "race"}
+    race = N.activity(payload)
+    assert race is not None and race.is_race is True

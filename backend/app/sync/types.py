@@ -63,6 +63,7 @@ class NormalizedActivity:
     hr_max: int | None = None
     calories: int | None = None
     gear: str | None = None
+    is_race: bool = False
 
 
 @dataclass(frozen=True)

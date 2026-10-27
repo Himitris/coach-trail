@@ -119,6 +119,7 @@ def _activity(payload: dict[str, Any]) -> NormalizedActivity | None:
         hr_avg=_int(get("averageHR")),
         hr_max=_int(get("maxHR")),
         calories=_int(get("calories")),
+        is_race=(_first(summary, ("eventType", "typeKey")) == "race"),
     )
 
 

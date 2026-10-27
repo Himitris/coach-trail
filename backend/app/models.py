@@ -3,6 +3,7 @@ from typing import Any
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -75,6 +76,7 @@ class Activity(Base):
     hr_max: Mapped[int | None] = mapped_column(Integer)
     calories: Mapped[int | None] = mapped_column(Integer)
     gear: Mapped[str | None] = mapped_column(String)
+    is_race: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     dedup_group_id: Mapped[int | None] = mapped_column(Integer, index=True)
 
 

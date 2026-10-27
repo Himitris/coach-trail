@@ -1,6 +1,8 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from alembic.config import Config
 from fastapi import FastAPI, Request
@@ -13,7 +15,8 @@ from app.config import Settings, get_settings
 from app.db import make_engine, make_session_factory
 from app.garmin.auth import LoginManager
 from app.logging import configure_logging
-from app.routes import garmin, goals, health, profile, sync
+from app.metrics.srpe import NullEntryReader
+from app.routes import garmin, goals, health, metrics, profile, sync
 from app.sync.registry import build_sources
 from app.sync.scheduler import build_scheduler
 from app.sync.service import SyncService
@@ -70,9 +73,18 @@ def create_app(
     app.state.session_factory = session_factory
     app.state.sync_service = sync_service
     app.state.scheduler = scheduler
+    app.state.entry_reader = NullEntryReader()  # remplacé par les saisies du soir (prompt 06)
+    app.state.today = lambda: datetime.now(ZoneInfo(settings.tz)).date()
     app.state.garmin_login = login_manager or LoginManager(settings.garmin_token_dir)
     app.add_exception_handler(RequestValidationError, _validation_error)  # type: ignore[arg-type]
-    for router in (health.router, profile.router, goals.router, sync.router, garmin.router):
+    for router in (
+        health.router,
+        profile.router,
+        goals.router,
+        sync.router,
+        garmin.router,
+        metrics.router,
+    ):
         app.include_router(router, prefix="/api")
     return app
 

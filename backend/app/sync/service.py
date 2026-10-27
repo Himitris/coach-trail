@@ -104,6 +104,8 @@ def _apply_activity(session: Session, source: str, n: NormalizedActivity) -> Non
     act.calories = n.calories
     if n.gear is not None:
         act.gear = n.gear
+    if n.is_race:  # la synchro ne retire jamais un drapeau posé à la main
+        act.is_race = True
 
 
 def _apply_profile(session: Session, n: NormalizedProfile) -> None:
