@@ -92,6 +92,7 @@ button:disabled { cursor: default; opacity: 0.5; }
   position: absolute; top: calc(100% + 2px); left: 0; z-index: 40; min-width: 14rem; display: flex; flex-direction: column;
   background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); padding: 0.25rem;
 }
+.menu-floating { position: fixed; }
 .menu button { text-align: left; background: none; border: 0; padding: 0.55rem 0.7rem; border-radius: 6px; }
 .menu button:hover:not(:disabled) { background: var(--surface-2); }
 

@@ -8,7 +8,7 @@ from app.models import SourceStatus
 from app.routes.deps import get_db
 from app.schemas import SourceHealthOut, SyncStartedOut, SyncStatusOut
 from app.sync.scheduler import NIGHTLY_JOB_ID
-from app.sync.service import SyncService
+from app.sync.service import CHECK_TRIGGER, SyncService
 
 router = APIRouter()
 
@@ -26,6 +26,14 @@ def _service(request: Request) -> SyncService:
 @router.post("/sync/run", response_model=SyncStartedOut, status_code=202)
 def run_sync(request: Request) -> SyncStartedOut:
     if not _service(request).start_async("manual"):
+        raise HTTPException(409, "Une synchronisation est déjà en cours")
+    return SyncStartedOut(started=True)
+
+
+@router.post("/sync/check", response_model=SyncStartedOut, status_code=202)
+def check_sync(request: Request) -> SyncStartedOut:
+    """Vérification rapide : ne récupère que les activités plus récentes que la dernière connue."""
+    if not _service(request).start_async(CHECK_TRIGGER):
         raise HTTPException(409, "Une synchronisation est déjà en cours")
     return SyncStartedOut(started=True)
 

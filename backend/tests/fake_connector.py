@@ -58,6 +58,8 @@ class FakeConnector:
         self.streams = streams or {}
         self.fail: Exception | None = None
         self.gate: threading.Event | None = None
+        self.filter_since = False  # vrai : ne renvoie que les activités depuis `since`
+        self.last_since: datetime | None = None
         self.calls = {"activities": 0, "streams": 0, "wellness": 0}
 
     def _maybe_fail(self) -> None:
@@ -68,8 +70,16 @@ class FakeConnector:
 
     def fetch_activities(self, since: datetime | None) -> list[RawRecord]:
         self.calls["activities"] += 1
+        self.last_since = since
         self._maybe_fail()
-        return [RawRecord(a["id"], a) for a in self.activities]
+        records = [RawRecord(a["id"], a) for a in self.activities]
+        if self.filter_since and since is not None:
+            records = [
+                r
+                for r in records
+                if datetime.fromisoformat(r.payload["start"]).replace(tzinfo=None) >= since
+            ]
+        return records
 
     def fetch_activity_stream(self, external_id: str) -> RawRecord | None:
         self.calls["streams"] += 1

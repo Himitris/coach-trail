@@ -66,3 +66,19 @@ def test_run_conflict_and_status(api: tuple[TestClient, FakeConnector, SyncServi
 def test_invalid_sync_time_rejected() -> None:
     with pytest.raises(ValueError):
         Settings(sync_time="25:99")
+
+
+def test_check_endpoint_and_conflict(api: tuple[TestClient, FakeConnector, SyncService]) -> None:
+    import threading
+
+    client, connector, service = api
+    assert client.post("/api/sync/check").status_code == 202
+    service.wait(5)
+    assert client.get("/api/sync/status").json()["last_run"]["trigger"] == "check"
+
+    connector.gate = threading.Event()
+    assert client.post("/api/sync/check").status_code == 202
+    assert client.post("/api/sync/check").status_code == 409
+    assert client.post("/api/sync/run").status_code == 409
+    connector.gate.set()
+    service.wait(5)

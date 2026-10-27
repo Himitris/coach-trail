@@ -260,3 +260,68 @@ def test_sync_never_clears_a_manual_race_flag(factory: sessionmaker[Session]) ->
     with factory() as s:
         act = s.scalars(select(Activity).where(Activity.external_id == "a1")).one()
         assert act.duration_s == 3700 and act.is_race is True
+
+
+# --- vérification rapide (trigger « check ») --------------------------------------------------
+
+
+def _count(factory: sessionmaker[Session]) -> int:
+    with factory() as s:
+        return s.scalar(select(func.count()).select_from(Activity)) or 0
+
+
+def _checked(factory: sessionmaker[Session], connector: FakeConnector, service: SyncService) -> int:
+    report = service.run_all("check")
+    assert report.trigger == "check"
+    return sum(r.inserted for r in report.results)
+
+
+@pytest.mark.parametrize("late", [0, 1, 3])
+def test_check_fetches_only_missing_recent_activities(
+    factory: sessionmaker[Session], late: int
+) -> None:
+    old = [activity_payload("a1", start="2026-09-01T06:00:00+00:00")]
+    connector = FakeConnector("garmin", activities=old)
+    connector.filter_since = True
+    service = make_service(factory, connector)
+    service.run_all()  # synchronisation complète initiale
+    assert _count(factory) == 1
+    status_before = _status(factory)
+
+    connector.activities += [
+        activity_payload(f"n{i}", start=f"2026-10-0{i + 1}T06:00:00+00:00") for i in range(late)
+    ]
+    assert _checked(factory, connector, service) == late
+    assert _count(factory) == 1 + late
+    assert connector.calls["wellness"] == 1  # la vérification ne retélécharge pas le bien-être
+    assert (
+        connector.last_since is not None and connector.last_since.date().isoformat() == "2026-08-31"
+    )
+    assert _status(factory) == status_before  # curseur de la synchro nocturne intact
+
+    assert _checked(factory, connector, service) == 0  # relance : aucun doublon
+    assert _count(factory) == 1 + late
+
+
+def _status(factory: sessionmaker[Session]) -> object:
+    with factory() as s:
+        st = s.get(SourceStatus, "garmin")
+        return st.last_success_at if st else None
+
+
+def test_check_falls_back_when_garmin_fails(factory: sessionmaker[Session]) -> None:
+    garmin = FakeConnector("garmin", activities=[activity_payload("g1")])
+    intervals = FakeConnector(
+        "intervals", activities=[activity_payload("i1", start="2026-10-05T06:00:00+00:00")]
+    )
+    service = SyncService(
+        factory,
+        {"garmin": garmin, "intervals": intervals},
+        {"garmin": FAKE_NORMALIZER, "intervals": FAKE_NORMALIZER},
+        fallbacks={"garmin": "intervals"},
+    )
+    service.run_all()
+    garmin.fail = RuntimeError("Garmin 503")
+    report = service.run_all("check")
+    assert [r.source for r in report.results] == ["garmin", "intervals"]
+    assert not report.results[0].ok and report.results[1].ok

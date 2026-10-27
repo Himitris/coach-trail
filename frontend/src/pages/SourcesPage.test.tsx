@@ -46,7 +46,7 @@ const backup = {
   warning: null,
 };
 
-const status = { running: false, nightly_time: "03:30", next_run_at: null };
+const status = { running: false, nightly_time: "03:30", next_run_at: null, last_run: null };
 
 vi.mock("../app/navigation", () => ({ navigateExternal: vi.fn() }));
 
@@ -99,6 +99,50 @@ describe("Santé des sources", () => {
     await waitFor(() => { expect(api.callsTo("POST /api/sync/run")).toHaveLength(1); });
     expect(await screen.findByText("Synchronisation lancée.")).toBeInTheDocument();
     expect(await screen.findByText("Reconnexion requise")).toBeInTheDocument();
+  });
+
+  it("« Vérifier les nouveautés » annonce le nombre d'activités récupérées", async () => {
+    let checked = false;
+    const api = mockApi({
+      "GET /api/sources/health": () => ({ body: [source({})] }),
+      "GET /api/sync/status": () => ({
+        body: {
+          ...status,
+          last_run: checked
+            ? { trigger: "check", started_at: "2026-10-27T08:00:00", results: [{ source: "garmin", ok: true, inserted: 2 }] }
+            : null,
+        },
+      }),
+      "POST /api/sync/check": () => {
+        checked = true;
+        return { status: 202, body: { started: true } };
+      },
+    });
+    mount();
+    await userEvent.click(await screen.findByRole("button", { name: "Vérifier les nouveautés" }));
+    expect(await screen.findByText("2 nouvelle(s) activité(s).", undefined, { timeout: 3000 })).toBeInTheDocument();
+    expect(api.callsTo("POST /api/sync/check")).toHaveLength(1);
+    expect(api.callsTo("POST /api/sync/run")).toHaveLength(0);
+  });
+
+  it("« Vérifier les nouveautés » dit « Rien de nouveau » et signale le 409", async () => {
+    let busy = false;
+    mockApi({
+      "GET /api/sources/health": () => ({ body: [source({})] }),
+      "GET /api/sync/status": () => ({
+        body: { ...status, last_run: { trigger: "check", started_at: busy ? "2026-10-27T09:00:00" : "2026-10-27T08:00:00", results: [{ source: "garmin", ok: true, inserted: 0 }] } },
+      }),
+      "POST /api/sync/check": () => {
+        if (busy) return { status: 409, body: { detail: "Une synchronisation est déjà en cours" } };
+        busy = true;
+        return { status: 202, body: { started: true } };
+      },
+    });
+    mount();
+    await userEvent.click(await screen.findByRole("button", { name: "Vérifier les nouveautés" }));
+    expect(await screen.findByText("Rien de nouveau.", undefined, { timeout: 3000 })).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole("button", { name: "Vérifier les nouveautés" }));
+    expect(await screen.findByText("Une synchronisation est déjà en cours.")).toBeInTheDocument();
   });
 
   it("indique qu'une synchronisation est déjà en cours (409) et suit son avancement", async () => {

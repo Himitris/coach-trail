@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useMatch, useNavigate } from "react-router-dom";
 import { MAX_PAGE_TITLE } from "../layout/reducer";
 import { COURSE_PAGE_TITLE, COURSE_WIDGET_TYPES, getWidget } from "../widgets";
 import { useDashboard } from "./DashboardProvider";
 import { newId } from "./ids";
+import { shortcutLabel } from "./shortcuts";
 import { useSources } from "./useSources";
 
 /** Barre d'onglets fixe : une page par onglet, glisser pour réordonner, menu ⋯ pour le reste. */
@@ -17,6 +19,7 @@ export function TabBar() {
   const sources = useSources();
   const activeId = pageMatch?.params.pageId;
   const [menuId, setMenuId] = useState<string | null>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const attention = (sources.data ?? []).some((s) => s.state === "auth_required" || s.state === "down");
@@ -91,10 +94,10 @@ export function TabBar() {
                   to={`/p/${page.id}`}
                   role="tab"
                   aria-selected={active}
-                  title={index < 9 ? `Raccourci : touche ${index + 1}` : undefined}
+                  title={shortcutLabel(index) ? `Raccourci : touche ${shortcutLabel(index) ?? ""} (ou ${index + 1})` : undefined}
                   onDoubleClick={() => { setRenamingId(page.id); }}
                 >
-                  {index < 9 && <span className="tab-index" aria-hidden="true">{index + 1}</span>}
+                  {shortcutLabel(index) && <span className="tab-index" aria-hidden="true">{shortcutLabel(index)}</span>}
                   {page.title}
                   {layout.home_page_id === page.id && <span className="tab-home" title="Page d'accueil"> ⌂</span>}
                 </Link>
@@ -106,13 +109,18 @@ export function TabBar() {
                   aria-label={`Actions de la page ${page.title}`}
                   aria-haspopup="menu"
                   aria-expanded={menuId === page.id}
-                  onClick={() => { setMenuId(menuId === page.id ? null : page.id); }}
+                  onClick={(event) => {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    setMenuPos({ top: rect.bottom + 2, left: Math.max(4, Math.min(rect.left, window.innerWidth - 232)) });
+                    setMenuId(menuId === page.id ? null : page.id);
+                  }}
                 >
                   ⋯
                 </button>
               )}
               {menuId === page.id && (
                 <PageMenu
+                  pos={menuPos}
                   isFirst={index === 0}
                   isLast={index === layout.pages.length - 1}
                   isHome={layout.home_page_id === page.id}
@@ -190,6 +198,7 @@ function RenameInput({ initial, onDone }: { initial: string; onDone: (title: str
 }
 
 function PageMenu(props: {
+  pos: { top: number; left: number };
   isFirst: boolean;
   isLast: boolean;
   isHome: boolean;
@@ -221,14 +230,16 @@ function PageMenu(props: {
       {label}
     </button>
   );
-  return (
-    <div className="menu" role="menu">
+  // Rendu dans <body> : la barre d'onglets (overflow) rognerait un menu positionné dans ses cadres.
+  return createPortal(
+    <div className="menu menu-floating" role="menu" style={{ top: props.pos.top, left: props.pos.left }}>
       {item("Renommer", props.onRename)}
       {item("Dupliquer", props.onDuplicate)}
       {item(props.isHome ? "Page d'accueil actuelle" : "Définir comme accueil", props.onHome, props.isHome)}
       {item("Déplacer vers la gauche", () => { props.onMove(-1); }, props.isFirst)}
       {item("Déplacer vers la droite", () => { props.onMove(1); }, props.isLast)}
       {item("Supprimer", props.onDelete)}
-    </div>
+    </div>,
+    document.body,
   );
 }

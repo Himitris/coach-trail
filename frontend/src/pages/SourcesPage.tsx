@@ -6,6 +6,7 @@ import {
   fetchStravaStatus,
   fetchSyncStatus,
   importActivityFile,
+  checkSync,
   runSync,
   stravaAuthorize,
   stravaDisconnect,
@@ -15,6 +16,7 @@ import { formatBytes, formatDateTime, STATE_LABELS } from "../app/format";
 import { navigateExternal } from "../app/navigation";
 import { useToast } from "../app/toasts";
 import { useSources } from "../app/useSources";
+import { invalidateTraining } from "../widgets/queries";
 import { GarminLogin } from "./GarminLogin";
 
 function SourceCard({ source }: { source: SourceHealth }) {
@@ -270,6 +272,38 @@ export function SourcesPage() {
     },
   });
 
+  /** Lance la vérification rapide puis attend la fin du run pour annoncer le nombre de nouveautés. */
+  const check = useMutation({
+    mutationFn: async () => {
+      const before = (await fetchSyncStatus()).last_run?.started_at ?? null;
+      await checkSync();
+      for (let i = 0; i < 90; i += 1) {
+        await new Promise((resolve) => setTimeout(resolve, i === 0 ? 300 : 1000));
+        const now = await fetchSyncStatus();
+        if (!now.running && now.last_run && now.last_run.started_at !== before) return now.last_run;
+      }
+      return null;
+    },
+    onSuccess: async (run) => {
+      await queryClient.invalidateQueries({ queryKey: ["sync-status"] });
+      await refreshSources();
+      await invalidateTraining(queryClient);
+      if (!run) return notify("La vérification dure plus longtemps que prévu ; elle continue en arrière-plan.");
+      const failed = run.results.some((r) => !r.ok);
+      const added = run.results.reduce((n, r) => n + r.inserted, 0);
+      if (failed && added === 0) return notify("Vérification impossible : voir l'état des sources.", "error");
+      notify(added === 0 ? "Rien de nouveau." : `${added} nouvelle(s) activité(s).`);
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && error.status === 409) {
+        notify("Une synchronisation est déjà en cours.");
+        void queryClient.invalidateQueries({ queryKey: ["sync-status"] });
+      } else {
+        notify(error.message, "error");
+      }
+    },
+  });
+
   // Quand une synchronisation suivie se termine, l'état des sources a changé.
   const wasRunning = useRef(false);
   useEffect(() => {
@@ -285,10 +319,19 @@ export function SourcesPage() {
           <button
             type="button"
             className="btn btn-primary"
-            disabled={sync.isPending || running}
+            disabled={sync.isPending || check.isPending || running}
             onClick={() => { sync.mutate(); }}
           >
             {running ? "Synchronisation en cours…" : "Synchroniser maintenant"}
+          </button>
+          <button
+            type="button"
+            className="btn"
+            title="Ne récupère que les activités plus récentes que la dernière connue"
+            disabled={sync.isPending || check.isPending || running}
+            onClick={() => { check.mutate(); }}
+          >
+            {check.isPending ? "Vérification…" : "Vérifier les nouveautés"}
           </button>
         </div>
       </div>

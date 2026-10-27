@@ -43,6 +43,8 @@ from app.sync.types import (
 
 BATCH_SIZE = 25
 MAX_CONSECUTIVE_STREAM_FAILURES = 3
+CHECK_TRIGGER = "check"  # vérification rapide : seulement les activités récentes
+CHECK_MARGIN = timedelta(days=1)
 
 logger = logging.getLogger(__name__)
 
@@ -299,6 +301,7 @@ class SyncService:
             self._thread.join(timeout)
 
     def _run_locked(self, trigger: str) -> RunReport:
+        check = trigger == CHECK_TRIGGER
         report = RunReport(trigger=trigger, started_at=utcnow())
         self.current = report
         try:
@@ -306,11 +309,11 @@ class SyncService:
             for name in self.connectors:
                 if name in standby:
                     continue  # appelée seulement si sa source principale échoue
-                result = self.sync_source(name)
+                result = self.sync_source(name, check=check)
                 report.results.append(result)
                 backup = self.fallbacks.get(name)
                 if backup is not None and not result.ok:
-                    report.results.append(self._fallback(name, backup))
+                    report.results.append(self._fallback(name, backup, check=check))
         finally:
             report.finished_at = utcnow()
             self.last_report = report
@@ -319,7 +322,7 @@ class SyncService:
 
     # une source ------------------------------------------------------------------------------
 
-    def _fallback(self, primary: str, backup: str) -> SourceResult:
+    def _fallback(self, primary: str, backup: str, *, check: bool = False) -> SourceResult:
         """Bascule silencieuse : la source de repli comble la période où la principale manque.
 
         Aucune erreur n'est levée (le résultat porte l'échec éventuel). Au retour de la principale,
@@ -333,14 +336,19 @@ class SyncService:
                 else None
             )
         logger.warning("Source %s indisponible : bascule sur %s", primary, backup)
-        return self.sync_source(backup, fallback_for=primary, since_floor=gap_start)
+        return self.sync_source(backup, fallback_for=primary, since_floor=gap_start, check=check)
 
     def sync_source(
-        self, name: str, *, fallback_for: str | None = None, since_floor: datetime | None = None
+        self,
+        name: str,
+        *,
+        fallback_for: str | None = None,
+        since_floor: datetime | None = None,
+        check: bool = False,
     ) -> SourceResult:
         result = SourceResult(source=name, fallback_for=fallback_for)
         try:
-            self._sync_source(name, result, since_floor)
+            self._sync_source(name, result, since_floor, check)
         except Exception as exc:
             if isinstance(exc, SourceError):
                 state, message = exc.state, exc.user_message
@@ -352,7 +360,9 @@ class SyncService:
             logger.warning("Source %s en échec (%s) : %s", name, state, message)
             self._record_failure(name, state, message)
         else:
-            self._record_success(name, result.warnings)
+            # Une vérification rapide ne touche pas au curseur : la synchro nocturne comble tout.
+            if not check:
+                self._record_success(name, result.warnings)
         return result
 
     @staticmethod
@@ -372,7 +382,11 @@ class SyncService:
         return act, (datetime.combine(day, datetime.min.time()) if day else None)
 
     def _sync_source(
-        self, name: str, result: SourceResult, since_floor: datetime | None = None
+        self,
+        name: str,
+        result: SourceResult,
+        since_floor: datetime | None = None,
+        check: bool = False,
     ) -> None:
         connector = self.connectors[name]
         health = connector.healthcheck()  # peut lever SourceError (ex. auth_required)
@@ -383,6 +397,24 @@ class SyncService:
             status = session.get(SourceStatus, name)
             last = status.last_success_at if status else None
             act_progress, well_progress = self._progress(session, name)
+            latest = session.scalar(select(func.max(Activity.start_utc)))
+        if check and latest is not None:
+            # Vérification rapide : seulement le plus récent que la dernière activité connue.
+            started = utcnow()
+            since = latest - CHECK_MARGIN
+            if since_floor is not None:
+                since = max(since, since_floor)
+            try:
+                self._ingest(name, RAW_ACTIVITY, connector.fetch_activities(since), result)
+                self._sync_streams(name, connector, result, fetched_after=started)
+            finally:
+                with self._factory() as session:
+                    assign_dedup_groups(session)
+                    session.commit()
+                pop_warnings = getattr(connector, "pop_warnings", None)
+                if pop_warnings is not None:
+                    result.warnings.extend(pop_warnings())
+            return
         since = self._since(last, act_progress, self._overlap)
         wellness_since = self._since(last, well_progress, self._overlap)
         if (
@@ -437,8 +469,17 @@ class SyncService:
                     normalize_raw(session, row, self.normalizers)
                 session.commit()
 
-    def _sync_streams(self, name: str, connector: SourceConnector, result: SourceResult) -> None:
-        """Récupère les flux des activités qui n'en ont pas encore (reprise après échec incluse)."""
+    def _sync_streams(
+        self,
+        name: str,
+        connector: SourceConnector,
+        result: SourceResult,
+        fetched_after: datetime | None = None,
+    ) -> None:
+        """Récupère les flux des activités qui n'en ont pas encore (reprise après échec incluse).
+
+        Avec `fetched_after`, seulement celles reçues depuis cet instant (vérification rapide).
+        """
         with self._factory() as session:
             have = select(RawPayload.external_key).where(
                 RawPayload.source == name, RawPayload.type == RAW_STREAM
@@ -450,6 +491,7 @@ class SyncService:
                         RawPayload.source == name,
                         RawPayload.type == RAW_ACTIVITY,
                         RawPayload.external_key.not_in(have),
+                        *([RawPayload.fetched_at >= fetched_after] if fetched_after else []),
                     )
                     .order_by(RawPayload.id)
                 )

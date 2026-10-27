@@ -1,6 +1,6 @@
 import { fireEvent, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { isTypingTarget, pageIndexForKey, usePageShortcuts } from "./shortcuts";
+import { isTypingTarget, pageIndexForKey, shortcutLabel, usePageShortcuts } from "./shortcuts";
 
 const key = (k: string, extra: Partial<KeyboardEvent> = {}, target: EventTarget | null = document.body) => ({
   key: k,
@@ -18,6 +18,17 @@ describe("pageIndexForKey", () => {
     expect(pageIndexForKey(key("1"), 5)).toBe(0);
     expect(pageIndexForKey(key("5"), 5)).toBe(4);
     expect(pageIndexForKey(key("9"), 20)).toBe(8);
+  });
+
+  it("la rangée AZERTY & é \" ' ( - è _ ç à vise les pages 1 à 10", () => {
+    const keys = ["&", "é", '"', "'", "(", "-", "è", "_", "ç", "à"];
+    keys.forEach((k, i) => {
+      expect(pageIndexForKey(key(k), 12)).toBe(i);
+    });
+    expect(pageIndexForKey(key("à"), 9)).toBeNull();
+    expect(pageIndexForKey(key("é", { shiftKey: true }), 5)).toBeNull();
+    expect(shortcutLabel(0)).toBe("&");
+    expect(shortcutLabel(10)).toBeNull();
   });
 
   it("ignore les touches hors 1–9 et les pages inexistantes", () => {

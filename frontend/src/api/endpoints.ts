@@ -61,11 +61,15 @@ export interface SyncStatus {
   running: boolean;
   nightly_time: string;
   next_run_at: string | null;
+  last_run: { trigger: string; started_at: string; results: { source: string; ok: boolean; inserted: number }[] } | null;
 }
 
 export const fetchSyncStatus = (): Promise<SyncStatus> => request("GET", "/api/sync/status");
 
 export const runSync = (): Promise<{ started: boolean }> => request("POST", "/api/sync/run");
+
+/** Vérification rapide : seulement les activités plus récentes que la dernière connue. */
+export const checkSync = (): Promise<{ started: boolean }> => request("POST", "/api/sync/check");
 
 export interface GarminLoginResponse {
   status: "ok" | "mfa_required";
