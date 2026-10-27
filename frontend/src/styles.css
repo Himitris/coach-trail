@@ -295,3 +295,6 @@ button.plan-planned:hover { background: var(--surface-2); }
 .export-error { color: var(--danger); font-size: 0.875rem; margin: 0 0 0.75rem; }
 .export-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .export-actions a.btn { text-decoration: none; display: inline-flex; align-items: center; }
+
+.notice { margin: 0.5rem 0; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid var(--border); font-size: 0.875rem; }
+.notice-warn { background: var(--surface-2); border-left: 3px solid var(--warn, #b7791f); }

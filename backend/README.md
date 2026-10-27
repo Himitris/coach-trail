@@ -148,3 +148,16 @@ python -m app.cli restore /backup/daily/coach-2026-10-15.db   # API arrêtée ; 
 ```
 
 État : `GET /api/backup/status` (lecture seule). Tests : `tests/test_backup.py`, `tests/test_security.py`, et le parcours complet `tests/e2e_server.py` (utilisé par `npm run e2e`).
+
+## Intervals.icu et repli automatique
+
+`app/intervals/` : connecteur de l'API Intervals.icu (auth Basic `API_KEY:<clé>`, `INTERVALS_ATHLETE_ID` et `INTERVALS_API_KEY` dans l'environnement ; actif seulement s'ils sont renseignés). Activités, flux (FC, altitude, vitesse, distance), bien-être (HRV, FC repos, sommeil, poids, SpO2) et calendrier (conservé brut, le plan vit dans l'appli). Normalisation vers les mêmes tables que Garmin, `source='intervals'`.
+
+- **Repli** : Intervals.icu n'est appelé que si Garmin échoue (`down`, `auth_required`, erreur). Le run ne lève jamais d'erreur ; l'échec est dans le rapport et dans `source_status` (badge « Garmin indisponible depuis le … »). La fenêtre de repli démarre à la dernière réussite de Garmin.
+- **Retour** : dès que Garmin répond, il repart de sa dernière réussite (jours manquants comblés) et Intervals.icu redevient muet.
+- **Fusion** : une séance présente dans les deux sources (début ±60 s, durée ±5 %) n'apparaît qu'une fois ; la version Garmin prévaut, Intervals.icu comble les champs vides (distance, D+, D−, FC, calories, matériel) et le flux si Garmin n'en a pas. La base n'est jamais modifiée par cette fusion.
+- **Propriétaire Garmin** : Training Readiness, Body Battery et plage HRV restent vides pendant un repli ; `GET /api/metrics/recovery` renvoie `fallback` et l'UI le dit (« non disponible via Intervals.icu »).
+- **CTL/ATL d'Intervals.icu** : stockés à part (`wellness_daily.source_ctl/source_atl`), exposés dans `reference` de `GET /api/metrics/fitness` pour comparaison ; **jamais** utilisés à la place du calcul interne.
+- Durée d'une séance Intervals.icu = `moving_time` (≈ chronomètre de la montre), pour rester dans la tolérance de déduplication.
+
+Tests : `tests/test_intervals.py` (faux serveur `httpx.MockTransport`, scénario « Garmin coupé → bascule → Garmin revient »).

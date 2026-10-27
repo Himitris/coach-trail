@@ -201,7 +201,7 @@ const baseline = (over: Partial<BaselineComparison> = {}): BaselineComparison =>
   ...over,
 });
 
-const proprietary = (value: number | null, over: Partial<ProprietaryMetric> = {}): ProprietaryMetric => ({
+export const proprietary = (value: number | null, over: Partial<ProprietaryMetric> = {}): ProprietaryMetric => ({
   date: value === null ? null : "2026-10-27",
   value,
   previous_7d_mean: null,
@@ -213,6 +213,7 @@ const proprietary = (value: number | null, over: Partial<ProprietaryMetric> = {}
 
 export const recovery = (over: Partial<RecoveryMetrics> = {}): RecoveryMetrics => ({
   date: "2026-10-27",
+  fallback: null,
   baseline_days: 60,
   hrv: baseline(),
   resting_hr: baseline({ recent_mean: 47, baseline_mean: 48, delta_pct: -2, delta_sd: -0.9, trend: trend("baisse") }),

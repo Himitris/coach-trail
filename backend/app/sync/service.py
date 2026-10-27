@@ -25,6 +25,7 @@ from app.sync.dedup import assign_dedup_groups
 from app.sync.streams import encode_stream
 from app.sync.types import (
     RAW_ACTIVITY,
+    RAW_CALENDAR,
     RAW_PROFILE,
     RAW_STREAM,
     RAW_WELLNESS,
@@ -73,6 +74,7 @@ class SourceResult:
     updated: int = 0
     unchanged: int = 0
     streams: int = 0
+    fallback_for: str | None = None  # source principale remplacée par ce run
     warnings: list[str] = field(default_factory=list)
 
 
@@ -187,6 +189,8 @@ def normalize_raw(
                 "body_battery_max",
                 "body_battery_min",
                 "poids_kg",
+                "source_ctl",
+                "source_atl",
             ):
                 setattr(row, name, getattr(w, name))
     return True
@@ -241,6 +245,7 @@ class SyncService:
         normalizers: Mapping[str, SourceNormalizer],
         *,
         priority: Sequence[str] = ("garmin", "intervals", "strava"),
+        fallbacks: Mapping[str, str] | None = None,
         overlap_days: int = 3,
         secrets: Sequence[str] = (),
     ) -> None:
@@ -248,6 +253,8 @@ class SyncService:
         self.connectors = dict(connectors)
         self.normalizers = dict(normalizers)
         self.priority = list(priority)
+        # source principale -> source de repli (n'est appelée que si la principale échoue)
+        self.fallbacks = {p: b for p, b in (fallbacks or {}).items() if b in self.connectors}
         self._overlap = timedelta(days=overlap_days)
         self._masker = SecretMaskingFilter(list(secrets))
         self._lock = threading.Lock()
@@ -295,8 +302,15 @@ class SyncService:
         report = RunReport(trigger=trigger, started_at=utcnow())
         self.current = report
         try:
+            standby = set(self.fallbacks.values())
             for name in self.connectors:
-                report.results.append(self.sync_source(name))
+                if name in standby:
+                    continue  # appelée seulement si sa source principale échoue
+                result = self.sync_source(name)
+                report.results.append(result)
+                backup = self.fallbacks.get(name)
+                if backup is not None and not result.ok:
+                    report.results.append(self._fallback(name, backup))
         finally:
             report.finished_at = utcnow()
             self.last_report = report
@@ -305,10 +319,28 @@ class SyncService:
 
     # une source ------------------------------------------------------------------------------
 
-    def sync_source(self, name: str) -> SourceResult:
-        result = SourceResult(source=name)
+    def _fallback(self, primary: str, backup: str) -> SourceResult:
+        """Bascule silencieuse : la source de repli comble la période où la principale manque.
+
+        Aucune erreur n'est levée (le résultat porte l'échec éventuel). Au retour de la principale,
+        son prochain run repart de sa dernière réussite : les jours manquants sont comblés.
+        """
+        with self._factory() as session:
+            status = session.get(SourceStatus, primary)
+            gap_start = (
+                (status.last_success_at - self._overlap)
+                if status and status.last_success_at
+                else None
+            )
+        logger.warning("Source %s indisponible : bascule sur %s", primary, backup)
+        return self.sync_source(backup, fallback_for=primary, since_floor=gap_start)
+
+    def sync_source(
+        self, name: str, *, fallback_for: str | None = None, since_floor: datetime | None = None
+    ) -> SourceResult:
+        result = SourceResult(source=name, fallback_for=fallback_for)
         try:
-            self._sync_source(name, result)
+            self._sync_source(name, result, since_floor)
         except Exception as exc:
             if isinstance(exc, SourceError):
                 state, message = exc.state, exc.user_message
@@ -339,7 +371,9 @@ class SyncService:
         )
         return act, (datetime.combine(day, datetime.min.time()) if day else None)
 
-    def _sync_source(self, name: str, result: SourceResult) -> None:
+    def _sync_source(
+        self, name: str, result: SourceResult, since_floor: datetime | None = None
+    ) -> None:
         connector = self.connectors[name]
         health = connector.healthcheck()  # peut lever SourceError (ex. auth_required)
         if not health.ok:
@@ -351,6 +385,11 @@ class SyncService:
             act_progress, well_progress = self._progress(session, name)
         since = self._since(last, act_progress, self._overlap)
         wellness_since = self._since(last, well_progress, self._overlap)
+        if (
+            since_floor is not None
+        ):  # repli : au plus tôt le début de l'indisponibilité de la principale
+            since = max(since, since_floor) if since else since_floor
+            wellness_since = max(wellness_since, since_floor) if wellness_since else since_floor
 
         try:
             self._ingest(name, RAW_ACTIVITY, connector.fetch_activities(since), result)
@@ -360,6 +399,14 @@ class SyncService:
                 connector.fetch_wellness(wellness_since.date() if wellness_since else None),
                 result,
             )
+            fetch_calendar = getattr(connector, "fetch_calendar", None)
+            if fetch_calendar is not None:
+                self._ingest(
+                    name,
+                    RAW_CALENDAR,
+                    fetch_calendar(wellness_since.date() if wellness_since else None),
+                    result,
+                )
             fetch_profile = getattr(connector, "fetch_profile", None)
             if fetch_profile is not None:
                 rec = fetch_profile()

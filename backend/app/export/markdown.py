@@ -363,6 +363,14 @@ def render_recovery(r: RecoverySection) -> str:
         "",
         f"Au {day(r.as_of)}. Moyenne 7 j comparée à la base individuelle de "
         f"{r.baseline_days} j, en tendance.",
+        *(
+            [
+                f"**Garmin indisponible depuis le {day(r.fallback.since)} : valeurs de repli "
+                f"Intervals.icu.** {r.fallback.message}"
+            ]
+            if r.fallback
+            else []
+        ),
         "",
         table(
             ["", "Moyenne 7 j", f"Base {r.baseline_days} j", "Écart", "Écart (σ)", "Tendance"],

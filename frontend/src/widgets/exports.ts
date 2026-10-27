@@ -202,9 +202,13 @@ export function formatRecovery(r: RecoveryMetrics): string {
     );
   const prop = (label: string, m: RecoveryMetrics["training_readiness"]) =>
     `- ${label} : ${m.value === null ? "—" : formatNumber(m.value)} (${m.label})`;
+  const fallback = r.fallback
+    ? [`Garmin indisponible depuis le ${formatDay(r.fallback.since)} : valeurs de repli Intervals.icu. ${r.fallback.message}`, ""]
+    : [];
   return [
     `## Récupération (au ${formatDay(r.date)})`,
     "",
+    ...fallback,
     table(
       ["", "Moyenne 7 j", `Base ${r.baseline_days} j`, "Écart", "Écart-type", "Tendance"],
       [

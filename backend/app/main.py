@@ -56,6 +56,7 @@ def create_app(
             connectors,
             normalizers,
             priority=settings.priority_list,
+            fallbacks={"garmin": "intervals"},
             overlap_days=settings.sync_overlap_days,
             secrets=settings.secret_values(),
         )

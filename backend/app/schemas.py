@@ -68,6 +68,7 @@ class SourceResultOut(BaseModel):
     updated: int
     unchanged: int
     streams: int
+    fallback_for: str | None = None
     warnings: list[str]
 
 

@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     sync_overlap_days: int = 3
     scheduler_enabled: bool = True
     garmin_history_months: int = 12
+    intervals_history_months: int = 12
     garmin_min_delay_s: float = 1.0
     garmin_max_delay_s: float = 3.0
     garmin_stream_max_points: int = 20000

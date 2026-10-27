@@ -15,9 +15,9 @@ from app.metrics.intensity import low_share_pct, time_in_zones, zone_floors_from
 from app.metrics.models import Evidence
 from app.metrics.series import downsample, pace_from_speed
 from app.metrics.service import get_profile, local_day
-from app.models import Activity, ActivityStream, EveningEntry
+from app.models import Activity, EveningEntry
 from app.routes.deps import get_db
-from app.sync.dedup import primary_activities
+from app.sync.dedup import primary_activities, stream_row
 from app.sync.streams import decode_stream
 
 router = APIRouter(prefix="/activities")
@@ -171,7 +171,7 @@ def activity_detail(
     zones_out: ZonesOut | None = None
     climbs: list[Climb] = []
 
-    row = db.get(ActivityStream, act.id)
+    row = stream_row(db, act.id)
     if row is None:
         notes.append("Pas de flux seconde par seconde pour cette sortie.")
     else:

@@ -96,6 +96,14 @@ function FitnessView({ report, goals, raceDates, today }: { report: FitnessRepor
           {upcoming.days === 0 ? "aujourd'hui" : `dans ${upcoming.days} jour${upcoming.days > 1 ? "s" : ""}`}.
         </p>
       )}
+      {report.reference?.source_ctl != null && (
+        <p className="muted">
+          Pour comparaison ({report.reference.source}, {formatDay(report.reference.date)}) : CTL{" "}
+          {formatNumber(report.reference.source_ctl, 1)}
+          {report.reference.source_atl != null && ` · ATL ${formatNumber(report.reference.source_atl, 1)}`}. L'appli
+          utilise son propre calcul.
+        </p>
+      )}
       <p className="muted">Courbes de tendance (constantes 42 j / 7 j), pas un verdict : aucune valeur ne dit « prêt » ou « pas prêt ».</p>
       {report.warnings.length > 0 && (
         <ul className="notes">

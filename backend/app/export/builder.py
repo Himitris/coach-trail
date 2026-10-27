@@ -22,12 +22,12 @@ from app.metrics.intensity import (
 from app.metrics.models import Evidence, Trend, monday
 from app.metrics.recovery import BaselineComparison, GarminAcwr, ProprietaryMetric
 from app.metrics.volume import ActivityRow, VolumeTotals, totals
-from app.models import Activity, ActivityStream, Goal, PlannedSession, SourceStatus
+from app.models import Activity, Goal, PlannedSession, SourceStatus
 from app.plan.entries import read_entries
 from app.plan.matching import A_VENIR
 from app.plan.schemas import TYPE_LABELS, EntryOut
 from app.plan.service import match_planned, status_by_id
-from app.sync.dedup import primary_activities
+from app.sync.dedup import primary_activities, stream_row
 
 EXPORT_VERSION = 1
 MAX_SPAN_DAYS = 366
@@ -112,6 +112,7 @@ class FitnessSummary(BaseModel):
 
 class RecoverySection(BaseModel):
     as_of: date
+    fallback: service.FallbackNotice | None
     baseline_days: int
     hrv: BaselineComparison
     resting_hr: BaselineComparison
@@ -229,13 +230,7 @@ def export_activities(
     floors: Sequence[int],
 ) -> list[ExportActivity]:
     rpe = activities_api.rpe_by_group(session)
-    with_stream = set(
-        session.scalars(
-            select(ActivityStream.activity_id).where(
-                ActivityStream.activity_id.in_([a.id for a in acts])
-            )
-        )
-    )
+    with_stream = {a.id for a in acts if stream_row(session, a.id) is not None}
     out: list[ExportActivity] = []
     for act in acts:
         base = activities_api.to_out(act, tz, rpe)
@@ -316,6 +311,7 @@ def recovery_section(
     return RecoverySection.model_validate(
         {
             "as_of": end,
+            "fallback": service.fallback_notice(session, end),
             "baseline_days": baseline_days,
             **parts,
             "garmin_hrv_reference": service.latest_garmin_reference(session, end),

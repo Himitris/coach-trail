@@ -6,7 +6,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.metrics.series import pace_from_speed
-from app.models import ActivityStream
+from app.sync.dedup import stream_row
 from app.sync.streams import decode_stream
 
 DEFAULT_INTERVAL_S = 45
@@ -62,7 +62,7 @@ def downsample_stream(
 def activity_stream(
     session: Session, activity_id: int, interval_s: int = DEFAULT_INTERVAL_S
 ) -> dict[str, Any] | None:
-    row = session.get(ActivityStream, activity_id)
+    row = stream_row(session, activity_id)
     if row is None:
         return None
     columns = downsample_stream(decode_stream(row.samples), interval_s)

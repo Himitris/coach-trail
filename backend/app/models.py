@@ -108,6 +108,9 @@ class WellnessDaily(Base):
     body_battery_max: Mapped[int | None] = mapped_column(Integer)
     body_battery_min: Mapped[int | None] = mapped_column(Integer)
     poids_kg: Mapped[float | None] = mapped_column(Float)
+    # CTL/ATL fournis par la source (Intervals.icu) : jamais utilisés, seulement comparés.
+    source_ctl: Mapped[float | None] = mapped_column(Float)
+    source_atl: Mapped[float | None] = mapped_column(Float)
 
 
 class SourceStatus(Base):

@@ -176,6 +176,24 @@ export interface FitnessReport {
   trend: Trend;
   warnings: string[];
   evidence: Evidence;
+  /** CTL/ATL calculés par Intervals.icu : comparaison seulement, jamais utilisés. */
+  reference?: LoadReference | null;
+}
+
+export interface LoadReference {
+  source: string;
+  date: string;
+  source_ctl: number | null;
+  source_atl: number | null;
+  internal_ctl: number | null;
+  internal_atl: number | null;
+  note: string;
+}
+
+export interface FallbackNotice {
+  source: string;
+  since: string;
+  message: string;
 }
 
 export interface BaselineComparison {
@@ -204,6 +222,8 @@ export interface ProprietaryMetric {
 
 export interface RecoveryMetrics {
   date: string;
+  /** Garmin indisponible et Intervals.icu en repli. */
+  fallback: FallbackNotice | null;
   baseline_days: number;
   hrv: BaselineComparison;
   resting_hr: BaselineComparison;

@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -32,8 +33,8 @@ from app.metrics.recovery import (
     proprietary_metric,
 )
 from app.metrics.volume import ActivityRow
-from app.models import ActivityStream, AthleteProfile, RawPayload, WellnessDaily
-from app.sync.dedup import primary_activities
+from app.models import AthleteProfile, RawPayload, SourceStatus, WellnessDaily
+from app.sync.dedup import primary_activities, stream_row
 from app.sync.streams import decode_stream
 
 
@@ -64,7 +65,7 @@ def load_rows(session: Session, priority: Sequence[str], tz: ZoneInfo) -> list[A
 def hr_stream(
     session: Session, activity_id: int
 ) -> tuple[list[float | None], list[float | None]] | None:
-    row = session.get(ActivityStream, activity_id)
+    row = stream_row(session, activity_id)
     if row is None:
         return None
     samples = decode_stream(row.samples)
@@ -208,6 +209,76 @@ def latest_acwr(session: Session, end: date) -> GarminAcwr | None:
             if acwr is not None:
                 return acwr
     return None
+
+
+FALLBACK_RECENT_DAYS = 14
+PROPRIETARY_UNAVAILABLE = (
+    "Training Readiness, Body Battery et plage de référence HRV : non disponible via Intervals.icu "
+    "(indicateurs propriétaires Garmin). Dernières valeurs Garmin conservées."
+)
+
+
+class FallbackNotice(BaseModel):
+    """Garmin indisponible et Intervals.icu en repli : ce que l'on ne peut pas avoir."""
+
+    source: str
+    since: date
+    message: str
+
+
+def fallback_notice(session: Session, end: date) -> FallbackNotice | None:
+    status = session.get(SourceStatus, "garmin")
+    if status is None or status.unavailable_since is None:
+        return None
+    since = status.unavailable_since.date()
+    # le repli n'est actif que s'il fournit des données récentes
+    has_fallback = session.scalars(
+        select(WellnessDaily.date)
+        .where(
+            WellnessDaily.source == "intervals",
+            WellnessDaily.date >= end - timedelta(days=FALLBACK_RECENT_DAYS),
+            WellnessDaily.date <= end,
+        )
+        .limit(1)
+    ).first()
+    if has_fallback is None:
+        return None
+    return FallbackNotice(source="intervals", since=since, message=PROPRIETARY_UNAVAILABLE)
+
+
+class LoadReference(BaseModel):
+    """CTL/ATL calculés par la source (Intervals.icu) face à ceux de l'appli : comparaison seule."""
+
+    source: str
+    date: date
+    source_ctl: float | None
+    source_atl: float | None
+    internal_ctl: float | None
+    internal_atl: float | None
+    note: str
+
+
+def load_reference(session: Session, report: FitnessReport) -> LoadReference | None:
+    row = session.scalars(
+        select(WellnessDaily)
+        .where(WellnessDaily.source_ctl.is_not(None), WellnessDaily.date <= report.end)
+        .order_by(WellnessDaily.date.desc())
+    ).first()
+    if row is None:
+        return None
+    internal = next((p for p in report.points if p.date == row.date), None)
+    return LoadReference(
+        source=row.source,
+        date=row.date,
+        source_ctl=row.source_ctl,
+        source_atl=row.source_atl,
+        internal_ctl=internal.ctl if internal else None,
+        internal_atl=internal.atl if internal else None,
+        note=(
+            f"CTL/ATL calculés par {row.source}, affichés pour comparaison seulement : "
+            "l'appli utilise son propre calcul (constantes 42 j / 7 j, FC des séances)."
+        ),
+    )
 
 
 def recovery_parts(

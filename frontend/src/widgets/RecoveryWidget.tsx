@@ -148,6 +148,12 @@ export function RecoveryView({ recovery, points }: { recovery: RecoveryMetrics; 
         <BaselineCard title="Sommeil (efficacité estimée)" unit="%" c={recovery.sleep_efficiency_pct} />
       </div>
       <HrvChart points={points} recovery={recovery} />
+      {recovery.fallback && (
+        <p className="notice notice-warn" role="note">
+          Garmin indisponible depuis le {formatDay(recovery.fallback.since)} : valeurs de repli Intervals.icu.{" "}
+          {recovery.fallback.message}
+        </p>
+      )}
       <h3 className="sub">Avis de la montre</h3>
       <div className="stats">
         <ProprietaryCard title="Training Readiness" m={recovery.training_readiness} />

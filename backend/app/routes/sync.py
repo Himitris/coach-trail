@@ -13,6 +13,9 @@ from app.sync.service import SyncService
 router = APIRouter()
 
 LABELS = {"garmin": "Garmin", "intervals": "Intervals.icu", "strava": "Strava"}
+STANDBY_MESSAGES = {
+    "intervals": "En veille : sert de repli silencieux si Garmin est indisponible.",
+}
 
 
 def _service(request: Request) -> SyncService:
@@ -59,7 +62,7 @@ def sources_health(
         message = st.message if st else None
         if st is None or (st.state is None and st.last_success_at is None):
             state, badge = "jamais_synchronise", None
-            message = message or "Aucune synchronisation effectuée"
+            message = message or STANDBY_MESSAGES.get(name, "Aucune synchronisation effectuée")
         else:
             state = st.state or ("down" if st.unavailable_since else "ok")
             badge = (

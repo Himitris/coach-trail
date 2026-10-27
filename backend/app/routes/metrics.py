@@ -63,13 +63,17 @@ def intensity(
     return service.intensity(db, rows, _today(request), weeks)
 
 
-@router.get("/fitness", response_model=FitnessReport)
+class FitnessWithReference(FitnessReport):
+    reference: service.LoadReference | None = None
+
+
+@router.get("/fitness", response_model=FitnessWithReference)
 def fitness(
     request: Request,
     db: Annotated[Session, Depends(get_db)],
     from_: Annotated[date | None, Query(alias="from")] = None,
     to: date | None = None,
-) -> FitnessReport:
+) -> FitnessWithReference:
     today = _today(request)
     end = to or today
     start = from_ or end - timedelta(days=90)
@@ -78,11 +82,13 @@ def fitness(
     if (end - start).days > MAX_FITNESS_SPAN_DAYS:
         raise HTTPException(422, f"Période limitée à {MAX_FITNESS_SPAN_DAYS} jours.")
     rows = service.load_rows(db, _priority(request), _tz(request))
-    return service.fitness(db, rows, today, start, end)
+    report = service.fitness(db, rows, today, start, end)
+    return FitnessWithReference(**report.model_dump(), reference=service.load_reference(db, report))
 
 
 class RecoveryMetrics(BaseModel):
     date: date
+    fallback: service.FallbackNotice | None
     baseline_days: int
     hrv: BaselineComparison
     resting_hr: BaselineComparison
@@ -110,6 +116,7 @@ def recovery(
         {
             "date": end,
             "baseline_days": days,
+            "fallback": service.fallback_notice(db, end),
             **parts,
             "garmin_hrv_reference": (
                 {

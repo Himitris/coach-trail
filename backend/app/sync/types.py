@@ -7,6 +7,7 @@ RAW_ACTIVITY = "activity"
 RAW_STREAM = "activity_stream"
 RAW_WELLNESS = "wellness"
 RAW_PROFILE = "profile"
+RAW_CALENDAR = "calendar"  # conservé brut, non normalisé
 
 # États d'une source (source_status.state)
 STATE_OK = "ok"
@@ -88,6 +89,9 @@ class NormalizedWellness:
     body_battery_max: int | None = None
     body_battery_min: int | None = None
     poids_kg: float | None = None
+    # Charge calculée par la source (Intervals.icu) : comparaison seulement, jamais utilisée.
+    source_ctl: float | None = None
+    source_atl: float | None = None
 
 
 @dataclass(frozen=True)

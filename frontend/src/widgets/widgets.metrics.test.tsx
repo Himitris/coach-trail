@@ -1,7 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { addDays, todayIso } from "../app/format";
-import { entry, fitness, intensity, recovery, trend, wellness } from "../test/fixtures";
+import { entry, fitness, intensity, proprietary, recovery, trend, wellness } from "../test/fixtures";
 import { mockApi } from "../test/mockApi";
 import { renderWithApp, widgetProps } from "../test/render";
 import { daysFor, FitnessWidget, nextGoal, raceDays } from "./FitnessWidget";
@@ -85,6 +85,20 @@ describe("Forme (CTL / ATL / TSB)", () => {
     const query = api.callsTo("GET /api/metrics/fitness")[0]?.query;
     expect(query?.to).toBe(todayIso());
     expect(query?.from).toBe(addDays(todayIso(), 26 * 7 * -1));
+  });
+
+  it("affiche le CTL/ATL d'Intervals.icu pour comparaison, en précisant que l'appli utilise le sien", async () => {
+    const ref = { source: "intervals", date: "2026-10-27", source_ctl: 61.2, source_atl: 70.4, internal_ctl: 49.9, internal_atl: 52, note: "x" };
+    mockApi({
+      "GET /api/metrics/fitness": () => ({ body: { ...fitness(), reference: ref } }),
+      "GET /api/goals": () => ({ body: [] }),
+      "GET /api/activities": () => ({ body: [] }),
+    });
+    renderWithApp(<FitnessWidget {...widgetProps({ period: "26w" })} />);
+    const line = await screen.findByText(/Pour comparaison \(intervals/);
+    expect(line).toHaveTextContent("CTL 61,2 · ATL 70,4");
+    expect(line).toHaveTextContent("L'appli utilise son propre calcul");
+    expect(screen.getByText("CTL (forme chronique)").nextSibling).toHaveTextContent("49,9"); // calcul interne inchangé
   });
 
   it("montre les avertissements du calcul (historique court, seuil estimé)", async () => {
@@ -174,6 +188,34 @@ describe("Récupération", () => {
     expect(card).toHaveTextContent("1,30");
     expect(card).toHaveTextContent("non validé");
     expect(card).toHaveClass("stat-grey");
+  });
+
+  it("Garmin en panne : signale le repli Intervals.icu et que les avis de la montre sont indisponibles", async () => {
+    mockApi(
+      routes(
+        recovery({
+          fallback: {
+            source: "intervals",
+            since: "2026-10-12",
+            message: "Training Readiness, Body Battery et plage de référence HRV : non disponible via Intervals.icu.",
+          },
+          training_readiness: proprietary(null),
+        }),
+      ),
+    );
+    renderWithApp(<RecoveryWidget {...widgetProps({ window: "28", baseline: "60" })} />);
+    const note = await screen.findByRole("note");
+    expect(note).toHaveTextContent(/Garmin indisponible depuis le 12 oct\./);
+    expect(note).toHaveTextContent("valeurs de repli Intervals.icu");
+    expect(note).toHaveTextContent("non disponible via Intervals.icu");
+    expect(screen.getByText("Training Readiness").closest(".stat")).toHaveTextContent("—");
+  });
+
+  it("sans repli : aucun bandeau", async () => {
+    mockApi(routes());
+    renderWithApp(<RecoveryWidget {...widgetProps({ window: "28", baseline: "60" })} />);
+    await screen.findByText("Training Readiness");
+    expect(screen.queryByRole("note")).toBeNull();
   });
 
   it("données insuffisantes : pas de tendance affichée", async () => {
