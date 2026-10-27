@@ -6,7 +6,7 @@ export type ExportResult = { ok: true; chars: number } | { ok: false; reason: "e
 /** Copie via l'API moderne, sinon via un textarea temporaire (contexte non sécurisé, Safari après un await). */
 async function writeClipboard(text: string): Promise<boolean> {
   try {
-    if (typeof navigator.clipboard?.writeText === "function") {
+    if ("clipboard" in navigator) {
       await navigator.clipboard.writeText(text);
       return true;
     }
@@ -20,6 +20,7 @@ async function writeClipboard(text: string): Promise<boolean> {
   document.body.appendChild(area);
   area.select();
   try {
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- seul repli hors contexte sécurisé
     return document.execCommand("copy");
   } catch {
     return false;
