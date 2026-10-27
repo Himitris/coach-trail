@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { defaultLayout, sanitizeLayout } from "../layout/defaults";
 import { BREAKPOINTS } from "../layout/model";
-import { getWidget, HOME_WIDGET_TYPES, listWidgets, specFor } from ".";
+import { COURSE_WIDGET_TYPES, getWidget, HOME_WIDGET_TYPES, listWidgets, specFor } from ".";
 
-describe("catalogue des widgets de phase 1", () => {
-  it("les 9 widgets sont enregistrés avec réglages, taille minimale et export", () => {
+describe("catalogue des widgets", () => {
+  it("les 14 widgets sont enregistrés avec réglages, taille minimale et export", () => {
     const ids = listWidgets().map((w) => w.id).sort();
     expect(ids).toEqual(
-      ["activity-detail", "evening-entry", "fitness", "intensity", "note", "recent-activities", "recovery", "week-load", "week-plan"].sort(),
+      [
+        "activity-detail", "evening-entry", "fatigue", "fitness", "fueling", "intensity", "monotony", "note",
+        "race-goal", "recent-activities", "recovery", "strength", "week-load", "week-plan",
+      ].sort(),
     );
     for (const w of listWidgets()) {
       expect(w.title).toBeTruthy();
@@ -49,5 +52,12 @@ describe("page d'accueil par défaut", () => {
     const sm = page?.layouts.sm ?? [];
     expect(sm.every((i) => i.x === 0 && i.w === 4)).toBe(true);
     expect(new Set(sm.map((i) => i.y)).size).toBe(5);
+  });
+});
+
+describe("page d'exemple « Course »", () => {
+  it("regroupe objectif, nutrition, fatigue et monotonie, tous enregistrés", () => {
+    expect([...COURSE_WIDGET_TYPES]).toEqual(["race-goal", "fueling", "fatigue", "monotony"]);
+    for (const type of COURSE_WIDGET_TYPES) expect(getWidget(type)).toBeDefined();
   });
 });

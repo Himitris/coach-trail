@@ -41,6 +41,7 @@ class Goal(Base):
     distance_km: Mapped[float | None] = mapped_column(Float)
     dplus_m: Mapped[int | None] = mapped_column(Integer)
     priorite: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    profil_points: Mapped[list[list[float]] | None] = mapped_column(JSON)
 
 
 class RawPayload(Base):

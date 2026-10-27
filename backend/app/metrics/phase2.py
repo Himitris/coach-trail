@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.gpx import elevation_gain_loss
 from app.metrics import service
 from app.metrics.fatigue import FatigueReport, fatigue_report
 from app.metrics.fitness import fitness_series
@@ -96,6 +97,12 @@ def race_goal(
         distance_km=goal.distance_km,
         dplus_m=goal.dplus_m,
         days_left=(goal.date - today).days,
+        profile=goal.profil_points,
+        profile_dplus_m=(
+            elevation_gain_loss([p[1] for p in goal.profil_points], smooth_window=1)[0]
+            if goal.profil_points and len(goal.profil_points) >= 2
+            else None
+        ),
         recent=recent_volume(rows, today, goal.distance_km, goal.dplus_m),
         predictions=predictions(garmin_predictions(session, today)),
         projection=tsb_projection(last, recent_load, goal.date),

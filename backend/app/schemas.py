@@ -51,6 +51,7 @@ class GoalOut(GoalBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    profil_points: list[list[float]] | None = None
 
 
 class HealthOut(BaseModel):

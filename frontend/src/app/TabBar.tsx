@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useMatch, useNavigate } from "react-router-dom";
 import { MAX_PAGE_TITLE } from "../layout/reducer";
+import { COURSE_PAGE_TITLE, COURSE_WIDGET_TYPES, getWidget } from "../widgets";
 import { useDashboard } from "./DashboardProvider";
 import { newId } from "./ids";
 import { useSources } from "./useSources";
@@ -23,6 +24,22 @@ export function TabBar() {
     dispatch({ type: "addPage", id });
     void navigate(`/p/${id}`);
     setRenamingId(id);
+  };
+
+  /** Page d'exemple « Course » : objectif, nutrition, fatigue, monotonie. */
+  const createCoursePage = () => {
+    const id = newId();
+    dispatch({ type: "addPage", id, title: COURSE_PAGE_TITLE });
+    for (const type of COURSE_WIDGET_TYPES) {
+      dispatch({
+        type: "addWidget",
+        pageId: id,
+        widgetId: newId(),
+        widgetType: type,
+        settings: structuredClone(getWidget(type)?.defaultSettings ?? {}),
+      });
+    }
+    void navigate(`/p/${id}`);
   };
 
   const deletePage = (id: string) => {
@@ -114,6 +131,14 @@ export function TabBar() {
         })}
         <button type="button" className="tab tab-add" onClick={createPage} aria-label="Nouvelle page" title="Nouvelle page">
           +
+        </button>
+        <button
+          type="button"
+          className="tab tab-add"
+          onClick={createCoursePage}
+          title="Ajouter la page d'exemple « Course » : objectif, nutrition, fatigue, monotonie"
+        >
+          + Course
         </button>
       </div>
       <Link to="/sources" className={`tab tab-sources${sourcesMatch ? " tab-active" : ""}`}>

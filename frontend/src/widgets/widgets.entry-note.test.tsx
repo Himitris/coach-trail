@@ -37,6 +37,38 @@ function entryServer(initial: Entry | null, activities = [activity({ id: 11, rpe
   return api;
 }
 
+describe("Saisie du soir : nutrition de la sortie longue", () => {
+  it("propose la nutrition uniquement pour une sortie de plus de 2 h 30 et l'enregistre", async () => {
+    const long = activity({ id: 21, duration_min: 200, distance_km: 28, rpe: null });
+    const short = activity({ id: 22, duration_min: 60, rpe: null });
+    const api = mockApi({
+      "GET /api/activities": () => ({ body: [long, short] }),
+      "GET /api/entries": () => ({ body: [] }),
+      "GET /api/fueling/series": () => ({ body: { min_hours: 2, points: [], missing: 0, evidence: { level: "indicatif", summary: "x" } } }),
+      "POST /api/fueling": () => ({ status: 201, body: {} }),
+    });
+    renderWithApp(<EveningEntryWidget {...widgetProps({ day: "today" })} />);
+    const form = await screen.findByRole("form", { name: "Nutrition de la sortie 21" });
+    expect(screen.queryByRole("form", { name: "Nutrition de la sortie 22" })).toBeNull();
+    await userEvent.type(screen.getByLabelText("Glucides (g/h)"), "65");
+    await userEvent.click(screen.getByRole("button", { name: "Score digestif : 2" }));
+    await userEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() => { expect(api.callsTo("POST /api/fueling")).toHaveLength(1); });
+    expect(api.callsTo("POST /api/fueling")[0]?.body).toEqual({ activity_id: 21, glucides_g_par_h: 65, score_digestif: 2 });
+    expect(form).toBeInTheDocument();
+  });
+
+  it("la saisie du soir reste utilisable si la nutrition est indisponible", async () => {
+    mockApi({
+      "GET /api/activities": () => ({ body: [activity({ id: 21, duration_min: 200, rpe: null })] }),
+      "GET /api/entries": () => ({ body: [] }),
+      "GET /api/fueling/series": () => ({ status: 500, body: { detail: "panne" } }),
+    });
+    renderWithApp(<EveningEntryWidget {...widgetProps({ day: "today" })} />);
+    expect(await screen.findByRole("button", { name: /Effort perçu \(RPE\).* : 6$/ })).toBeInTheDocument();
+  });
+});
+
 describe("Saisie du soir", () => {
   it("un tap sur le RPE d'une séance l'enregistre aussitôt, un second tap l'efface", async () => {
     const api = entryServer(null);

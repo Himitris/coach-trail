@@ -2,8 +2,13 @@ import type {
   ActivityDetail,
   Activity,
   Entry,
+  FatigueReport,
   FitnessReport,
+  FuelingSeries,
   IntensityReport,
+  MonotonyReport,
+  RaceGoalReport,
+  StrengthReport,
   RecoveryMetrics,
   WeekMetrics,
   WeekPlan,
@@ -241,4 +246,125 @@ export function formatEntry(day: string, entry: Entry | null): string | null {
   if (entry.malade !== null) lines.push(`- Malade : ${entry.malade ? "oui" : "non"}`);
   if (entry.note) lines.push(`- Note : ${entry.note}`);
   return [...lines, ""].join("\n");
+}
+
+const pctCell = (v: number | null): string | null => (v === null ? null : `${formatNumber(v)} %`);
+
+export function formatRaceGoal(r: RaceGoalReport): string {
+  const v = r.recent;
+  const lines = [
+    `## Objectif de course — ${r.nom}`,
+    "",
+    `${formatDay(r.date)} · dans ${r.days_left} jour(s) · ${r.distance_km === null ? "distance —" : formatKm(r.distance_km)} · ${r.dplus_m === null ? "D+ —" : `D+ ${formatMeters(r.dplus_m)}`}`,
+    "",
+    `Volume des ${v.window_days} derniers jours face au profil de la course :`,
+    "",
+    table(
+      ["", "Réalisé", "Course", "Part de la course"],
+      [
+        row("Distance hebdo moyenne", formatKm(v.avg_weekly_km), r.distance_km === null ? null : formatKm(r.distance_km), pctCell(v.avg_weekly_km_vs_race_pct)),
+        row("D+ hebdo moyen", formatMeters(v.avg_weekly_dplus_m), r.dplus_m === null ? null : formatMeters(r.dplus_m), pctCell(v.avg_weekly_dplus_vs_race_pct)),
+        row("Plus longue sortie", v.longest_km === null ? null : formatKm(v.longest_km), r.distance_km === null ? null : formatKm(r.distance_km), pctCell(v.longest_km_vs_race_pct)),
+        row("D+ de la plus longue", v.longest_dplus_m === null ? null : formatMeters(v.longest_dplus_m), r.dplus_m === null ? null : formatMeters(r.dplus_m), pctCell(v.longest_dplus_vs_race_pct)),
+      ],
+    ),
+    "",
+    `_${v.evidence.summary}_`,
+  ];
+  if (r.predictions.length) {
+    lines.push("", "Prédictions de la montre (estimations non validées) :", "");
+    for (const p of r.predictions) lines.push(`- ${p.label} : ${formatDurationS(p.seconds)}`);
+  }
+  if (r.projection) {
+    lines.push("", `TSB projeté au ${formatDay(r.projection.race_date)} (courbe de tendance) :`, "");
+    for (const s of r.projection.scenarios) lines.push(`- ${s.name} : TSB ${formatSigned(s.tsb, 1)} (CTL ${formatNumber(s.ctl, 1)}, ATL ${formatNumber(s.atl, 1)})`);
+    lines.push("", `_${r.projection.evidence.summary}_`);
+  }
+  return [...lines, ""].join("\n");
+}
+
+export function formatFueling(f: FuelingSeries): string {
+  if (!f.points.length) return `## Nutrition en course\n\nAucune sortie de plus de ${formatNumber(f.min_hours, 1)} h.\n`;
+  return [
+    "## Nutrition en course (sorties longues)",
+    "",
+    table(
+      ["Date", "Durée", "Distance", "Glucides (g/h)", "Total (g)", "Variation (g/h)", "Score digestif (0–5)", "Note"],
+      f.points.map((p) =>
+        row(
+          formatDay(p.day),
+          formatDuration(p.duration_h * 60),
+          p.distance_km === null ? null : formatKm(p.distance_km),
+          p.carbs_g_per_h === null ? "non saisi" : formatNumber(p.carbs_g_per_h),
+          p.carbs_total_g === null ? null : formatNumber(p.carbs_total_g),
+          p.carbs_change_g_per_h === null ? null : formatSigned(p.carbs_change_g_per_h, 0),
+          p.gi_score,
+          p.note,
+        ),
+      ),
+    ),
+    "",
+    `_${f.evidence.summary}_`,
+    "",
+  ].join("\n");
+}
+
+export function formatMonotony(m: MonotonyReport): string {
+  return [
+    "## Monotonie et tension",
+    "",
+    table(
+      ["Semaine du", "Charge", "Monotonie", "Tension", "Charge élevée", "Information"],
+      m.weeks.map((w) =>
+        row(
+          formatDay(w.week_start) + (w.complete ? "" : " (en cours)"),
+          formatNumber(w.load),
+          w.monotony === null ? null : formatNumber(w.monotony, 2),
+          w.strain === null ? null : formatNumber(w.strain),
+          w.high_load === null ? null : w.high_load ? "oui" : "non",
+          w.message,
+        ),
+      ),
+    ),
+    "",
+    `Repère : ${formatNumber(m.reference)}. Information, pas une prédiction.`,
+    `_${m.evidence.summary}_`,
+    "",
+  ].join("\n");
+}
+
+export function formatFatigue(f: FatigueReport): string {
+  const lines = [
+    "## Fatigue musculaire (descente)",
+    "",
+    table(["Semaine du", "D−", "Séances", "À fort D−"], f.weeks.map((w) => row(formatDay(w.week_start), formatMeters(w.loss_m), w.sessions, w.strong_sessions))),
+  ];
+  if (f.strong_sessions.length) {
+    lines.push(
+      "",
+      "Séances à fort D− et courbatures à 48 h :",
+      "",
+      table(
+        ["Date", "D−", "D−/km", "Courbatures à 48 h (0–10)"],
+        f.strong_sessions.map((s) =>
+          row(formatDay(s.day), formatMeters(s.loss_m), s.loss_per_km === null ? null : `${formatNumber(s.loss_per_km)} m/km`, s.soreness === null ? `non saisi (${formatDay(s.soreness_date)})` : s.soreness),
+        ),
+      ),
+    );
+  }
+  if (f.suggestion) lines.push("", f.suggestion.message);
+  return [...lines, "", `_${f.evidence.summary}_`, ""].join("\n");
+}
+
+export function formatStrength(s: StrengthReport): string {
+  return [
+    "## Renforcement",
+    "",
+    `Objectif hebdomadaire : ${s.target === null ? "non fixé" : s.target}`,
+    "",
+    table(["Semaine du", "Séances", "Détectées", "Saisies", "Objectif atteint"], s.weeks.map((w) => row(formatDay(w.week_start) + (w.complete ? "" : " (en cours)"), w.count, w.detected, w.manual, w.target_met === null ? null : w.target_met ? "oui" : "non"))),
+    "",
+    `_${s.evidence.summary}_`,
+    "",
+  ].join("\n");
 }

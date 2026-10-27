@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { fetchActivities, fetchEntries, putEntry } from "../api/endpoints";
-import type { Activity, Entry, EntryInput } from "../api/types";
+import { fetchActivities, fetchEntries, fetchFuelingSeries, putEntry } from "../api/endpoints";
+import type { Activity, Entry, EntryInput, FuelingPoint } from "../api/types";
 import { addDays, formatDuration, formatWeekdayDay, todayIso } from "../app/format";
 import { formatEntry } from "./exports";
+import { FuelingForm } from "./FuelingWidget";
 import { sportLabel } from "./labels";
 import { invalidateTraining } from "./queries";
 import { registerWidget } from "./registry";
@@ -51,7 +52,20 @@ function Scale({
   );
 }
 
-function EntryForm({ day, activities, entry }: { day: string; activities: Activity[]; entry: Entry | null }) {
+/** Durée à partir de laquelle une sortie est « longue » (nutrition à saisir), en minutes. */
+const LONG_OUTING_MIN = 150;
+
+function EntryForm({
+  day,
+  activities,
+  entry,
+  fueling,
+}: {
+  day: string;
+  activities: Activity[];
+  entry: Entry | null;
+  fueling: FuelingPoint[];
+}) {
   const queryClient = useQueryClient();
   const [note, setNote] = useState(entry?.note ?? "");
   const [justSaved, setJustSaved] = useState(false);
@@ -87,6 +101,16 @@ function EntryForm({ day, activities, entry }: { day: string; activities: Activi
           />
         ))
       )}
+      {activities
+        .filter((a) => a.duration_min > LONG_OUTING_MIN)
+        .map((a) => (
+          <div key={a.id} className="entry-fueling">
+            <p className="entry-day">
+              Nutrition de la sortie longue — {sportLabel(a.sport)} {formatDuration(a.duration_min)}
+            </p>
+            <FuelingForm activityId={a.id} point={fueling.find((p) => p.activity_id === a.id)} />
+          </div>
+        ))}
       <Scale
         label="Courbatures"
         hint="0 aucune · 10 très fortes"
@@ -133,11 +157,20 @@ export function EveningEntryWidget({ settings }: WidgetProps<EntrySettings>) {
     queryFn: () => fetchActivities({ from: day, to: day, limit: 10 }),
   });
   const entries = useQuery({ queryKey: ["entries", day], queryFn: () => fetchEntries(day, day) });
+  // Nutrition des sorties longues : une absence de réponse n'empêche pas la saisie du soir.
+  const fueling = useQuery({ queryKey: ["fueling", "series", 2], queryFn: () => fetchFuelingSeries(2) });
   return (
     <WidgetData query={activities}>
       {(acts) => (
         <WidgetData query={entries}>
-          {(rows) => <EntryForm day={day} activities={[...acts].reverse()} entry={rows[0] ?? null} />}
+          {(rows) => (
+            <EntryForm
+              day={day}
+              activities={[...acts].reverse()}
+              entry={rows[0] ?? null}
+              fueling={fueling.data?.points ?? []}
+            />
+          )}
         </WidgetData>
       )}
     </WidgetData>

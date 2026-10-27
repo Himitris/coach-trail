@@ -5,8 +5,15 @@ import type {
   ActivityDetail,
   Entry,
   EntryInput,
+  FatigueReport,
   FitnessReport,
+  FuelingInput,
+  FuelingSeries,
   Goal,
+  GpxSummary,
+  MonotonyReport,
+  RaceGoalReport,
+  StrengthReport,
   IntensityReport,
   PlannedInput,
   PlannedSession,
@@ -167,3 +174,42 @@ export interface BackupStatus {
 }
 
 export const fetchBackupStatus = (): Promise<BackupStatus> => request("GET", "/api/backup/status");
+
+// --- phase 2 -----------------------------------------------------------------------------------
+
+export const fetchRaceGoal = (goalId?: number | null): Promise<RaceGoalReport> =>
+  request("GET", `/api/metrics/race-goal${search({ goal_id: goalId ?? undefined })}`);
+
+export const setGoalProfile = (id: number, points: [number, number][]): Promise<Goal> =>
+  request("PUT", `/api/goals/${id}/profile`, { body: { points } });
+
+export const importGoalGpx = (id: number, gpx: string, applyTotals: boolean): Promise<GpxSummary> =>
+  request("POST", `/api/goals/${id}/profile/gpx`, { body: { gpx, apply_totals: applyTotals } });
+
+export const clearGoalProfile = (id: number): Promise<Goal> => request("DELETE", `/api/goals/${id}/profile`);
+
+export const fetchFuelingSeries = (minHours?: number): Promise<FuelingSeries> =>
+  request("GET", `/api/fueling/series${search({ min_hours: minHours })}`);
+
+export const createFueling = (activityId: number, body: FuelingInput): Promise<unknown> =>
+  request("POST", "/api/fueling", { body: { activity_id: activityId, ...body } });
+
+export const updateFueling = (id: number, body: FuelingInput): Promise<unknown> =>
+  request("PUT", `/api/fueling/${id}`, { body });
+
+export const deleteFueling = (id: number): Promise<null> => request("DELETE", `/api/fueling/${id}`);
+
+export const fetchMonotony = (weeks: number): Promise<MonotonyReport> =>
+  request("GET", `/api/metrics/monotony${search({ weeks })}`);
+
+export const fetchFatigue = (weeks: number): Promise<FatigueReport> =>
+  request("GET", `/api/metrics/fatigue${search({ weeks })}`);
+
+export const fetchStrength = (weeks: number): Promise<StrengthReport> =>
+  request("GET", `/api/metrics/strength${search({ weeks })}`);
+
+export const addStrengthSession = (date: string): Promise<unknown> =>
+  request("POST", "/api/strength/sessions", { body: { date } });
+
+export const setStrengthTarget = (target: number | null): Promise<unknown> =>
+  request("PUT", "/api/profile", { body: { renfo_objectif_hebdo: target } });

@@ -24,7 +24,13 @@ from app.sync.service import SyncService
 from tests.fake_connector import FAKE_NORMALIZER, FakeConnector, activity_payload, wellness_payload
 
 # (jours avant aujourd'hui, minutes, km, D+) : une sortie aujourd'hui, six jours de course/semaine
-OUTINGS = [(0, 62, 11.0, 420), (1, 45, 8.0, 120), (2, 75, 12.5, 650), (4, 50, 9.0, 200)]
+OUTINGS = [
+    (0, 62, 11.0, 420),
+    (1, 45, 8.0, 120),
+    (2, 75, 12.5, 650),
+    (4, 50, 9.0, 200),
+    (9, 240, 32.0, 1400),  # sortie longue : nutrition à saisir
+]
 HISTORY = [(d, 55, 9.0, 300) for d in range(6, 40, 2)]
 
 

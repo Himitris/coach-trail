@@ -327,4 +327,130 @@ export interface Goal {
   distance_km: number | null;
   dplus_m: number | null;
   priorite: number;
+  /** Profil altimétrique de la course : [km, altitude m]. */
+  profil_points?: [number, number][] | null;
+}
+
+// --- phase 2 : objectif, nutrition, monotonie, fatigue, renforcement -----------------------------
+
+export interface RecentVolume {
+  window_days: number;
+  distance_km: number;
+  dplus_m: number;
+  avg_weekly_km: number;
+  avg_weekly_dplus_m: number;
+  longest_km: number | null;
+  longest_dplus_m: number | null;
+  avg_weekly_km_vs_race_pct: number | null;
+  avg_weekly_dplus_vs_race_pct: number | null;
+  longest_km_vs_race_pct: number | null;
+  longest_dplus_vs_race_pct: number | null;
+  evidence: Evidence;
+}
+
+export interface TsbScenario {
+  name: string;
+  daily_load: number;
+  ctl: number;
+  atl: number;
+  tsb: number;
+}
+
+export interface RaceGoalReport {
+  goal_id: number;
+  nom: string;
+  date: string;
+  distance_km: number | null;
+  dplus_m: number | null;
+  days_left: number;
+  profile: [number, number][] | null;
+  profile_dplus_m: number | null;
+  recent: RecentVolume;
+  predictions: { label: string; seconds: number; note: string }[];
+  projection: {
+    from_date: string;
+    race_date: string;
+    days: number;
+    scenarios: TsbScenario[];
+    evidence: Evidence;
+  } | null;
+}
+
+export interface GpxSummary {
+  distance_km: number;
+  dplus_m: number | null;
+  dminus_m: number | null;
+  points: number;
+  goal: Goal;
+}
+
+export interface FuelingPoint {
+  activity_id: number;
+  day: string;
+  duration_h: number;
+  distance_km: number | null;
+  entry_id: number | null;
+  carbs_g_per_h: number | null;
+  carbs_total_g: number | null;
+  gi_score: number | null;
+  note: string | null;
+  carbs_change_g_per_h: number | null;
+}
+
+export interface FuelingSeries {
+  min_hours: number;
+  points: FuelingPoint[];
+  missing: number;
+  evidence: Evidence;
+}
+
+export interface FuelingInput {
+  glucides_g_par_h: number;
+  score_digestif: number;
+  note?: string | null;
+}
+
+export interface MonotonyWeek {
+  week_start: string;
+  complete: boolean;
+  load: number;
+  monotony: number | null;
+  strain: number | null;
+  high_load: boolean | null;
+  soft_alert: boolean;
+  message: string | null;
+}
+
+export interface MonotonyReport {
+  reference: number;
+  weeks: MonotonyWeek[];
+  evidence: Evidence;
+}
+
+export interface FatigueReport {
+  weeks: { week_start: string; complete: boolean; loss_m: number; sessions: number; strong_sessions: number }[];
+  strong_sessions: {
+    activity_id: number;
+    day: string;
+    loss_m: number;
+    loss_per_km: number | null;
+    soreness_date: string;
+    soreness: number | null;
+  }[];
+  suggestion: { after: string; easy_from: string; easy_until: string; message: string } | null;
+  evidence: Evidence;
+}
+
+export interface StrengthReport {
+  target: number | null;
+  weeks: {
+    week_start: string;
+    complete: boolean;
+    detected: number;
+    manual: number;
+    count: number;
+    target: number | null;
+    target_met: boolean | null;
+  }[];
+  evidence: Evidence;
 }

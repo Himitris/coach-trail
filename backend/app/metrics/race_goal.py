@@ -73,6 +73,8 @@ class RaceGoalReport(BaseModel):
     distance_km: float | None
     dplus_m: int | None
     days_left: int
+    profile: list[list[float]] | None
+    profile_dplus_m: float | None
     recent: RecentVolume
     predictions: list[RacePrediction]
     projection: TsbProjection | None
