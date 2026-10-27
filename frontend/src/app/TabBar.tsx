@@ -13,6 +13,7 @@ export function TabBar() {
   const navigate = useNavigate();
   const pageMatch = useMatch("/p/:pageId");
   const sourcesMatch = useMatch("/sources");
+  const calendarMatch = useMatch("/calendrier");
   const coursesMatch = useMatch("/courses");
   const importMatch = useMatch("/plan/import");
   const docsMatch = useMatch("/docs");
@@ -127,6 +128,9 @@ export function TabBar() {
           +
         </button>
       </div>
+      <Link to="/calendrier" className={`tab tab-sources${calendarMatch ? " tab-active" : ""}`} title="Calendrier du plan, semaine ou mois">
+        Calendrier
+      </Link>
       <Link to="/courses" className={`tab tab-sources${coursesMatch ? " tab-active" : ""}`} title="Courses et plans attribués">
         Courses
       </Link>

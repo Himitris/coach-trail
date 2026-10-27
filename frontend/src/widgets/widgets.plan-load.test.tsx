@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { day, match, planned, totals, weekMetrics, weekPlan } from "../test/fixtures";
 import { mockApi } from "../test/mockApi";
 import { renderWithApp, widgetProps } from "../test/render";
+import { addDays, mondayOf } from "../imports/week";
 import "./WeekLoadWidget";
 import "./WeekPlanWidget";
 import { WeekLoadWidget } from "./WeekLoadWidget";
@@ -216,3 +217,32 @@ describe("Charge de la semaine", () => {
   });
 });
 
+
+describe("Programme de la semaine : navigation", () => {
+  it("les flèches changent de semaine et « Aujourd'hui » y revient", async () => {
+    // faux serveur : la semaine renvoyée est celle de la date demandée
+    const api = mockApi({
+      "GET /api/plan/week": ({ query }) => {
+        const start = mondayOf(query.date ?? "2026-10-27");
+        return { body: weekPlan([], { week_start: start, week_end: addDays(start, 6) }) };
+      },
+    });
+    renderWithApp(<WeekPlanWidget />);
+    const today = await screen.findByRole("button", { name: "Aujourd'hui" });
+    expect(today).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "Semaine suivante" }));
+    await waitFor(() => { expect(api.callsTo("GET /api/plan/week").map((c) => c.query.date)).toContain("2026-11-02"); });
+    await waitFor(() => { expect(screen.getByRole("button", { name: "Aujourd'hui" })).toBeEnabled(); });
+    await userEvent.click(screen.getByRole("button", { name: "Semaine précédente" }));
+    await waitFor(() => { expect(api.callsTo("GET /api/plan/week").map((c) => c.query.date)).toContain("2026-10-26"); });
+    await userEvent.click(screen.getByRole("button", { name: "Aujourd'hui" }));
+    await waitFor(() => { expect(screen.getByRole("button", { name: "Aujourd'hui" })).toBeDisabled(); });
+  });
+
+  it("une semaine vide reste navigable", async () => {
+    mockApi({ "GET /api/plan/week": () => ({ body: weekPlan() }) });
+    renderWithApp(<WeekPlanWidget />);
+    expect(await screen.findByText(/Aucune séance prévue ni réalisée/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Semaine suivante" })).toBeInTheDocument();
+  });
+});

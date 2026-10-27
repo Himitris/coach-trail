@@ -12,6 +12,7 @@ import type {
   Goal,
   GearReport,
   Plan,
+  RangePlan,
   GpxSummary,
   MonotonyReport,
   RaceGoalReport,
@@ -94,6 +95,10 @@ export const search = (params: Record<string, string | number | boolean | undefi
 
 export const fetchPlanWeek = (date?: string): Promise<WeekPlan> =>
   request("GET", `/api/plan/week${search({ date })}`);
+
+/** Calendrier : un jour par entrée de `from` à `to` inclus (62 jours au plus). */
+export const fetchPlanRange = (from: string, to: string): Promise<RangePlan> =>
+  request("GET", `/api/plan/range${search({ from, to })}`);
 
 export const createPlanSession = (body: PlannedInput): Promise<PlannedSession> =>
   request("POST", "/api/plan/sessions", { body });

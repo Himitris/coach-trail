@@ -122,6 +122,16 @@ export interface WeekPlan {
   days: DayPlan[];
 }
 
+export interface RangePlan {
+  start: string;
+  end: string;
+  days: DayPlan[];
+  /** Courses dont la date tombe dans la période. */
+  races: { id: number; nom: string; date: string }[];
+  /** Plans qui ont au moins une séance dans la période. */
+  plans: { id: number; nom: string }[];
+}
+
 // --- métriques ---------------------------------------------------------------------------------
 
 export interface VolumeTotals {

@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.metrics.models import monday
 from app.metrics.service import load_rows
 from app.metrics.volume import ActivityRow
-from app.models import PlannedSession
+from app.models import Goal, Plan, PlannedSession
 from app.plan.entries import read_entries
 from app.plan.matching import (
     A_VENIR,
@@ -26,8 +26,11 @@ from app.plan.schemas import (
     ActivityBrief,
     DayPlanOut,
     EntryOut,
+    PlanBriefOut,
     PlannedIn,
     PlannedOut,
+    RaceMarkerOut,
+    RangePlanOut,
     SessionMatchOut,
     WeekPlanOut,
 )
@@ -119,11 +122,14 @@ def with_status(
     return [planned_out(p, results[p.id].status if p.id in results else A_VENIR) for p in planned]
 
 
-def week_plan(
-    session: Session, priority: Sequence[str], tz: ZoneInfo, week_of: date, today: date
-) -> WeekPlanOut:
-    start = monday(week_of)
-    end = start + timedelta(days=6)
+def _days(
+    session: Session,
+    priority: Sequence[str],
+    tz: ZoneInfo,
+    start: date,
+    end: date,
+    today: date,
+) -> tuple[list[DayPlanOut], list[PlannedSession], list[ActivityRow]]:
     planned = list(
         session.scalars(
             select(PlannedSession)
@@ -137,7 +143,7 @@ def week_plan(
     by_id = {p.id: p for p in planned}
 
     days: list[DayPlanOut] = []
-    for offset in range(7):
+    for offset in range((end - start).days + 1):
         day = start + timedelta(days=offset)
         day_planned = [p for p in planned if p.date == day]
         m = match_day(day, [to_row(p) for p in day_planned], done.get(day, []), today)
@@ -163,6 +169,15 @@ def week_plan(
                 entry=entries.get(day),
             )
         )
+    return days, planned, rows
+
+
+def week_plan(
+    session: Session, priority: Sequence[str], tz: ZoneInfo, week_of: date, today: date
+) -> WeekPlanOut:
+    start = monday(week_of)
+    end = start + timedelta(days=6)
+    days, planned, rows = _days(session, priority, tz, start, end, today)
     return WeekPlanOut(
         week_start=start,
         week_end=end,
@@ -170,3 +185,27 @@ def week_plan(
         done_min=sum(r.duration_s for r in rows) / 60,
         days=days,
     )
+
+
+def range_plan(
+    session: Session,
+    priority: Sequence[str],
+    tz: ZoneInfo,
+    start: date,
+    end: date,
+    today: date,
+) -> RangePlanOut:
+    """Jours de `start` à `end` (inclus) : prévu, réalisé, statut, courses et plans présents."""
+    days, planned, _ = _days(session, priority, tz, start, end, today)
+    races = [
+        RaceMarkerOut(id=g.id, nom=g.nom, date=g.date)
+        for g in session.scalars(
+            select(Goal).where(Goal.date >= start, Goal.date <= end).order_by(Goal.date)
+        )
+    ]
+    plan_ids = sorted({p.plan_id for p in planned if p.plan_id is not None})
+    plans = [
+        PlanBriefOut(id=p.id, nom=p.nom)
+        for p in session.scalars(select(Plan).where(Plan.id.in_(plan_ids)).order_by(Plan.id))
+    ]
+    return RangePlanOut(start=start, end=end, days=days, races=races, plans=plans)

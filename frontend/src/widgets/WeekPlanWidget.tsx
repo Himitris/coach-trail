@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   createPlanSession,
@@ -15,7 +15,7 @@ import type {
   SessionMatch,
   SessionType,
 } from "../api/types";
-import { formatDay, formatDuration, formatKm, formatMeters, formatSigned } from "../app/format";
+import { addDays, formatDay, formatDuration, formatKm, formatMeters, formatSigned } from "../app/format";
 import { EvidenceBadge } from "./common";
 import { formatWeekPlan } from "./exports";
 import { SESSION_TYPE_OPTIONS, sportLabel, STATUS_CLASS } from "./labels";
@@ -24,22 +24,28 @@ import { invalidateTraining, REFRESH_MS } from "./queries";
 import { registerWidget } from "./registry";
 import { WidgetData } from "./states";
 
-const useWeekPlan = () =>
-  useQuery({ queryKey: ["plan", "week"], queryFn: () => fetchPlanWeek(), refetchInterval: REFRESH_MS });
+/** `date` : un jour de la semaine voulue (la semaine en cours si absent). */
+const useWeekPlan = (date?: string) =>
+  useQuery({
+    queryKey: ["plan", "week", date ?? "now"],
+    queryFn: () => fetchPlanWeek(date),
+    refetchInterval: REFRESH_MS,
+    placeholderData: keepPreviousData,
+  });
 
-function StatusChip({ status }: { status: PlanStatus | null }) {
+export function StatusChip({ status }: { status: PlanStatus | null }) {
   if (!status) return <span className="chip chip-none">rien de prévu</span>;
   return <span className={`chip chip-${STATUS_CLASS[status]}`}>{status}</span>;
 }
 
-function activityText(a: ActivityBrief): string {
+export function activityText(a: ActivityBrief): string {
   const parts = [formatDuration(a.duration_min)];
   if (a.distance_km) parts.push(formatKm(a.distance_km));
   if (a.dplus_m) parts.push(`D+ ${formatMeters(a.dplus_m)}`);
   return `${sportLabel(a.sport)} · ${parts.join(" · ")}`;
 }
 
-function plannedText(p: PlannedSession): string {
+export function plannedText(p: PlannedSession): string {
   const parts: string[] = [];
   if (p.duree_min) parts.push(formatDuration(p.duree_min));
   if (p.zone_cible) parts.push(`zone ${p.zone_cible}`);
@@ -47,7 +53,7 @@ function plannedText(p: PlannedSession): string {
   return parts.join(" · ");
 }
 
-function gapText(m: SessionMatch): string | null {
+export function gapText(m: SessionMatch): string | null {
   if (!m.activity) return null;
   const parts: string[] = [];
   if (m.duration_delta_min !== null) parts.push(`${formatSigned(m.duration_delta_min, 0, "min")} vs prévu`);
@@ -136,11 +142,29 @@ function DayBlock({
   );
 }
 
+function WeekNav({ start, current, onGo }: { start: string; current: boolean; onGo: (date: string | undefined) => void }) {
+  return (
+    <div className="week-nav" role="group" aria-label="Navigation de semaine">
+      <button type="button" className="btn btn-small" aria-label="Semaine précédente" onClick={() => { onGo(addDays(start, -7)); }}>
+        ←
+      </button>
+      <button type="button" className="btn btn-small" disabled={current} onClick={() => { onGo(undefined); }}>
+        Aujourd'hui
+      </button>
+      <button type="button" className="btn btn-small" aria-label="Semaine suivante" onClick={() => { onGo(addDays(start, 7)); }}>
+        →
+      </button>
+    </div>
+  );
+}
+
 export function WeekPlanWidget() {
-  const query = useWeekPlan();
+  const [weekDate, setWeekDate] = useState<string | undefined>(undefined);
+  const query = useWeekPlan(weekDate);
   const [editing, setEditing] = useState<PlannedSession | { date: string } | null>(null);
   return (
     <>
+      {query.data && <WeekNav start={query.data.week_start} current={weekDate === undefined} onGo={setWeekDate} />}
       <WidgetData
         query={query}
         isEmpty={(w) => w.days.every((d) => d.sessions.length === 0 && d.unplanned_activities.length === 0)}

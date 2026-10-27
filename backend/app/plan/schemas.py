@@ -186,3 +186,22 @@ class WeekPlanOut(BaseModel):
     planned_min: int
     done_min: float
     days: list[DayPlanOut]
+
+
+class RaceMarkerOut(BaseModel):
+    id: int
+    nom: str
+    date: date
+
+
+class PlanBriefOut(BaseModel):
+    id: int
+    nom: str
+
+
+class RangePlanOut(BaseModel):
+    start: date
+    end: date
+    days: list[DayPlanOut]
+    races: list[RaceMarkerOut]  # courses dont la date tombe dans la période
+    plans: list[PlanBriefOut]  # plans qui ont au moins une séance dans la période

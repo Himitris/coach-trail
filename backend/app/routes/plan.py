@@ -12,12 +12,13 @@ from app.metrics.models import monday
 from app.models import PlannedSession
 from app.plan import importer, service
 from app.plan.plans import refresh_bounds
-from app.plan.schemas import PlannedIn, PlannedOut, WeekPlanOut
+from app.plan.schemas import PlannedIn, PlannedOut, RangePlanOut, WeekPlanOut
 from app.routes.deps import get_db
 
 router = APIRouter(prefix="/plan")
 
 MAX_SPAN_DAYS = 400
+MAX_RANGE_DAYS = 62
 
 
 def _ctx(request: Request) -> tuple[list[str], ZoneInfo, date]:
@@ -90,6 +91,22 @@ def week(
 ) -> WeekPlanOut:
     priority, tz, today = _ctx(request)
     return service.week_plan(db, priority, tz, date_ or today, today)
+
+
+@router.get("/range", response_model=RangePlanOut)
+def plan_range(
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    from_: Annotated[date, Query(alias="from")],
+    to: date,
+) -> RangePlanOut:
+    """Calendrier : une entrée par jour de `from` à `to` (62 jours au plus)."""
+    if from_ > to:
+        raise HTTPException(422, "« from » doit précéder « to ».")
+    if (to - from_).days + 1 > MAX_RANGE_DAYS:
+        raise HTTPException(422, f"Période limitée à {MAX_RANGE_DAYS} jours.")
+    priority, tz, today = _ctx(request)
+    return service.range_plan(db, priority, tz, from_, to, today)
 
 
 @router.get("/sessions/{session_id}", response_model=PlannedOut)

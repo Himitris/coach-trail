@@ -318,3 +318,67 @@ def test_editing_or_deleting_a_session_recomputes_plan_bounds(client: TestClient
     last = rows[-1]
     client.delete(f"/api/plan/sessions/{last['id']}")
     assert client.get("/api/plans").json()[0]["date_fin"] == "2026-11-03"
+
+
+# --- calendrier : /plan/range -----------------------------------------------------------------
+
+
+def test_range_returns_every_day_with_plan_status_activity_and_races(client: TestClient) -> None:
+    gid = goal(client, "Ultra de test", "2026-11-08")
+    post(
+        client,
+        v2(
+            "Fin de prépa",
+            [
+                session("2026-10-07", titre="Fait", duree_min=60),
+                session("2026-11-03", titre="Futur"),
+            ],
+            "Ultra de test",
+        ),
+        dry_run="false",
+    )
+    add(client, "done", datetime(2026, 10, 7, 6), 58, "running", 10, 50, 140)
+    add(client, "extra", datetime(2026, 10, 9, 6), 30, "running", 5, 0, 130)
+
+    body = client.get("/api/plan/range?from=2026-10-05&to=2026-11-08").json()
+    assert body["start"] == "2026-10-05" and body["end"] == "2026-11-08"
+    assert [d["date"] for d in body["days"]][:2] == ["2026-10-05", "2026-10-06"] and len(
+        body["days"]
+    ) == 35
+    days = {d["date"]: d for d in body["days"]}
+    done = days["2026-10-07"]["sessions"][0]
+    assert done["status"] == "fait" and done["activity"] is not None
+    assert done["planned"]["plan_nom"] == "Fin de prépa"
+    assert days["2026-10-09"]["unplanned_activities"][0]["duration_min"] == 30
+    assert days["2026-11-03"]["sessions"][0]["status"] == "à venir"
+    assert days["2026-10-20"]["sessions"] == [] and days["2026-10-20"]["status"] is None
+    assert {"id": gid, "nom": "Ultra de test", "date": "2026-11-08"} in body["races"]
+    assert all(r["date"] == "2026-11-08" for r in body["races"])  # courses semées comprises
+    assert [p["nom"] for p in body["plans"]] == ["Fin de prépa"]
+
+
+def test_range_matches_the_week_view_for_the_same_days(client: TestClient) -> None:
+    post(client, v2("P", [session("2026-10-14", titre="Mercredi")]), dry_run="false")
+    week = client.get("/api/plan/week?date=2026-10-14").json()
+    rng = client.get("/api/plan/range?from=2026-10-12&to=2026-10-18").json()
+    assert rng["days"] == week["days"]
+
+
+def test_range_validation(client: TestClient) -> None:
+    assert client.get("/api/plan/range?from=2026-10-10&to=2026-10-09").status_code == 422
+    assert (
+        client.get("/api/plan/range?from=2026-10-01&to=2026-12-02").status_code == 422
+    )  # 62 j + 1
+    assert (
+        client.get("/api/plan/range?from=2026-10-01&to=2026-12-01").status_code == 200
+    )  # 62 jours
+    assert (
+        client.get("/api/plan/range?from=2026-10-01&to=2026-12-02")
+        .json()["detail"]
+        .startswith("Période")
+    )
+    assert client.get("/api/plan/range?from=2026-10-01").status_code == 422
+    assert (
+        client.get("/api/plan/range?from=2026-10-01&to=2026-10-01").json()["days"][0]["date"]
+        == "2026-10-01"
+    )
