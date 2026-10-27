@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { fetchActivities } from "../api/endpoints";
 import type { Activity } from "../api/types";
+import { ActivityExportButton } from "../app/ExportButtons";
 import {
   formatDay,
   formatDuration,
@@ -41,6 +42,7 @@ function ActivityTable({ items, onOpen }: { items: Activity[]; onOpen: (id: numb
             <th scope="col">FC moy.</th>
             {showGap && <th scope="col" title="Allure ajustée à la pente">GAP</th>}
             <th scope="col" title="Effort perçu, 0 à 10">RPE</th>
+            <th scope="col"><span className="sr-only">Export</span></th>
           </tr>
         </thead>
         <tbody>
@@ -69,6 +71,9 @@ function ActivityTable({ items, onOpen }: { items: Activity[]; onOpen: (id: numb
               <td>{a.hr_avg === null ? "—" : formatNumber(a.hr_avg)}</td>
               {showGap && <td>{formatPace(a.gap_s_per_km)}</td>}
               <td>{a.rpe === null ? "—" : a.rpe}</td>
+              <td>
+                <ActivityExportButton activityId={a.id} />
+              </td>
             </tr>
           ))}
         </tbody>

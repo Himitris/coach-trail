@@ -6,7 +6,7 @@ export type SettingField =
   | { key: string; label: string; type: "number"; min?: number; max?: number; step?: number }
   | { key: string; label: string; type: "boolean" };
 
-/** Contenu exporté par un widget (le bouton d'export du cadre l'assemblera au prompt 09). */
+/** Contenu exporté par un widget (bouton d'export du cadre, copié dans le presse-papiers). */
 export interface ExportBlock {
   title: string;
   markdown: string;

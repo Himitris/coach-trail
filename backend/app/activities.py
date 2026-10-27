@@ -83,7 +83,7 @@ class ActivityDetailOut(ActivityOut):
     evidence: Evidence
 
 
-def _rpe_by_group(session: Session) -> dict[int, int]:
+def rpe_by_group(session: Session) -> dict[int, int]:
     """RPE saisi par séance réelle (clé = groupe de déduplication, ou id si seul)."""
     rows = session.execute(
         select(EveningEntry.rpe, Activity.dedup_group_id, Activity.id)
@@ -139,7 +139,7 @@ def list_activities(
         raise HTTPException(422, f"Période limitée à {MAX_SPAN_DAYS} jours.")
     if from_ and to and from_ > to:
         raise HTTPException(422, "« from » doit précéder « to ».")
-    rpe = _rpe_by_group(db)
+    rpe = rpe_by_group(db)
     out: list[ActivityOut] = []
     for act in reversed(primary_activities(db, priority)):
         item = to_out(act, tz, rpe)
@@ -165,7 +165,7 @@ def activity_detail(
     act = db.get(Activity, activity_id)
     if act is None:
         raise HTTPException(404, "Sortie introuvable.")
-    base = to_out(act, tz, _rpe_by_group(db))
+    base = to_out(act, tz, rpe_by_group(db))
     notes = ["Allure ajustée à la pente (GAP) non disponible : calcul prévu en phase 2."]
     stream_out: StreamOut | None = None
     zones_out: ZonesOut | None = None

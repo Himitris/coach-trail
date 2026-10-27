@@ -125,3 +125,23 @@ export const fetchActivity = (id: number): Promise<ActivityDetail> =>
   request("GET", `/api/activities/${id}`);
 
 export const fetchGoals = (): Promise<Goal[]> => request("GET", "/api/goals");
+
+// --- export « Copier pour Claude » ------------------------------------------------------------
+
+export interface ExportPeriod {
+  from: string;
+  to: string;
+}
+
+/** Markdown de l'export global (texte brut, jamais interprété). */
+export const fetchExportMarkdown = (period: ExportPeriod): Promise<string> =>
+  request("GET", `/api/export${search({ from: period.from, to: period.to })}`);
+
+/** Liens de téléchargement : export complet (JSON) et flux de séance sous-échantillonnés. */
+export const exportJsonUrl = (period: ExportPeriod): string =>
+  `/api/export${search({ from: period.from, to: period.to, format: "json" })}`;
+
+export const exportStreamsUrl = (period: ExportPeriod): string =>
+  `/api/export/streams${search({ from: period.from, to: period.to })}`;
+
+export const fetchActivityExport = (id: number): Promise<string> => request("GET", `/api/export/activity/${id}`);

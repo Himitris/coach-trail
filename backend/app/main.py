@@ -17,6 +17,7 @@ from app.garmin.auth import LoginManager
 from app.logging import configure_logging
 from app.plan.entries import DbEntryReader
 from app.routes import entries, garmin, goals, health, metrics, plan, profile, sync
+from app.routes import export as export_routes
 from app.sync.registry import build_sources
 from app.sync.scheduler import build_scheduler
 from app.sync.service import SyncService
@@ -88,6 +89,7 @@ def create_app(
         plan.router,
         dashboard.router,
         activities.router,
+        export_routes.router,
     ):
         app.include_router(router, prefix="/api")
     return app

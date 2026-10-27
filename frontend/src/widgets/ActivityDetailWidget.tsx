@@ -22,6 +22,7 @@ import {
   formatNumber,
   formatPace,
 } from "../app/format";
+import { ActivityExportButton } from "../app/ExportButtons";
 import { ChartBox, EvidenceNote, Stat } from "./common";
 import { formatActivityDetail } from "./exports";
 import { Overlay } from "./Overlay";
@@ -205,6 +206,7 @@ export function ActivityDetailView({ activityId }: { activityId: number }) {
           <h3 className="detail-title">
             {sportLabel(d.sport)} · {formatDay(d.day)}
             {d.is_race && <span className="chip chip-race"> course</span>}
+            <ActivityExportButton activityId={d.id} />
           </h3>
           <div className="stats">
             <Stat label="Durée" value={formatDuration(d.duration_min)} />

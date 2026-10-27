@@ -30,7 +30,7 @@ describe("Dernières sorties", () => {
     expect(rows[0]).toHaveTextContent("6");
     // séance de renfo : aucune distance, D+ ni FC inventés
     const strength = within(rows[2] as HTMLElement).getAllByRole("cell").map((c) => c.textContent);
-    expect(strength).toEqual(["20 oct.", "Renforcement", "30 min", "—", "—", "—", "—"]);
+    expect(strength).toEqual(["20 oct.", "Renforcement", "30 min", "—", "—", "—", "—", "⤓"]);
   });
 
   it("n'affiche la colonne GAP que si une sortie en a un", async () => {

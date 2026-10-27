@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { Link, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { DashboardPage } from "../pages/DashboardPage";
 import { SourcesPage } from "../pages/SourcesPage";
+import { ExportButton } from "./ExportButtons";
 import { useDashboard } from "./DashboardProvider";
 import { newId } from "./ids";
 import { usePageShortcuts } from "./shortcuts";
@@ -31,6 +32,7 @@ function Header() {
           </Link>
         ))}
       </div>
+      <ExportButton />
       <span className={`save-status save-${saveStatus}`} aria-live="polite">
         {SAVE_LABELS[saveStatus]}
       </span>
