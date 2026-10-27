@@ -2,6 +2,7 @@
 
 from collections.abc import Iterable, Sequence
 from datetime import date
+from typing import Any
 
 from app.export.builder import (
     ExportActivity,
@@ -466,3 +467,33 @@ def render_markdown(data: ExportData, streams_ref: str | None = None) -> str:
         parts += [render_glossary()]
     parts += [render_limits(data, streams_ref if "activities" in data.sections else None)]
     return "\n".join(parts).rstrip() + "\n"
+
+
+def render_gear(report: Any) -> str:
+    """Matériel : kilométrage par paire, seuil d'usure (repère personnel), alertes douces."""
+    if not report.items:
+        return (
+            "## Matériel\n\nAucune paire de chaussures enregistrée ni détectée dans les sorties.\n"
+        )
+    rows = [
+        [
+            g.nom,
+            f"{num(g.km_total)} km",
+            f"{num(g.seuil_km)} km",
+            f"{num(g.usage_pct)} %",
+            g.activities,
+            day(g.last_used) if g.last_used else DASH,
+            g.status,
+        ]
+        for g in report.items
+    ]
+    lines = [
+        "## Matériel",
+        "",
+        table(["Paire", "Km", "Seuil", "Usure", "Sorties", "Dernière sortie", "Statut"], rows),
+    ]
+    lines += ["", *[f"- {g.nom} : {g.message}" for g in report.items if g.message]]
+    if report.unassigned_total:
+        lines.append(f"\n{report.unassigned_total} sortie(s) de course à pied sans paire affectée.")
+    lines.append(f"\n_{report.evidence.summary}_")
+    return "\n".join(lines) + "\n"

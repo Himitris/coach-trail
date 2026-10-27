@@ -308,3 +308,13 @@ button.plan-planned:hover { background: var(--surface-2); }
 .import-blocked { background: var(--surface-2); }
 .import-unchanged { color: var(--muted); }
 .plan-import { max-width: 60rem; }
+
+.gear-list { list-style: none; margin: 0 0 0.75rem; padding: 0; display: grid; gap: 0.75rem; }
+.gear { border: 1px solid var(--border); border-radius: var(--radius); padding: 0.6rem 0.75rem; }
+.gear-head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+.gear-bar { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; margin: 0.4rem 0; }
+.gear-bar span { display: block; height: 100%; background: var(--accent); }
+.gear-surveiller .gear-bar span { background: var(--warn, #b7791f); }
+.gear-atteint .gear-bar span { background: var(--danger); }
+.gear-retire { opacity: 0.65; }
+.gear-km { margin: 0.2rem 0; }

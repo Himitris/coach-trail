@@ -5,6 +5,7 @@ import type {
   FatigueReport,
   FitnessReport,
   FuelingSeries,
+  GearReport,
   IntensityReport,
   MonotonyReport,
   RaceGoalReport,
@@ -367,4 +368,19 @@ export function formatStrength(s: StrengthReport): string {
     `_${s.evidence.summary}_`,
     "",
   ].join("\n");
+}
+
+export function formatGear(g: GearReport): string {
+  if (!g.items.length) return "## Matériel\n\nAucune paire de chaussures enregistrée ni détectée dans les sorties.\n";
+  const lines = [
+    "## Matériel",
+    "",
+    table(
+      ["Paire", "Km", "Seuil", "Usure", "Sorties", "Dernière sortie", "Statut"],
+      g.items.map((i) => row(i.nom, formatKm(i.km_total), `${formatNumber(i.seuil_km)} km`, `${formatNumber(i.usage_pct)} %`, i.activities, i.last_used === null ? null : formatDay(i.last_used), i.status)),
+    ),
+  ];
+  for (const i of g.items) if (i.message) lines.push("", `- ${i.nom} : ${i.message}`);
+  if (g.unassigned_total) lines.push("", `${g.unassigned_total} sortie(s) de course à pied sans paire affectée.`);
+  return [...lines, "", `_${g.evidence.summary}_`, ""].join("\n");
 }

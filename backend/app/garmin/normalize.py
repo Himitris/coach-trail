@@ -85,6 +85,18 @@ def _parse_time(value: Any) -> datetime | None:
 # --- activités ------------------------------------------------------------------------------
 
 
+def _gear_name(gear: Any) -> str | None:
+    """Nom de la paire liée à l'activité (réponse de `get_activity_gear`, liste ou objet)."""
+    items = gear if isinstance(gear, list) else [gear]
+    for item in items:
+        if isinstance(item, dict):
+            for key in ("displayName", "customMakeModel", "gearName", "name"):
+                value = item.get(key)
+                if isinstance(value, str) and value.strip():
+                    return value.strip()
+    return None
+
+
 def _activity(payload: dict[str, Any]) -> NormalizedActivity | None:
     summary = payload.get("summary")
     detail = payload.get("detail")
@@ -119,6 +131,7 @@ def _activity(payload: dict[str, Any]) -> NormalizedActivity | None:
         hr_avg=_int(get("averageHR")),
         hr_max=_int(get("maxHR")),
         calories=_int(get("calories")),
+        gear=_gear_name(payload.get("gear")),
         is_race=(_first(summary, ("eventType", "typeKey")) == "race"),
     )
 

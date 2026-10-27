@@ -10,6 +10,7 @@ import type {
   FuelingInput,
   FuelingSeries,
   Goal,
+  GearReport,
   GpxSummary,
   MonotonyReport,
   RaceGoalReport,
@@ -161,6 +162,7 @@ export const CSV_SERIES: readonly { value: string; label: string }[] = [
   { value: "fueling", label: "Nutrition en course" },
   { value: "plan", label: "Plan prévu vs réalisé" },
   { value: "entries", label: "Saisies du soir" },
+  { value: "gear", label: "Matériel (km par paire)" },
 ];
 
 /** Lien de téléchargement de l'export global dans le format choisi. */
@@ -310,3 +312,20 @@ export interface StravaStatus {
 export const fetchStravaStatus = (): Promise<StravaStatus> => request("GET", "/api/strava/status");
 export const stravaAuthorize = (): Promise<{ url: string }> => request("POST", "/api/strava/authorize");
 export const stravaDisconnect = (): Promise<null> => request("POST", "/api/strava/disconnect");
+
+// --- matériel -----------------------------------------------------------------------------------
+
+export const fetchGear = (): Promise<GearReport> => request("GET", "/api/gear");
+
+export const createGear = (body: { nom: string; seuil_km: number; km_initial: number }): Promise<{ id: number }> =>
+  request("POST", "/api/gear", { body });
+
+export const updateGear = (
+  id: number,
+  body: { nom?: string; seuil_km?: number; km_initial?: number; retire?: boolean },
+): Promise<null> => request("PUT", `/api/gear/${id}`, { body });
+
+export const deleteGear = (id: number): Promise<null> => request("DELETE", `/api/gear/${id}`);
+
+export const assignGear = (activityId: number, gearId: number | null): Promise<null> =>
+  request("PUT", "/api/gear/assign/activity", { body: { activity_id: activityId, gear_id: gearId } });

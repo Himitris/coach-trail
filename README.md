@@ -26,6 +26,10 @@ Garmin Connect est la source principale. **Intervals.icu** (clé personnelle : `
 
 Export Markdown, JSON versionné et CSV (séries), par période, par widget et par séance ; import d'un plan JSON produit par Claude (aperçu, confirmation, jours réalisés protégés). Voir [`docs/export.md`](docs/export.md) et [`docs/prompt-plan-claude.md`](docs/prompt-plan-claude.md).
 
+## Matériel
+
+Widget « Matériel » : kilométrage par paire de chaussures (nom fourni par la montre — Garmin `get_activity_gear`, Intervals.icu, Strava — ou affectation manuelle d'une sortie, qui prévaut), seuil d'usure réglable (800 km par défaut) et alerte douce à 90 % puis 100 % (information : l'usure réelle dépend du terrain et de la foulée), km déjà parcourus avant l'appli, paires retirables.
+
 ## Strava (optionnel, désactivé par défaut)
 
 > **À lire avant d'activer** : les conditions de l'API Strava du **1er juin 2026** interdisent l'entraînement d'IA avec les données Strava. Envoyer vos propres séances à Claude pour analyse n'est pas de l'entraînement, mais lisez le texte officiel avant de connecter Strava.

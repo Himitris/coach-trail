@@ -13,6 +13,7 @@ import "./FuelingWidget";
 import "./MonotonyWidget";
 import "./FatigueWidget";
 import "./StrengthWidget";
+import "./GearWidget";
 
 export { getWidget, listWidgets, specFor } from "./registry";
 

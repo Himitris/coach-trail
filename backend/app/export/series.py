@@ -16,6 +16,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
+from app import gear
 from app.export import builder
 from app.metrics import phase2, service
 from app.metrics.fueling import fueling_series
@@ -36,6 +37,7 @@ SeriesName = Literal[
     "fueling",
     "plan",
     "entries",
+    "gear",
 ]
 SERIES_NAMES: tuple[SeriesName, ...] = (
     "activities",
@@ -49,6 +51,7 @@ SERIES_NAMES: tuple[SeriesName, ...] = (
     "fueling",
     "plan",
     "entries",
+    "gear",
 )
 
 
@@ -403,6 +406,36 @@ def entries_table(ctx: Ctx) -> Table:
     )
 
 
+def gear_table(ctx: Ctx) -> Table:
+    report = gear.build_report(ctx.session, ctx.priority, ctx.tz.key)
+    return Table(
+        "gear",
+        [
+            "paire",
+            "km_total",
+            "seuil_km",
+            "usage_pct",
+            "seances_affectees",
+            "derniere_utilisation",
+            "statut",
+        ],  # fmt: skip
+        [
+            [
+                g.nom,
+                _r(g.km_total, 1),
+                g.seuil_km,
+                _r(g.usage_pct, 1),
+                g.activities,
+                g.last_used.isoformat() if g.last_used else None,
+                g.status,
+            ]
+            for g in report.items
+        ],
+        "Kilométrage par paire (km déjà parcourus + sorties affectées). Le seuil d'usure est un "
+        "repère personnel, l'alerte est informative.",
+    )
+
+
 BUILDERS: dict[SeriesName, Callable[[Ctx], Table]] = {
     "activities": activities_table,
     "wellness": wellness_table,
@@ -415,6 +448,7 @@ BUILDERS: dict[SeriesName, Callable[[Ctx], Table]] = {
     "fueling": fueling_table,
     "plan": plan_table,
     "entries": entries_table,
+    "gear": gear_table,
 }
 
 

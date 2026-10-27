@@ -454,3 +454,30 @@ export interface StrengthReport {
   }[];
   evidence: Evidence;
 }
+
+// --- matériel -----------------------------------------------------------------------------------
+
+export type GearStatus = "ok" | "surveiller" | "atteint" | "retire";
+
+export interface GearItem {
+  /** null : nom vu dans les sorties, pas encore enregistré. */
+  id: number | null;
+  nom: string;
+  registered: boolean;
+  seuil_km: number;
+  km_initial: number;
+  km_total: number;
+  km_activities: number;
+  activities: number;
+  last_used: string | null;
+  usage_pct: number;
+  status: GearStatus;
+  message: string | null;
+}
+
+export interface GearReport {
+  items: GearItem[];
+  unassigned: { activity_id: number; day: string; sport: string; distance_km: number | null }[];
+  unassigned_total: number;
+  evidence: Evidence;
+}

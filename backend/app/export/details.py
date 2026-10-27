@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy.orm import Session
 
 from app import activities as activities_api
+from app import gear
 from app.export import builder, series
 from app.export import markdown as md
 from app.metrics import service
@@ -133,6 +134,8 @@ def widget_markdown(
         return md.render_volume(
             builder.volume_section(week_rows, start, start + timedelta(days=6), today)
         )
+    if widget_type == "gear":
+        return md.render_gear(gear.build_report(session, priority, tz.key))
     if widget_type == "week-plan":
         start = monday(today)
         return md.render_plan(
@@ -197,6 +200,8 @@ def widget_table(
         return series.fueling_table(
             ctx(today - timedelta(days=365), today, min_hours=min(max(hours, 0.5), 24))
         )
+    if widget_type == "gear":
+        return series.gear_table(ctx(today - timedelta(days=365), today))
     if widget_type == "week-plan":
         start = monday(today)
         return series.plan_table(ctx(start, start + timedelta(days=6)))

@@ -37,6 +37,7 @@ class GarminAPI(Protocol):
         self, startdate: str, enddate: str | None = None, sortorder: str | None = None
     ) -> list[dict[str, Any]]: ...
     def get_activity(self, activity_id: str) -> dict[str, Any]: ...
+    def get_activity_gear(self, activity_id: str) -> Any: ...
     def get_activity_details(
         self, activity_id: str, maxchart: int = ..., maxpoly: int = ...
     ) -> dict[str, Any]: ...
@@ -119,7 +120,17 @@ class GarminConnector:
             detail = self._call(
                 f"détail activité {activity_id}", api.get_activity, str(activity_id)
             )
-            yield RawRecord(str(activity_id), {"summary": summary, "detail": detail})
+            payload: dict[str, Any] = {"summary": summary, "detail": detail}
+            if self._is_run(summary):  # le matériel ne concerne que les chaussures de course
+                payload["gear"] = self._call(
+                    f"matériel activité {activity_id}", api.get_activity_gear, str(activity_id)
+                )
+            yield RawRecord(str(activity_id), payload)
+
+    @staticmethod
+    def _is_run(summary: dict[str, Any]) -> bool:
+        kind = (summary.get("activityType") or {}).get("typeKey", "")
+        return isinstance(kind, str) and ("run" in kind or "trail" in kind)
 
     def fetch_activity_stream(self, external_id: str) -> RawRecord | None:
         api = self._require_api()

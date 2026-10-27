@@ -20,6 +20,7 @@ from app.plan.entries import DbEntryReader
 from app.routes import backup as backup_routes
 from app.routes import entries, garmin, goals, health, metrics, phase2, plan, profile, sync
 from app.routes import export as export_routes
+from app.routes import gear as gear_routes
 from app.routes import strava as strava_routes
 from app.sync.registry import build_sources, build_strava_auth
 from app.sync.scheduler import build_scheduler
@@ -102,6 +103,7 @@ def create_app(
         backup_routes.router,
         phase2.router,
         strava_routes.router,
+        gear_routes.router,
     ):
         app.include_router(router, prefix="/api")
     return app

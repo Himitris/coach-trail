@@ -24,6 +24,7 @@ class FakeGarminAPI:
         self.raises: dict[str, Exception] = {}
         self.calls: list[tuple[str, tuple[Any, ...]]] = []
         self.activity_ids = ["17000000001"]
+        self.gear: Any = [{"displayName": "Speedcross 6", "gearTypeName": "Shoes"}]
 
     def _do(self, name: str, args: tuple[Any, ...], value: Any) -> Any:
         self.calls.append((name, args))
@@ -50,6 +51,9 @@ class FakeGarminAPI:
         d = fixture("activity_detail.json")
         d["activityId"] = int(activity_id)
         return self._do("get_activity", (activity_id,), d)  # type: ignore[no-any-return]
+
+    def get_activity_gear(self, activity_id: str) -> Any:
+        return self._do("get_activity_gear", (activity_id,), self.gear)
 
     def get_activity_details(
         self, activity_id: str, maxchart: int = 2000, maxpoly: int = 4000

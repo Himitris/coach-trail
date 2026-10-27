@@ -218,3 +218,32 @@ class StrengthSession(Base):
     date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     duree_min: Mapped[int | None] = mapped_column(Integer)
     note: Mapped[str | None] = mapped_column(String)
+
+
+class GearItem(Base):
+    """Paire de chaussures : seuil d'usure réglable, kilométrage déjà parcouru avant l'appli."""
+
+    __tablename__ = "gear_item"
+    __table_args__ = (
+        CheckConstraint("seuil_km >= 50 AND seuil_km <= 5000", name="ck_gear_seuil"),
+        CheckConstraint("km_initial >= 0 AND km_initial <= 20000", name="ck_gear_km_initial"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    nom: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    seuil_km: Mapped[int] = mapped_column(Integer, nullable=False, default=800)
+    km_initial: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    retire: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
+class GearAssignment(Base):
+    """Affectation manuelle d'une sortie à une paire (prioritaire sur le matériel de la montre)."""
+
+    __tablename__ = "gear_assignment"
+
+    activity_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("activity.id", ondelete="CASCADE"), primary_key=True
+    )
+    gear_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("gear_item.id", ondelete="CASCADE"), nullable=False, index=True
+    )
