@@ -83,6 +83,10 @@ def build_app(data_dir: Path, static_dir: Path) -> FastAPI:
 
     @app.get("/{path:path}", include_in_schema=False)
     def spa(path: str) -> Response:  # routes /p/…, /sources : la SPA gère le routage
+        # fichiers à la racine de dist (manifeste, service worker, icônes) servis tels quels
+        candidate = (static_dir / path).resolve()
+        if path and candidate.is_file() and candidate.parent == static_dir.resolve():
+            return FileResponse(candidate)
         return FileResponse(index)
 
     return app

@@ -169,7 +169,8 @@ def test_build_sources_enables_intervals_only_when_configured() -> None:
     assert set(connectors) == {"garmin"}
     configured = Settings(intervals_athlete_id="i123", intervals_api_key=SecretStr(KEY))
     connectors, normalizers = build_sources(configured)
-    assert set(connectors) == set(normalizers) == {"garmin", "intervals"}
+    assert set(connectors) == {"garmin", "intervals"}
+    assert set(normalizers) == {"garmin", "intervals", "import"}  # « import » : sans connecteur
 
 
 # --- normalisation ------------------------------------------------------------------------------

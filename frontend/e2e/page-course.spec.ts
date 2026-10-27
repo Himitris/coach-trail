@@ -6,16 +6,18 @@ test.describe.configure({ mode: "serial" });
 const TITLES = ["Objectif de course", "Nutrition en course", "Fatigue musculaire", "Monotonie et tension"];
 
 async function noHorizontalOverflow(page: Page) {
-  const report = await page.evaluate(() => {
-    const limit = document.documentElement.clientWidth;
-    const wide = [...document.querySelectorAll<HTMLElement>("body *")]
-      .filter((el) => el.getBoundingClientRect().right > limit + 1 && !el.closest(".table-scroll, .tabs"))
-      .slice(0, 5)
-      .map((el) => `${el.tagName.toLowerCase()}.${el.className}`);
-    return { overflow: document.documentElement.scrollWidth - limit, wide };
-  });
-  expect(report, "éléments qui dépassent de l'écran").toEqual({ overflow: expect.any(Number), wide: [] });
-  expect(report.overflow).toBeLessThanOrEqual(1);
+  const measure = () =>
+    page.evaluate(() => {
+      const limit = document.documentElement.clientWidth;
+      const wide = [...document.querySelectorAll<HTMLElement>("body *")]
+        .filter((el) => el.getBoundingClientRect().right > limit + 1 && !el.closest(".table-scroll, .tabs"))
+        .slice(0, 5)
+        .map((el) => `${el.tagName.toLowerCase()}.${el.className}`);
+      return { overflow: document.documentElement.scrollWidth - limit, wide };
+    });
+  // la grille se recalcule après le redimensionnement : on attend qu'elle se stabilise
+  await expect.poll(async () => (await measure()).wide, { message: "éléments qui dépassent de l'écran" }).toEqual([]);
+  expect((await measure()).overflow).toBeLessThanOrEqual(1);
 }
 
 test("la page « Course » s'affiche sur ordinateur et sur téléphone", async ({ page, request }) => {

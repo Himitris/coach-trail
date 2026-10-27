@@ -44,6 +44,11 @@ Activation : créer une application sur strava.com/settings/api (domaine de reto
 
 Serveur MCP en lecture seule (profil, semaine, sorties, récupération, charge, plan, export) pour Claude Desktop sur un PC du tailnet, avec jeton partagé facultatif. Voir [`docs/mcp.md`](docs/mcp.md).
 
+## Confort d'usage
+- **Application installable (PWA)** : « Ajouter à l'écran d'accueil » (mobile) ou « Installer » (navigateur). Hors ligne, l'interface et la dernière disposition s'affichent avec un bandeau ; les données de santé ne sont jamais conservées dans le navigateur et rien n'est enregistré sans réseau. Le service worker est servi sans cache (`no-cache`) pour que les mises à jour arrivent.
+- **Import manuel FIT / GPX** : page « Sources », carte « Import FIT / GPX » (glisser-déposer, 20 Mo max). Source de dernier recours (priorité la plus basse), idempotente (même fichier = même séance), dédupliquée avec Garmin/Intervals.icu (départ ±60 s, durée voisine).
+- **Verrouillage simple (facultatif)** : définir `ACCESS_CODE` pour exiger un code. L'accès réseau (Tailscale) reste la protection principale ; ce code évite qu'un autre appareil du tailnet lise vos données. Après saisie, un cookie de session signé (HttpOnly, 30 jours) est posé ; 5 essais ratés = blocage de 5 minutes ; changer le code déconnecte tout le monde. Scripts : en-tête `X-Access-Code` ou `Authorization: Bearer`. Le serveur MCP l'envoie tout seul. Vide = désactivé.
+
 ## Installation
 
 Détail pas à pas (Proxmox, Tailscale, clés OVH, DNS) : [`deploy/README.md`](deploy/README.md). En bref, sur l'hôte :

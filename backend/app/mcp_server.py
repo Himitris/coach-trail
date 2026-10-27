@@ -48,9 +48,10 @@ class ReadApi(Protocol):
 
 
 class HttpReadApi:
-    def __init__(self, base_url: str, client: Any | None = None) -> None:
+    def __init__(self, base_url: str, client: Any | None = None, access_code: str = "") -> None:
         """`client` : tout objet avec `get(url, params=)` renvoyant une réponse httpx (tests)."""
-        self._client = client or httpx.Client(base_url=base_url, timeout=60.0)
+        headers = {"Authorization": f"Bearer {access_code}"} if access_code else {}
+        self._client = client or httpx.Client(base_url=base_url, timeout=60.0, headers=headers)
 
     def get(self, path: str, params: dict[str, Any] | None = None) -> Any:
         try:
@@ -380,7 +381,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--host", default=settings.mcp_host)
     parser.add_argument("--port", type=int, default=settings.mcp_port)
     args = parser.parse_args(argv)
-    server = build_server(HttpReadApi(settings.mcp_api_url))
+    server = build_server(
+        HttpReadApi(settings.mcp_api_url, access_code=settings.access_code.get_secret_value())
+    )
     if args.transport == "stdio":
         server.run("stdio")
         return 0

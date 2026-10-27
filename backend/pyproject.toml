@@ -17,6 +17,7 @@ dependencies = [
     "httpx>=0.27,<1",
     "garminconnect==0.3.20",
     "mcp>=2.3,<3",
+    "fitdecode>=0.10,<1",
 ]
 
 [project.optional-dependencies]
@@ -46,7 +47,7 @@ select = ["E", "F", "I", "UP", "B", "SIM", "S"]
 
 [tool.ruff.lint.per-file-ignores]
 "app/mcp_server.py" = ["E501"]  # les docstrings sont les descriptions des outils MCP
-"tests/*" = ["S101", "S105", "S106"]
+"tests/*" = ["S101", "S105", "S106", "E501"]  # données de test lisibles
 
 [tool.mypy]
 python_version = "3.12"
@@ -55,5 +56,5 @@ plugins = ["pydantic.mypy"]
 files = ["app", "tests", "alembic"]
 
 [[tool.mypy.overrides]]
-module = ["apscheduler.*", "yaml", "jsonschema"]
+module = ["apscheduler.*", "yaml", "jsonschema", "fitdecode"]
 ignore_missing_imports = true

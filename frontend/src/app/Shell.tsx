@@ -9,6 +9,7 @@ import { newId } from "./ids";
 import { usePageShortcuts } from "./shortcuts";
 import { TabBar } from "./TabBar";
 import { useSources } from "./useSources";
+import { OfflineBanner } from "./OfflineBanner";
 
 const SAVE_LABELS = {
   saved: "Enregistré",
@@ -69,6 +70,7 @@ export function Shell() {
 
   return (
     <>
+      <OfflineBanner />
       <Header />
       <TabBar />
       <main className="app-main">

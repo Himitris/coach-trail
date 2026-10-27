@@ -339,3 +339,33 @@ export const fetchWeatherLocation = (): Promise<WeatherPlace | null> => request(
 export const geocodePlace = (q: string): Promise<WeatherPlace[]> => request("GET", `/api/weather/geocode${search({ q })}`);
 export const setWeatherLocation = (place: WeatherPlace): Promise<WeatherPlace> =>
   request("PUT", "/api/weather/location", { body: place });
+
+// --- import manuel FIT / GPX --------------------------------------------------------------------
+
+export interface ImportedActivity {
+  activity_id: number;
+  created: boolean;
+  sport: string;
+  start_utc: string;
+  duration_min: number;
+  distance_km: number | null;
+  dplus_m: number | null;
+  hr_avg: number | null;
+  has_stream: boolean;
+  same_session_as: string[];
+  warnings: string[];
+}
+
+export const importActivityFile = (file: File, sport: string | null): Promise<ImportedActivity> =>
+  request("POST", `/api/import/activity${search({ filename: file.name, sport: sport ?? undefined })}`, { file });
+
+// --- verrouillage simple (optionnel) ------------------------------------------------------------
+
+export interface AuthStatus {
+  locked: boolean;
+  authenticated: boolean;
+}
+
+export const fetchAuthStatus = (): Promise<AuthStatus> => request("GET", "/api/auth/status");
+export const login = (code: string): Promise<null> => request("POST", "/api/auth/login", { body: { code } });
+export const logout = (): Promise<null> => request("POST", "/api/auth/logout");

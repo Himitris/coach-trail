@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
+import { LockGate } from "./app/LockGate";
 import { DashboardProvider } from "./app/DashboardProvider";
 import { Shell } from "./app/Shell";
 import { ToastProvider } from "./app/toasts";
@@ -21,12 +22,21 @@ createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <BrowserRouter>
-          <DashboardProvider>
-            <Shell />
-          </DashboardProvider>
-        </BrowserRouter>
+        <LockGate>
+          <BrowserRouter>
+            <DashboardProvider>
+              <Shell />
+            </DashboardProvider>
+          </BrowserRouter>
+        </LockGate>
       </ToastProvider>
     </QueryClientProvider>
   </StrictMode>,
 );
+
+// Service worker : production uniquement (en développement il masquerait les changements).
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+  });
+}

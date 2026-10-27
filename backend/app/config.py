@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     garmin_max_delay_s: float = 3.0
     garmin_stream_max_points: int = 20000
 
+    # Verrouillage simple (optionnel, désactivé par défaut) : code d'accès partagé
+    access_code: SecretStr = SecretStr("")
+    access_session_days: int = 30
+
     # Serveur MCP (lecture seule, phase 3) : jeton partagé optionnel, désactivé par défaut
     mcp_token: SecretStr = SecretStr("")
     mcp_api_url: str = "http://127.0.0.1:8000"
@@ -69,7 +73,12 @@ class Settings(BaseSettings):
 
     def secret_values(self) -> list[str]:
         """Valeurs sensibles à masquer dans les logs."""
-        values = [self.intervals_api_key, self.strava_client_secret, self.mcp_token]
+        values = [
+            self.intervals_api_key,
+            self.strava_client_secret,
+            self.mcp_token,
+            self.access_code,
+        ]
         return [v.get_secret_value() for v in values if v.get_secret_value()]
 
 

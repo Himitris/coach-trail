@@ -5,6 +5,7 @@ from app.config import Settings
 from app.garmin.auth import build_api
 from app.garmin.connector import GarminAPI, GarminConnector
 from app.garmin.normalize import GARMIN_NORMALIZER
+from app.imports.normalize import IMPORT_NORMALIZER
 from app.intervals.connector import IntervalsConnector
 from app.intervals.normalize import INTERVALS_NORMALIZER
 from app.strava.auth import StravaAuth
@@ -47,7 +48,11 @@ def build_sources(
         stream_max_points=settings.garmin_stream_max_points,
     )
     connectors: dict[str, SourceConnector] = {"garmin": garmin}
-    normalizers: dict[str, SourceNormalizer] = {"garmin": GARMIN_NORMALIZER}
+    # « import » (FIT/GPX manuel) : pas de connecteur, mais un normaliseur pour les reconstructions
+    normalizers: dict[str, SourceNormalizer] = {
+        "garmin": GARMIN_NORMALIZER,
+        "import": IMPORT_NORMALIZER,
+    }
     api_key = settings.intervals_api_key.get_secret_value()
     if settings.intervals_athlete_id and api_key:
         connectors["intervals"] = IntervalsConnector(

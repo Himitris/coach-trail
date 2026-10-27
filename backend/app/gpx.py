@@ -29,6 +29,8 @@ class TrackPoint:
     lon: float
     ele: float | None
     time: datetime | None = None
+    hr: float | None = None  # extensions Garmin (TrackPointExtension) : FC
+    cad: float | None = None  # cadence
 
 
 def _local(tag: str) -> str:
@@ -71,13 +73,18 @@ def parse_gpx(text: str | bytes) -> list[TrackPoint]:
         lat, lon = _float(el.get("lat")), _float(el.get("lon"))
         if lat is None or lon is None or not (-90 <= lat <= 90 and -180 <= lon <= 180):
             continue
-        ele = time = None
-        for child in el:
-            if _local(child.tag) == "ele":
+        ele = time = hr = cad = None
+        for child in el.iter():
+            name = _local(child.tag)
+            if name == "ele":
                 ele = _float(child.text)
-            elif _local(child.tag) == "time":
+            elif name == "time":
                 time = _time(child.text)
-        points.append(TrackPoint(lat, lon, ele, time))
+            elif name == "hr":
+                hr = _float(child.text)
+            elif name in ("cad", "cadence"):
+                cad = _float(child.text)
+        points.append(TrackPoint(lat, lon, ele, time, hr, cad))
     if len(points) < 2:
         raise GpxError("La trace GPX contient moins de 2 points.")
     return points

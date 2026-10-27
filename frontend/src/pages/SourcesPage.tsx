@@ -5,6 +5,7 @@ import {
   fetchBackupStatus,
   fetchStravaStatus,
   fetchSyncStatus,
+  importActivityFile,
   runSync,
   stravaAuthorize,
   stravaDisconnect,
@@ -104,6 +105,88 @@ function StravaCard() {
             </button>
           )}
         </>
+      )}
+    </li>
+  );
+}
+
+const IMPORT_SPORTS: [string, string][] = [
+  ["", "Détecter automatiquement"],
+  ["running", "Course à pied"],
+  ["trail_running", "Trail"],
+  ["hiking", "Randonnée"],
+  ["cycling", "Vélo"],
+];
+
+/** Import manuel d'une séance .fit ou .gpx (secours si une source est indisponible, ou rattrapage). */
+function ImportCard() {
+  const queryClient = useQueryClient();
+  const { notify } = useToast();
+  const [sport, setSport] = useState("");
+  const [over, setOver] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
+  const upload = useMutation({
+    mutationFn: (file: File) => importActivityFile(file, sport === "" ? null : sport),
+    onSuccess: async (r) => {
+      notify(r.created ? "Séance importée." : "Ce fichier était déjà importé : rien n'a changé.");
+      await queryClient.invalidateQueries();
+    },
+    onError: (error) => { notify(error.message, "error"); },
+  });
+  const send = (files: FileList | null) => {
+    const file = files?.[0];
+    if (file) upload.mutate(file);
+    if (input.current) input.current.value = "";
+  };
+  const r = upload.data;
+  return (
+    <li className="source source-jamais_synchronise" aria-label="Import de fichier">
+      <div className="source-head">
+        <h2>Import FIT / GPX</h2>
+        <span className="badge badge-jamais_synchronise">Manuel</span>
+      </div>
+      <p className="muted">
+        Source de dernier recours (priorité la plus basse) : une séance déjà connue de Garmin ou d'Intervals.icu
+        n'est pas comptée deux fois. 20 Mo maximum.
+      </p>
+      <label>
+        Sport{" "}
+        <select value={sport} onChange={(e) => { setSport(e.target.value); }}>
+          {IMPORT_SPORTS.map(([value, name]) => (
+            <option key={value} value={value}>{name}</option>
+          ))}
+        </select>
+      </label>
+      <div
+        className={`dropzone${over ? " dropzone-over" : ""}`}
+        onDragOver={(e) => { e.preventDefault(); setOver(true); }}
+        onDragLeave={() => { setOver(false); }}
+        onDrop={(e) => { e.preventDefault(); setOver(false); send(e.dataTransfer.files); }}
+      >
+        <p>Déposer un fichier .fit ou .gpx ici, ou</p>
+        <button type="button" className="btn btn-small" disabled={upload.isPending} onClick={() => input.current?.click()}>
+          {upload.isPending ? "Import en cours…" : "Choisir un fichier"}
+        </button>
+        <input ref={input} type="file" accept=".fit,.gpx" hidden aria-label="Fichier à importer" onChange={(e) => { send(e.target.files); }} />
+      </div>
+      {r && (
+        <div role="status">
+          <p>
+            {r.created ? "Importée" : "Déjà importée"} : {r.sport.replace("_", " ")}, {Math.round(r.duration_min)} min
+            {r.distance_km !== null && `, ${r.distance_km.toFixed(1).replace(".", ",")} km`}
+            {r.dplus_m !== null && `, D+ ${Math.round(r.dplus_m)} m`}
+            {r.hr_avg !== null && `, FC moy. ${r.hr_avg}`}.
+          </p>
+          {r.same_session_as.length > 0 && (
+            <p>Même séance que celle déjà reçue de : {r.same_session_as.join(", ")} (comptée une seule fois).</p>
+          )}
+          {!r.has_stream && <p className="muted">Pas de flux seconde par seconde dans ce fichier.</p>}
+          {r.warnings.length > 0 && (
+            <ul>
+              {r.warnings.map((w) => <li key={w}>{w}</li>)}
+            </ul>
+          )}
+        </div>
       )}
     </li>
   );
@@ -230,6 +313,7 @@ export function SourcesPage() {
             <SourceCard key={source.source} source={source} />
           ))}
           <StravaCard />
+          <ImportCard />
           <BackupCard />
         </ul>
       )}

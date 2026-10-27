@@ -11,16 +11,19 @@ from fastapi.responses import JSONResponse
 
 from alembic import command
 from app import __version__, activities, dashboard
+from app.access import AccessGuard, AccessMiddleware
 from app.backup import BackupService
 from app.config import Settings, get_settings
 from app.db import make_engine, make_session_factory
 from app.garmin.auth import LoginManager
 from app.logging import configure_logging
 from app.plan.entries import DbEntryReader
+from app.routes import auth as auth_routes
 from app.routes import backup as backup_routes
 from app.routes import entries, garmin, goals, health, metrics, phase2, plan, profile, sync
 from app.routes import export as export_routes
 from app.routes import gear as gear_routes
+from app.routes import imports as import_routes
 from app.routes import strava as strava_routes
 from app.routes import weather as weather_routes
 from app.sync.registry import build_sources, build_strava_auth
@@ -87,6 +90,10 @@ def create_app(
     app.state.backup = backup
     app.state.strava_auth = build_strava_auth(settings)
     app.state.weather = WeatherService(timezone=settings.tz)
+    guard = AccessGuard(settings.access_code.get_secret_value(), settings.access_session_days)
+    app.state.access = guard
+    if guard.enabled:
+        app.add_middleware(AccessMiddleware, guard=guard)
     app.state.entry_reader = DbEntryReader(session_factory)
     app.state.today = lambda: datetime.now(ZoneInfo(settings.tz)).date()
     app.state.garmin_login = login_manager or LoginManager(settings.garmin_token_dir)
@@ -108,6 +115,8 @@ def create_app(
         strava_routes.router,
         gear_routes.router,
         weather_routes.router,
+        import_routes.router,
+        auth_routes.router,
     ):
         app.include_router(router, prefix="/api")
     return app
