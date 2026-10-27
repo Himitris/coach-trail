@@ -1,6 +1,7 @@
+import re
 from functools import lru_cache
 
-from pydantic import SecretStr
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,6 +18,27 @@ class Settings(BaseSettings):
     intervals_api_key: SecretStr = SecretStr("")
     strava_client_id: str = ""
     strava_client_secret: SecretStr = SecretStr("")
+
+    sync_time: str = "03:30"
+    source_priority: str = "garmin,intervals,strava"
+    sync_overlap_days: int = 3
+    scheduler_enabled: bool = True
+
+    @field_validator("sync_time")
+    @classmethod
+    def _check_sync_time(cls, v: str) -> str:
+        if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", v):
+            raise ValueError("SYNC_TIME doit être au format HH:MM")
+        return v
+
+    @property
+    def sync_hour_minute(self) -> tuple[int, int]:
+        h, m = self.sync_time.split(":")
+        return int(h), int(m)
+
+    @property
+    def priority_list(self) -> list[str]:
+        return [s.strip() for s in self.source_priority.split(",") if s.strip()]
 
     @property
     def database_url(self) -> str:

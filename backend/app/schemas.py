@@ -55,3 +55,49 @@ class HealthOut(BaseModel):
     status: str
     version: str
     db: str
+
+
+class SourceResultOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    source: str
+    ok: bool
+    error: str | None
+    fetched: int
+    inserted: int
+    updated: int
+    unchanged: int
+    streams: int
+    warnings: list[str]
+
+
+class RunReportOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    trigger: str
+    started_at: datetime
+    finished_at: datetime | None
+    results: list[SourceResultOut]
+
+
+class SyncStartedOut(BaseModel):
+    started: bool
+
+
+class SyncStatusOut(BaseModel):
+    running: bool
+    nightly_time: str
+    next_run_at: datetime | None
+    current: RunReportOut | None
+    last_run: RunReportOut | None
+
+
+class SourceHealthOut(BaseModel):
+    source: str
+    label: str
+    state: str  # ok | indisponible | jamais_synchronise
+    last_success_at: datetime | None
+    last_error_at: datetime | None
+    last_error_message: str | None
+    unavailable_since: datetime | None
+    badge: str | None

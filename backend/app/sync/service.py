@@ -1,0 +1,378 @@
+import hashlib
+import json
+import logging
+import threading
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
+from datetime import UTC, date, datetime, timedelta
+from typing import Any
+
+from sqlalchemy import delete, select
+from sqlalchemy.orm import Session, sessionmaker
+
+from app.logging import SecretMaskingFilter
+from app.models import Activity, ActivityStream, RawPayload, SourceStatus, WellnessDaily
+from app.sync.dedup import assign_dedup_groups
+from app.sync.streams import encode_stream
+from app.sync.types import (
+    RAW_ACTIVITY,
+    RAW_STREAM,
+    RAW_WELLNESS,
+    NormalizedActivity,
+    RawRecord,
+    SourceConnector,
+    SourceNormalizer,
+)
+
+logger = logging.getLogger(__name__)
+
+
+class SyncBusyError(Exception):
+    """Une synchronisation est déjà en cours."""
+
+
+def utcnow() -> datetime:
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
+def _to_utc_naive(dt: datetime) -> datetime:
+    return dt.astimezone(UTC).replace(tzinfo=None) if dt.tzinfo else dt
+
+
+def payload_hash(payload: dict[str, Any]) -> str:
+    blob = json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str)
+    return hashlib.sha256(blob.encode()).hexdigest()
+
+
+@dataclass
+class SourceResult:
+    source: str
+    ok: bool = True
+    error: str | None = None
+    fetched: int = 0
+    inserted: int = 0
+    updated: int = 0
+    unchanged: int = 0
+    streams: int = 0
+    warnings: list[str] = field(default_factory=list)
+
+
+@dataclass
+class RunReport:
+    trigger: str
+    started_at: datetime
+    finished_at: datetime | None = None
+    results: list[SourceResult] = field(default_factory=list)
+
+
+# --- normalisation (couche 2, reconstruisible depuis les bruts) -------------------------------
+
+
+def _apply_activity(session: Session, source: str, n: NormalizedActivity) -> None:
+    act = session.scalars(
+        select(Activity).where(Activity.source == source, Activity.external_id == n.external_id)
+    ).first()
+    if act is None:
+        act = Activity(source=source, external_id=n.external_id)
+        session.add(act)
+    act.sport = n.sport
+    act.start_utc = _to_utc_naive(n.start)
+    act.duration_s = n.duration_s
+    act.distance_m = n.distance_m
+    act.elevation_gain_m = n.elevation_gain_m
+    act.elevation_loss_m = n.elevation_loss_m
+    act.hr_avg = n.hr_avg
+    act.hr_max = n.hr_max
+    act.calories = n.calories
+    if n.gear is not None:
+        act.gear = n.gear
+
+
+def normalize_raw(
+    session: Session, raw: RawPayload, normalizers: Mapping[str, SourceNormalizer]
+) -> bool:
+    """Applique le brut aux tables normalisées. False si la source n'a pas de normaliseur."""
+    norm = normalizers.get(raw.source)
+    if norm is None:
+        return False
+    if raw.type == RAW_ACTIVITY:
+        activity = norm.activity(raw.payload)
+        if activity is not None:
+            _apply_activity(session, raw.source, activity)
+    elif raw.type == RAW_STREAM:
+        stream = norm.stream(raw.payload)
+        act = session.scalars(
+            select(Activity).where(
+                Activity.source == raw.source, Activity.external_id == raw.external_key
+            )
+        ).first()
+        if stream is not None and act is not None:
+            session.flush()
+            blob = encode_stream(stream.samples)
+            existing = session.get(ActivityStream, act.id)
+            if existing is None:
+                session.add(ActivityStream(activity_id=act.id, samples=blob))
+            else:
+                existing.samples = blob
+    elif raw.type == RAW_WELLNESS:
+        w = norm.wellness(raw.payload)
+        if w is not None:
+            row = session.get(WellnessDaily, (w.date, raw.source))
+            if row is None:
+                row = WellnessDaily(date=w.date, source=raw.source)
+                session.add(row)
+            for name in (
+                "hrv_nuit",
+                "hrv_base_min",
+                "hrv_base_max",
+                "fc_repos",
+                "sommeil_duree_s",
+                "sommeil_efficacite",
+                "stress",
+                "spo2",
+                "training_readiness",
+                "body_battery_max",
+                "body_battery_min",
+                "poids_kg",
+            ):
+                setattr(row, name, getattr(w, name))
+    return True
+
+
+def rebuild_normalized(
+    session: Session, normalizers: Mapping[str, SourceNormalizer]
+) -> dict[str, int]:
+    """Reconstruit toutes les tables normalisées depuis raw_payload, sans appeler les API."""
+    session.execute(delete(ActivityStream))
+    session.execute(delete(Activity))
+    session.execute(delete(WellnessDaily))
+    session.flush()
+    counts = {"activities": 0, "streams": 0, "wellness": 0, "skipped": 0}
+    # Activités d'abord : les flux s'y rattachent.
+    for raw_type, label in (
+        (RAW_ACTIVITY, "activities"),
+        (RAW_STREAM, "streams"),
+        (RAW_WELLNESS, "wellness"),
+    ):
+        raws = session.scalars(
+            select(RawPayload).where(RawPayload.type == raw_type).order_by(RawPayload.id)
+        )
+        for raw in raws:
+            if normalize_raw(session, raw, normalizers):
+                counts[label] += 1
+            else:
+                counts["skipped"] += 1
+        session.flush()
+    assign_dedup_groups(session)
+    session.commit()
+    return counts
+
+
+# --- service ----------------------------------------------------------------------------------
+
+
+class SyncService:
+    def __init__(
+        self,
+        session_factory: sessionmaker[Session],
+        connectors: Mapping[str, SourceConnector],
+        normalizers: Mapping[str, SourceNormalizer],
+        *,
+        priority: Sequence[str] = ("garmin", "intervals", "strava"),
+        overlap_days: int = 3,
+        secrets: Sequence[str] = (),
+    ) -> None:
+        self._factory = session_factory
+        self.connectors = dict(connectors)
+        self.normalizers = dict(normalizers)
+        self.priority = list(priority)
+        self._overlap = timedelta(days=overlap_days)
+        self._masker = SecretMaskingFilter(list(secrets))
+        self._lock = threading.Lock()
+        self._thread: threading.Thread | None = None
+        self.last_report: RunReport | None = None
+        self.current: RunReport | None = None
+
+    @property
+    def running(self) -> bool:
+        return self._lock.locked()
+
+    # exécution -------------------------------------------------------------------------------
+
+    def run_all(self, trigger: str = "manual") -> RunReport:
+        """Exécution bloquante. Lève SyncBusyError si un run est déjà en cours."""
+        if not self._lock.acquire(blocking=False):
+            raise SyncBusyError
+        try:
+            return self._run_locked(trigger)
+        finally:
+            self._lock.release()
+
+    def start_async(self, trigger: str = "manual") -> bool:
+        """Lance un run en arrière-plan. False si un run est déjà en cours."""
+        if not self._lock.acquire(blocking=False):
+            return False
+
+        def target() -> None:
+            try:
+                self._run_locked(trigger)
+            except Exception:
+                logger.exception("Échec inattendu de la synchronisation")
+            finally:
+                self._lock.release()
+
+        self._thread = threading.Thread(target=target, name="sync", daemon=True)
+        self._thread.start()
+        return True
+
+    def wait(self, timeout: float | None = None) -> None:
+        if self._thread is not None:
+            self._thread.join(timeout)
+
+    def _run_locked(self, trigger: str) -> RunReport:
+        report = RunReport(trigger=trigger, started_at=utcnow())
+        self.current = report
+        try:
+            for name in self.connectors:
+                report.results.append(self.sync_source(name))
+        finally:
+            report.finished_at = utcnow()
+            self.last_report = report
+            self.current = None
+        return report
+
+    # une source ------------------------------------------------------------------------------
+
+    def sync_source(self, name: str) -> SourceResult:
+        result = SourceResult(source=name)
+        try:
+            self._sync_source(name, result)
+        except Exception as exc:
+            message = self._masker.mask(f"{type(exc).__name__}: {exc}")[:500]
+            result.ok = False
+            result.error = message
+            logger.warning("Source %s indisponible : %s", name, message)
+            self._record_failure(name, message)
+        else:
+            self._record_success(name)
+        return result
+
+    def _sync_source(self, name: str, result: SourceResult) -> None:
+        connector = self.connectors[name]
+        health = connector.healthcheck()
+        if not health.ok:
+            raise RuntimeError(f"healthcheck : {health.message or 'échec'}")
+
+        with self._factory() as session:
+            status = session.get(SourceStatus, name)
+            last = status.last_success_at if status else None
+        since = last - self._overlap if last else None
+        since_day: date | None = since.date() if since else None
+
+        activities = connector.fetch_activities(since)
+        wellness = connector.fetch_wellness(since_day)
+        result.fetched = len(activities) + len(wellness)
+
+        touched_activities: list[str] = []
+        with self._factory() as session:
+            touched: list[RawPayload] = []
+            for raw_type, records in ((RAW_ACTIVITY, activities), (RAW_WELLNESS, wellness)):
+                for rec in records:
+                    row = self._upsert_raw(session, name, raw_type, rec, result)
+                    if row is not None:
+                        touched.append(row)
+                        if raw_type == RAW_ACTIVITY:
+                            touched_activities.append(rec.key)
+            session.flush()
+            for row in sorted(touched, key=lambda r: r.type != RAW_ACTIVITY):
+                normalize_raw(session, row, self.normalizers)
+            session.flush()
+            assign_dedup_groups(session)
+            session.commit()
+
+        for ext_id in touched_activities:
+            self._sync_stream(name, connector, ext_id, result)
+
+    def _sync_stream(
+        self, name: str, connector: SourceConnector, ext_id: str, result: SourceResult
+    ) -> None:
+        with self._factory() as session:
+            has = session.scalars(
+                select(RawPayload.id).where(
+                    RawPayload.source == name,
+                    RawPayload.type == RAW_STREAM,
+                    RawPayload.external_key == ext_id,
+                )
+            ).first()
+        if has is not None:
+            return
+        try:
+            rec = connector.fetch_activity_stream(ext_id)
+            if rec is None:
+                return
+            with self._factory() as session:
+                row = self._upsert_raw(session, name, RAW_STREAM, rec, SourceResult(name))
+                session.flush()
+                if row is not None:
+                    normalize_raw(session, row, self.normalizers)
+                session.commit()
+            result.streams += 1
+        except Exception as exc:  # un flux manquant ne fait pas échouer la source
+            msg = self._masker.mask(f"flux {ext_id} : {type(exc).__name__}: {exc}")[:300]
+            result.warnings.append(msg)
+            logger.warning("Source %s : %s", name, msg)
+
+    @staticmethod
+    def _upsert_raw(
+        session: Session, source: str, raw_type: str, rec: RawRecord, result: SourceResult
+    ) -> RawPayload | None:
+        """Upsert idempotent ; renvoie la ligne si nouvelle ou modifiée, sinon None."""
+        digest = payload_hash(rec.payload)
+        row = session.scalars(
+            select(RawPayload).where(
+                RawPayload.source == source,
+                RawPayload.type == raw_type,
+                RawPayload.external_key == rec.key,
+            )
+        ).first()
+        if row is None:
+            row = RawPayload(
+                source=source,
+                type=raw_type,
+                external_key=rec.key,
+                fetched_at=utcnow(),
+                payload=rec.payload,
+                hash=digest,
+            )
+            session.add(row)
+            result.inserted += 1
+            return row
+        if row.hash == digest:
+            result.unchanged += 1
+            return None
+        row.payload = rec.payload
+        row.hash = digest
+        row.fetched_at = utcnow()
+        result.updated += 1
+        return row
+
+    # statut ----------------------------------------------------------------------------------
+
+    def _record_success(self, name: str) -> None:
+        with self._factory() as session:
+            st = session.get(SourceStatus, name) or SourceStatus(source=name)
+            session.add(st)
+            st.last_success_at = utcnow()
+            st.unavailable_since = None
+            session.commit()
+
+    def _record_failure(self, name: str, message: str) -> None:
+        with self._factory() as session:
+            st = session.get(SourceStatus, name) or SourceStatus(source=name)
+            session.add(st)
+            now = utcnow()
+            st.last_error_at = now
+            st.last_error_message = message
+            if st.unavailable_since is None:
+                st.unavailable_since = now
+            session.commit()
