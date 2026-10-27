@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.metrics import service
 from app.metrics.fitness import FitnessReport
 from app.metrics.intensity import IntensityReport
+from app.metrics.models import Evidence
 from app.metrics.recovery import BaselineComparison, GarminAcwr, ProprietaryMetric
 from app.metrics.srpe import EntryReader, SRPESummary, srpe_summary
 from app.metrics.volume import WeekVolumeReport, week_report
@@ -122,4 +123,49 @@ def recovery(
             ),
             "acwr": service.latest_acwr(db, end),
         }
+    )
+
+
+class WellnessPoint(BaseModel):
+    date: date
+    hrv_nuit: float | None
+    hrv_base_min: float | None
+    hrv_base_max: float | None
+    fc_repos: float | None
+    sommeil_duree_h: float | None
+    sommeil_efficacite: float | None
+    training_readiness: float | None
+    body_battery_max: float | None
+    body_battery_min: float | None
+
+
+class WellnessSeries(BaseModel):
+    start: date
+    end: date
+    points: list[WellnessPoint]
+    evidence: Evidence
+
+
+@router.get("/wellness", response_model=WellnessSeries)
+def wellness(
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    days: Annotated[int, Query(ge=7, le=365)] = 60,
+    date_: Annotated[date | None, Query(alias="date")] = None,
+) -> WellnessSeries:
+    """Valeurs quotidiennes (HRV, FC repos, sommeil, avis montre) : uniquement les jours reçus."""
+    end = date_ or _today(request)
+    start = end - timedelta(days=days - 1)
+    points = service.wellness_points(db, _priority(request), start, end)
+    return WellnessSeries(
+        start=start,
+        end=end,
+        points=[WellnessPoint.model_validate(p) for p in points],
+        evidence=Evidence(
+            level="avis_montre",
+            summary=(
+                "Valeurs mesurées par la montre. Training Readiness, Body Battery et la plage de "
+                "référence HRV sont des avis propriétaires non validés."
+            ),
+        ),
     )

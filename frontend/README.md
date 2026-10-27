@@ -29,6 +29,19 @@ rupture a sa propre disposition ; seules les actions de l'utilisateur (glisser, 
 la modifient. Les sauvegardes sont groupées (800 ms) et portent un numéro de révision : si un
 autre appareil a écrit entre-temps, la version du serveur est rechargée et un message le signale.
 
+## Widgets disponibles (phase 1)
+
+Programme de la semaine (édition d'une séance au clic), Charge de la semaine, Dernières sorties
+(clic → détail), Détail de séance (profil, FC, allure, temps par zone, côtes), Répartition des
+intensités, Forme (CTL/ATL/TSB), Récupération, Saisie du soir, Note libre (markdown simple).
+La page d'accueil créée par défaut contient : programme, charge, dernières sorties, récupération,
+saisie du soir.
+
+Règles d'affichage : une valeur absente s'affiche « — » (jamais 0), chaque métrique discutable
+porte son niveau de preuve (`mesure`, `indicatif`, `non validé`, `avis de la montre`), les avis
+Garmin sont étiquetés, aucun feu vert/rouge, aucune alerte de blessure. Les fenêtres modales sont
+rendues dans `<body>` (`Overlay`) : les cadres de la grille sont déplacés par `transform`.
+
 ## Ajouter un widget
 
 1. Créer `src/widgets/MonWidget.tsx` : composant + `registerWidget({ id, title, description,

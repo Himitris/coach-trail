@@ -2,7 +2,9 @@ import { vi } from "vitest";
 
 export interface RecordedCall {
   method: string;
+  /** Chemin sans la chaîne de requête. */
   path: string;
+  query: Record<string, string>;
   body: unknown;
 }
 
@@ -12,10 +14,11 @@ type Handler = (call: RecordedCall) => { status?: number; body?: unknown } | Pro
 export function mockApi(routes: Record<string, Handler>) {
   const calls: RecordedCall[] = [];
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    const path = typeof input === "string" ? input : input instanceof URL ? input.pathname : input.url;
+    const url = typeof input === "string" ? input : input instanceof URL ? input.pathname + input.search : input.url;
+    const [path = "", search = ""] = url.split("?");
     const method = init?.method ?? "GET";
     const body = typeof init?.body === "string" ? (JSON.parse(init.body) as unknown) : undefined;
-    const call = { method, path, body };
+    const call: RecordedCall = { method, path, query: Object.fromEntries(new URLSearchParams(search)), body };
     calls.push(call);
     const handler = routes[`${method} ${path}`];
     if (!handler) return new Response(JSON.stringify({ detail: `non géré : ${method} ${path}` }), { status: 404 });

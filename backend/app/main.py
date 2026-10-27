@@ -10,7 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from alembic import command
-from app import __version__, dashboard
+from app import __version__, activities, dashboard
 from app.config import Settings, get_settings
 from app.db import make_engine, make_session_factory
 from app.garmin.auth import LoginManager
@@ -87,6 +87,7 @@ def create_app(
         entries.router,
         plan.router,
         dashboard.router,
+        activities.router,
     ):
         app.include_router(router, prefix="/api")
     return app

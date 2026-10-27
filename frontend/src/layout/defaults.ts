@@ -102,6 +102,29 @@ export function emptyPage(id: string, title: string): Page {
   return { id, title, widgets: [], layouts: { lg: [], md: [], sm: [] } };
 }
 
-export function defaultLayout(homeId: string): DashboardLayout {
-  return { pages: [emptyPage(homeId, HOME_TITLE)], home_page_id: homeId };
+/**
+ * Disposition par défaut : une page d'accueil, avec les widgets donnés (rangés en lignes pour
+ * chaque point de rupture), ou vide.
+ */
+export function defaultLayout(
+  homeId: string,
+  widgets: readonly { id: string; type: string }[] = [],
+  specFor: (type: string) => SizeSpec = () => FALLBACK_SPEC,
+): DashboardLayout {
+  const page = emptyPage(homeId, HOME_TITLE);
+  const placed = widgets.map((w) => ({ id: w.id, spec: specFor(w.type) }));
+  return {
+    pages: [
+      {
+        ...page,
+        widgets: widgets.map((w) => ({ id: w.id, type: w.type, settings: {} })),
+        layouts: {
+          lg: packDefault("lg", placed),
+          md: packDefault("md", placed),
+          sm: packDefault("sm", placed),
+        },
+      },
+    ],
+    home_page_id: homeId,
+  };
 }

@@ -1,5 +1,20 @@
 import type { DashboardLayout } from "../layout/model";
 import { request } from "./client";
+import type {
+  Activity,
+  ActivityDetail,
+  Entry,
+  EntryInput,
+  FitnessReport,
+  Goal,
+  IntensityReport,
+  PlannedInput,
+  PlannedSession,
+  RecoveryMetrics,
+  WeekMetrics,
+  WeekPlan,
+  WellnessSeries,
+} from "./types";
 
 export interface LayoutResponse {
   revision: number;
@@ -50,3 +65,63 @@ export interface GarminLoginResponse {
 export const garminLogin = (
   body: { email: string; password: string } | { ticket: string; mfa_code: string },
 ): Promise<GarminLoginResponse> => request("POST", "/api/garmin/login", { body });
+
+// --- métriques, programme, saisies, sorties ----------------------------------------------------
+
+export const search = (params: Record<string, string | number | boolean | undefined>): string => {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined) query.set(key, String(value));
+  }
+  const text = query.toString();
+  return text ? `?${text}` : "";
+};
+
+export const fetchPlanWeek = (date?: string): Promise<WeekPlan> =>
+  request("GET", `/api/plan/week${search({ date })}`);
+
+export const createPlanSession = (body: PlannedInput): Promise<PlannedSession> =>
+  request("POST", "/api/plan/sessions", { body });
+
+export const updatePlanSession = (id: number, body: PlannedInput): Promise<PlannedSession> =>
+  request("PUT", `/api/plan/sessions/${id}`, { body });
+
+export const deletePlanSession = (id: number): Promise<null> =>
+  request("DELETE", `/api/plan/sessions/${id}`);
+
+export const fetchEntries = (from: string, to: string): Promise<Entry[]> =>
+  request("GET", `/api/entries${search({ from, to })}`);
+
+export const putEntry = (day: string, body: EntryInput): Promise<Entry> =>
+  request("PUT", `/api/entries/${day}`, { body });
+
+export const fetchWeekMetrics = (date?: string): Promise<WeekMetrics> =>
+  request("GET", `/api/metrics/week${search({ date })}`);
+
+export const fetchIntensity = (weeks: number): Promise<IntensityReport> =>
+  request("GET", `/api/metrics/intensity${search({ weeks })}`);
+
+export const fetchFitness = (from: string, to: string): Promise<FitnessReport> =>
+  request("GET", `/api/metrics/fitness${search({ from, to })}`);
+
+export const fetchRecovery = (days: number): Promise<RecoveryMetrics> =>
+  request("GET", `/api/metrics/recovery${search({ days })}`);
+
+export const fetchWellness = (days: number): Promise<WellnessSeries> =>
+  request("GET", `/api/metrics/wellness${search({ days })}`);
+
+export interface ActivityFilters {
+  from?: string;
+  to?: string;
+  limit?: number;
+  group?: "all" | "run" | "trail" | "other";
+  races_only?: boolean;
+}
+
+export const fetchActivities = (filters: ActivityFilters = {}): Promise<Activity[]> =>
+  request("GET", `/api/activities${search({ ...filters })}`);
+
+export const fetchActivity = (id: number): Promise<ActivityDetail> =>
+  request("GET", `/api/activities/${id}`);
+
+export const fetchGoals = (): Promise<Goal[]> => request("GET", "/api/goals");

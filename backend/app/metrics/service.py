@@ -147,6 +147,8 @@ def fitness(
 
 WELLNESS_FIELDS = (
     "hrv_nuit",
+    "hrv_base_min",
+    "hrv_base_max",
     "fc_repos",
     "sommeil_duree_s",
     "sommeil_efficacite",
@@ -255,3 +257,29 @@ def recovery_parts(
             series["body_battery_min"], end, "Body Battery (min)"
         ),
     }
+
+
+def wellness_points(
+    session: Session, priority: Sequence[str], start: date, end: date
+) -> list[dict[str, float | date | None]]:
+    """Jours renseignés entre `start` et `end` (aucun jour inventé), par source prioritaire."""
+    series = wellness_series(session, priority)
+    days = sorted({d for field in series.values() for d in field if start <= d <= end})
+    points: list[dict[str, float | date | None]] = []
+    for day in days:
+        duration = series["sommeil_duree_s"].get(day)
+        points.append(
+            {
+                "date": day,
+                "hrv_nuit": series["hrv_nuit"].get(day),
+                "hrv_base_min": series["hrv_base_min"].get(day),
+                "hrv_base_max": series["hrv_base_max"].get(day),
+                "fc_repos": series["fc_repos"].get(day),
+                "sommeil_duree_h": duration / 3600 if duration is not None else None,
+                "sommeil_efficacite": series["sommeil_efficacite"].get(day),
+                "training_readiness": series["training_readiness"].get(day),
+                "body_battery_max": series["body_battery_max"].get(day),
+                "body_battery_min": series["body_battery_min"].get(day),
+            }
+        )
+    return points

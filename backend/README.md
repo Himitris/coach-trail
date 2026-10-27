@@ -126,3 +126,14 @@ Voir `app/plan/matching.py` (testée dans `tests/test_plan_matching.py`) :
    sortie, `fait` si le jour est passé sans activité, `à venir` sinon ; activité sans séance
    prévue → `imprévu`.
 5. Écarts = réalisé − prévu (durée en minutes, D+ en mètres), absents si une valeur manque.
+
+## Sorties et séries pour les widgets
+
+- `GET /api/activities?from=&to=&limit=&group=all|run|trail|other&races_only=` : sorties
+  dédupliquées (source prioritaire), avec RPE saisi et allure moyenne. `gap_s_per_km` vaut `null`
+  tant que l'allure ajustée à la pente n'est pas calculée (phase 2).
+- `GET /api/activities/{id}` : détail avec flux réduit à ≤ 500 points (moyenne par paquets), allure
+  tirée de la vitesse, temps par zone (zones du profil) et **côtes** détectées sur le profil lissé
+  (`app/metrics/climbs.py` : dénivelé net ≥ 50 m, pente moyenne ≥ 3 %, hystérésis 20 m).
+- `GET /api/metrics/wellness?days=` : valeurs quotidiennes (HRV, FC repos, sommeil, Training
+  Readiness, Body Battery) pour les courbes ; uniquement les jours reçus, rien d'interpolé.

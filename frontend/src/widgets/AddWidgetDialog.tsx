@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Overlay } from "./Overlay";
 import { listWidgets } from "./registry";
 import type { WidgetSettings } from "./types";
 
@@ -22,7 +23,7 @@ export function AddWidgetDialog({
 
   const widgets = listWidgets();
   return (
-    <div className="overlay" onClick={onClose}>
+    <Overlay onClose={onClose}>
       <div
         className="dialog"
         role="dialog"
@@ -55,6 +56,6 @@ export function AddWidgetDialog({
           ))}
         </ul>
       </div>
-    </div>
+    </Overlay>
   );
 }

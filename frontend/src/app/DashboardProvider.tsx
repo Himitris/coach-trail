@@ -15,7 +15,7 @@ import { defaultLayout, sanitizeLayout } from "../layout/defaults";
 import type { DashboardLayout } from "../layout/model";
 import { createReducer, type LayoutAction } from "../layout/reducer";
 import { LayoutSaver, type SaveStatus } from "../layout/saver";
-import { specFor } from "../widgets";
+import { HOME_WIDGET_TYPES, getWidget, specFor } from "../widgets";
 import { newId } from "./ids";
 import { useToast } from "./toasts";
 
@@ -38,6 +38,17 @@ export function useDashboard(): DashboardContextValue {
 }
 
 const reducer = createReducer(specFor);
+
+/** Page d'accueil par défaut : programme, charge, dernières sorties, récupération, saisie du soir. */
+function initialLayout(): DashboardLayout {
+  const widgets = HOME_WIDGET_TYPES.map((type) => ({ id: newId(), type }));
+  const layout = defaultLayout(newId(), widgets, specFor);
+  // Chaque widget démarre avec ses réglages par défaut.
+  for (const page of layout.pages) {
+    for (const w of page.widgets) w.settings = structuredClone(getWidget(w.type)?.defaultSettings ?? {});
+  }
+  return layout;
+}
 
 /** Charge la disposition depuis le serveur, puis la gère localement avec sauvegarde différée. */
 export function DashboardProvider({ children }: { children: ReactNode }) {
@@ -73,7 +84,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 function DashboardState({ initial, children }: { initial: LayoutResponse; children: ReactNode }) {
   const { notify } = useToast();
   const [layout, dispatch] = useReducer(reducer, initial, (init) =>
-    sanitizeLayout(init.layout ?? defaultLayout(newId()), specFor),
+    sanitizeLayout(init.layout ?? initialLayout(), specFor),
   );
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
   const [editMode, setEditMode] = useState(false);
@@ -88,7 +99,7 @@ function DashboardState({ initial, children }: { initial: LayoutResponse; childr
         revision: initial.revision,
         onStatus: setSaveStatus,
         onConflict: (current) => {
-          const clean = sanitizeLayout(current.layout ?? defaultLayout(newId()), specFor);
+          const clean = sanitizeLayout(current.layout ?? initialLayout(), specFor);
           lastJson.current = JSON.stringify(clean);
           saver.adopt(current.revision);
           dispatch({ type: "replace", layout: clean });
