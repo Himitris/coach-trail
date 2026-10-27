@@ -21,6 +21,8 @@ export interface ImportPreview {
   changes?: number;
   /** Rien à changer : l'import serait sans effet. */
   nothingToDo?: boolean;
+  /** Informations utiles avant de confirmer (plan visé, course liée, avertissements). */
+  notes?: string[];
 }
 
 /** Un format d'import : sert au panneau « Importer » des widgets et à la page Documentation. */
@@ -40,6 +42,10 @@ export interface ImportSpec {
   weekTemplate?: boolean;
   /** Texte brut accepté en plus du JSON (note libre). */
   plainText?: boolean;
+  /** Clés racine qui désignent ce jeu de données dans un document multi-sections. */
+  sectionKeys: readonly string[];
+  /** Règles du format, reprises dans le prompt d'import unique. */
+  rules: string;
   preview: (doc: unknown, ctx: ImportContext) => Promise<ImportPreview>;
   apply: (doc: unknown, ctx: ImportContext) => Promise<string>;
 }

@@ -4,8 +4,8 @@ import { DashboardPage } from "../pages/DashboardPage";
 import { CalendarPage } from "../pages/CalendarPage";
 import { CoursesPage } from "../pages/CoursesPage";
 import { DocsPage } from "../pages/DocsPage";
-import { PlanImportPage } from "../pages/PlanImportPage";
 import { SourcesPage } from "../pages/SourcesPage";
+import { ImportPage } from "../imports/ImportPanel";
 import { ExportButton } from "./ExportButtons";
 import { useDashboard } from "./DashboardProvider";
 import { newId } from "./ids";
@@ -84,7 +84,8 @@ export function Shell() {
           <Route path="/courses" element={<CoursesPage />} />
           <Route path="/sources" element={<SourcesPage />} />
           <Route path="/docs" element={<DocsPage />} />
-          <Route path="/plan/import" element={<PlanImportPage />} />
+          <Route path="/importer" element={<ImportPage />} />
+          <Route path="/plan/import" element={<Navigate to="/importer" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

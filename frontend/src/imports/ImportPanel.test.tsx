@@ -36,6 +36,8 @@ const paste = async (text: string) => {
 const report = (over = {}) => ({
   dry_run: true,
   applied: false,
+  plan: null,
+  warnings: [] as string[],
   summary: {
     sessions_in_file: 1,
     days_in_file: 1,
@@ -43,6 +45,7 @@ const report = (over = {}) => ({
     replaced_days: 0,
     unchanged_days: 0,
     blocked_days: 0,
+    overlap_days: 0,
     sessions_added: 1,
     sessions_removed: 0,
     ...over,

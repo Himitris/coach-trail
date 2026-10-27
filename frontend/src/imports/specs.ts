@@ -71,13 +71,14 @@ function issuesOf(error: unknown): string[] | null {
 
 // --- Programme de la semaine -------------------------------------------------------------------
 
-const PLAN_TYPES = "footing | cotes | seuil | longue | fractionne | course | renfo | repos | autre";
+export const PLAN_TYPES = "footing | cotes | seuil | longue | fractionne | course | renfo | repos | autre";
 
 const PLAN_FORMAT = `Réponds uniquement avec un bloc de code JSON, sans commentaire autour.
 
-Cas 1 — plan avec des dates (version 1) :
+Cas 1 — plan avec des dates (version 2) :
 {
-  "version": 1,
+  "version": 2,
+  "plan": { "nom": "nom court du plan", "course": "nom de la course visée (facultatif)" },
   "sessions": [
     {
       "date": "AAAA-MM-JJ",
@@ -106,6 +107,7 @@ Règles :
 - « date » au format AAAA-MM-JJ. Une ligne par séance ; plusieurs séances le même jour sont permises. Inclus les jours de repos ("type": "repos").
 - « duree_min » : entier de minutes. « dplus_cible » : entier de mètres.
 - « zone_cible » : texte avec une zone de 1 à 5 ("2") ou une fourchette croissante ("1-2"), zones de FC Garmin, FC max 195 bpm.
+- « plan.nom » identifie le plan : le réimporter le met à jour. « plan.course » : nom de la course visée telle qu'elle figure dans l'appli (facultatif). Sans bloc « plan », écris "version": 1.
 - Méthode 80/20 : environ 80 % du temps en zones 1-2.`;
 
 const PLAN_EXAMPLE = `{
@@ -121,15 +123,18 @@ const PLAN_EXAMPLE = `{
   ]
 }`;
 
+/** Règles d'un format (texte après « Règles : »), pour le prompt d'import unique. */
+const rulesOf = (format: string): string => format.split("\n\nRègles :\n")[1] ?? "";
+
 /** Fichier de plan (dates ou semaine type) → document de séances prêt pour l'API. */
 function toPlanDocument(doc: unknown, weekStart: string | undefined): { doc: unknown; errors: string[] } {
   if (!isObject(doc) || doc.semaine_type === undefined) return { doc, errors: [] };
   if (doc.sessions !== undefined) return { doc, errors: ["Le fichier ne peut pas contenir à la fois « sessions » et « semaine_type »."] };
   if (!weekStart) return { doc, errors: ["Choisissez la semaine à remplir pour appliquer la semaine type."] };
   const { sessions, errors } = expandWeekTemplate(doc.semaine_type, weekStart);
-  const extra = Object.keys(doc).filter((k) => k !== "version" && k !== "semaine_type");
+  const extra = Object.keys(doc).filter((k) => k !== "version" && k !== "semaine_type" && k !== "plan");
   extra.forEach((k) => errors.push(`Champ inconnu « ${k} » à la racine.`));
-  return { doc: { version: doc.version ?? 1, sessions }, errors };
+  return { doc: { version: doc.version ?? (doc.plan === undefined ? 1 : 2), ...(doc.plan === undefined ? {} : { plan: doc.plan }), sessions }, errors };
 }
 
 const planSpec: ImportSpec = {
@@ -139,6 +144,8 @@ const planSpec: ImportSpec = {
   prompt: `Tu es mon entraîneur de trail. Transforme le document ci-joint (ma semaine type ou mon plan) au format exact attendu par mon application Coach Trail.\n\n${PLAN_FORMAT}`,
   coachSentence: `Voici ma semaine type : peux-tu me la renvoyer sous forme d'un fichier JSON au format ci-dessous (une ligne par séance, avec le jour de la semaine) pour que je l'importe dans mon appli ?\n\n${PLAN_EXAMPLE}`,
   example: PLAN_EXAMPLE,
+  sectionKeys: ["plan", "sessions", "semaine_type"],
+  rules: rulesOf(PLAN_FORMAT),
   weekTemplate: true,
   async preview(doc, ctx) {
     const { doc: planDoc, errors } = toPlanDocument(doc, ctx.weekStart);
@@ -151,7 +158,16 @@ const planSpec: ImportSpec = {
       );
       const { created_days, replaced_days, blocked_days, overlap_days } = report.summary;
       const held = blocked_days + overlap_days; // jours qui demandent une confirmation explicite
-      return { errors: [], lines, blocked: held, changes: created_days + replaced_days, nothingToDo: created_days + replaced_days === 0 && held === 0 };
+      const { plan } = report;
+      const notes = [
+        ...(plan
+          ? [
+              `${plan.action === "update" ? "Plan existant mis à jour" : "Nouveau plan"} : « ${plan.nom} » (${formatDay(plan.date_debut)} → ${formatDay(plan.date_fin)}), ${plan.course_nom ? `course : ${plan.course_nom}` : "aucune course liée"}.`,
+            ]
+          : []),
+        ...report.warnings,
+      ];
+      return { errors: [], lines, notes, blocked: held, changes: created_days + replaced_days, nothingToDo: created_days + replaced_days === 0 && held === 0 };
     } catch (error) {
       const issues = issuesOf(error);
       if (issues) return { errors: issues, lines: [] };
@@ -226,6 +242,8 @@ const entrySpec: ImportSpec = {
   prompt: `Transforme le document ci-joint (mon journal d'entraînement) en saisies du soir pour mon application Coach Trail.\n\n${ENTRY_FORMAT}`,
   coachSentence: `Peux-tu me renvoyer mes retours de ces jours-ci (courbatures de 0 à 10, malade ou non, une note) sous forme d'un JSON au format ci-dessous ?\n\n${ENTRY_EXAMPLE}`,
   example: ENTRY_EXAMPLE,
+  sectionKeys: ["saisies"],
+  rules: rulesOf(ENTRY_FORMAT),
   preview(doc) {
     const { errors, items } = checkEntries(doc);
     if (errors.length) return Promise.resolve({ errors, lines: [] });
@@ -311,6 +329,8 @@ const goalSpec: ImportSpec = {
   prompt: `Extrais du document ci-joint mes courses à venir pour mon application Coach Trail.\n\n${GOAL_FORMAT}`,
   coachSentence: `Peux-tu me renvoyer mes courses de la saison (nom, date, distance, dénivelé) sous forme d'un JSON au format ci-dessous ?\n\n${GOAL_EXAMPLE}`,
   example: GOAL_EXAMPLE,
+  sectionKeys: ["objectifs", "courses"],
+  rules: rulesOf(GOAL_FORMAT),
   async preview(doc) {
     const { errors, items } = checkGoals(doc);
     if (errors.length) return { errors, lines: [] };
@@ -393,6 +413,8 @@ const gearSpec: ImportSpec = {
   prompt: `Extrais du document ci-joint mes paires de chaussures de course pour mon application Coach Trail.\n\n${GEAR_FORMAT}`,
   coachSentence: `Peux-tu me renvoyer mes paires de chaussures (nom, kilomètres déjà parcourus, seuil d'usure) sous forme d'un JSON au format ci-dessous ?\n\n${GEAR_EXAMPLE}`,
   example: GEAR_EXAMPLE,
+  sectionKeys: ["materiel"],
+  rules: rulesOf(GEAR_FORMAT),
   async preview(doc) {
     const { errors, items } = checkGear(doc);
     if (errors.length) return { errors, lines: [] };
@@ -441,6 +463,8 @@ const noteSpec: ImportSpec = {
   prompt: `Rédige pour mon application Coach Trail une note à partir du document ci-joint.\n\n${NOTE_FORMAT}`,
   coachSentence: `Peux-tu me renvoyer tes consignes en texte simple (titres, listes) que je colle dans mon appli ?\n\n${NOTE_EXAMPLE}`,
   example: NOTE_EXAMPLE,
+  sectionKeys: ["note", "texte"],
+  rules: "",
   plainText: true,
   preview(doc): Promise<ImportPreview> {
     const text = noteText(doc);

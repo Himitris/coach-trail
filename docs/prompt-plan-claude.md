@@ -2,7 +2,7 @@
 
 Copiez le texte ci-dessous dans Claude (avec l'export « Copier pour Claude » de l'appli, qui contient
 votre profil, vos objectifs et vos dernières semaines), puis enregistrez la réponse dans un fichier
-`plan.json` et importez-le dans l'appli (page **Importer un plan**). L'appli range ce plan sous son nom et peut le lier à une course (page **Courses**) ; importer à l'avance le plan de la course suivante ne touche pas au premier.
+`plan.json` et importez-le dans l'appli (onglet **Importer** : le même onglet accepte aussi un fichier unique avec plan, courses, saisies et matériel). L'appli range ce plan sous son nom et peut le lier à une course (page **Courses**) ; importer à l'avance le plan de la course suivante ne touche pas au premier.
 
 ---
 

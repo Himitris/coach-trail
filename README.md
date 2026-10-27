@@ -22,9 +22,17 @@ data/      Base SQLite et JSON bruts (non versionné)
 
 Garmin Connect est la source principale. **Intervals.icu** (clé personnelle : `INTERVALS_ATHLETE_ID` et `INTERVALS_API_KEY` dans `deploy/.env`) sert de repli silencieux : appelé seulement si Garmin est indisponible, avec le badge « Garmin indisponible depuis le … » et les dernières valeurs conservées. Training Readiness et Body Battery restent vides pendant un repli (« non disponible via Intervals.icu »). Détails : `backend/README.md`.
 
-## Exports et import de plan
+## Exports et import
 
-Export Markdown, JSON versionné et CSV (séries), par période, par widget et par séance ; import d'un plan JSON produit par Claude (aperçu, confirmation, jours réalisés protégés). Voir [`docs/export.md`](docs/export.md) et [`docs/prompt-plan-claude.md`](docs/prompt-plan-claude.md).
+Export Markdown, JSON versionné et CSV (séries), par période, par widget et par séance. Voir [`docs/export.md`](docs/export.md).
+
+**Import unique** (onglet *Importer*) : on colle la réponse de Claude, ou on dépose un fichier. Un seul JSON peut mêler un plan (`plan` + `sessions`), des courses (`objectifs`), des saisies du soir (`saisies`) et du matériel (`materiel`) ; chaque section a son aperçu (rien n'est écrit), puis une seule confirmation. Les jours passés déjà réalisés et les jours d'un autre plan ne sont jamais modifiés sans confirmation explicite. Les boutons ⤒ des widgets utilisent le même moteur. Le prompt à donner au coach est dans l'onglet *Importer* et dans [`docs/prompt-plan-claude.md`](docs/prompt-plan-claude.md) (plan seul).
+
+**Documentation** (onglet *Doc*) : une fiche par widget avec un aperçu (données d'exemple), ses réglages, son export et son import ; le bouton « Copier la doc pour mon agent » copie toute la documentation en un seul Markdown.
+
+## Pages et raccourcis
+
+Pages à widgets (touches `&` `é` `"` `'` `(` `-` `è` `_` `ç` `à` ou 1 à 9 du pavé numérique), plus *Calendrier* (semaine / mois), *Courses* (plan attribué à chaque course), *Importer*, *Doc* et *Sources* (boutons « Synchroniser maintenant » et « Vérifier les nouveautés »).
 
 ## Météo
 

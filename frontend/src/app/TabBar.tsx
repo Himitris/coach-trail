@@ -15,7 +15,7 @@ export function TabBar() {
   const sourcesMatch = useMatch("/sources");
   const calendarMatch = useMatch("/calendrier");
   const coursesMatch = useMatch("/courses");
-  const importMatch = useMatch("/plan/import");
+  const importMatch = useMatch("/importer");
   const docsMatch = useMatch("/docs");
   const sources = useSources();
   const activeId = pageMatch?.params.pageId;
@@ -128,26 +128,23 @@ export function TabBar() {
           +
         </button>
       </div>
-      <Link to="/calendrier" className={`tab tab-sources${calendarMatch ? " tab-active" : ""}`} title="Calendrier du plan, semaine ou mois">
-        Calendrier
-      </Link>
-      <Link to="/courses" className={`tab tab-sources${coursesMatch ? " tab-active" : ""}`} title="Courses et plans attribués">
-        Courses
-      </Link>
-      <Link
-        to="/plan/import"
-        className={`tab tab-sources${importMatch ? " tab-active" : ""}`}
-        title="Importer un plan JSON produit par Claude"
-        aria-label="Importer un plan"
-      >
-        Plan
-      </Link>
-      <Link to="/docs" className={`tab tab-sources${docsMatch ? " tab-active" : ""}`} title="Widgets, imports et prompts">
-        Doc
-      </Link>
-      <Link to="/sources" className={`tab tab-sources${sourcesMatch ? " tab-active" : ""}`}>
-        Sources{attention && <span className="dot dot-warn" aria-label="Attention requise" />}
-      </Link>
+      <div className="tabs-links">
+        <Link to="/calendrier" className={`tab tab-sources${calendarMatch ? " tab-active" : ""}`} title="Calendrier du plan, semaine ou mois">
+          Calendrier
+        </Link>
+        <Link to="/courses" className={`tab tab-sources${coursesMatch ? " tab-active" : ""}`} title="Courses et plans attribués">
+          Courses
+        </Link>
+        <Link to="/importer" className={`tab tab-sources${importMatch ? " tab-active" : ""}`} title="Importer un plan, des courses, des saisies ou du matériel produits par Claude">
+          Importer
+        </Link>
+        <Link to="/docs" className={`tab tab-sources${docsMatch ? " tab-active" : ""}`} title="Widgets, imports et prompts">
+          Doc
+        </Link>
+        <Link to="/sources" className={`tab tab-sources${sourcesMatch ? " tab-active" : ""}`}>
+          Sources{attention && <span className="dot dot-warn" aria-label="Attention requise" />}
+        </Link>
+      </div>
     </nav>
   );
 }

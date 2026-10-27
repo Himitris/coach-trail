@@ -8,7 +8,7 @@ async function noHorizontalOverflow(page: Page) {
     page.evaluate(() => {
       const limit = document.documentElement.clientWidth;
       const wide = [...document.querySelectorAll<HTMLElement>("body *")]
-        .filter((el) => el.getBoundingClientRect().right > limit + 1 && !el.closest(".table-scroll, .tabs"))
+        .filter((el) => el.getBoundingClientRect().right > limit + 1 && !el.closest(".table-scroll, .tabs, .tabs-links"))
         .slice(0, 5)
         .map((el) => `${el.tagName.toLowerCase()}.${el.className}`);
       return { overflow: document.documentElement.scrollWidth - limit, wide };

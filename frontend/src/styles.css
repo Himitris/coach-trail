@@ -72,6 +72,8 @@ button:disabled { cursor: default; opacity: 0.5; }
   display: flex; align-items: stretch; background: var(--surface-2); border-bottom: 1px solid var(--border);
 }
 .tabs { display: flex; flex: 1; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+.tabs-links { display: flex; flex: 0 1 auto; min-width: 0; max-width: calc(100% - 6.5rem); overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+.tabs { min-width: 6.5rem; } /* les pages de l'utilisateur restent atteignables sur téléphone */
 .tab {
   position: relative; display: flex; align-items: center; flex: none; gap: 0.25rem;
   padding: 0 0.75rem; text-decoration: none; color: var(--muted); border: 0; background: none;
@@ -193,6 +195,14 @@ button:disabled { cursor: default; opacity: 0.5; }
   .cal-daynum { flex: 0 0 5.5rem; }
   .cal-session-text { white-space: normal; }
 }
+.docs-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+.docs-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 0.75rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.docs-card h3 { margin: 0; font-size: 1rem; }
+.docs-card p { margin: 0; }
+.docs-card .toolbar-actions { margin-top: auto; padding-top: 0.4rem; }
+.docs-sheet { max-width: min(60rem, 100%); }
+.widget-preview { width: 100%; margin: 0.5rem 0 1rem; animation: none; }
+.import-section-head { display: flex; align-items: center; gap: 0.4rem; }
 .courses-page { display: flex; flex-direction: column; gap: 0.75rem; max-width: 60rem; }
 .course-list { display: flex; flex-direction: column; gap: 0.75rem; }
 .course-past { opacity: 0.75; }

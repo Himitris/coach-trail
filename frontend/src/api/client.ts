@@ -35,7 +35,21 @@ export interface RequestOptions {
 /** Émis quand l'API répond « verrouillé » (code d'accès requis) : l'écran de verrouillage s'affiche. */
 export const LOCKED_EVENT = "coach-trail:locked";
 
+/**
+ * Données d'exemple : tant qu'un gestionnaire est installé (aperçus de la page Documentation), il
+ * répond à la place du serveur pour les chemins qu'il connaît ; les autres partent normalement.
+ */
+export type DemoHandler = (method: string, path: string) => unknown;
+let demoHandler: DemoHandler | null = null;
+export function setDemoHandler(handler: DemoHandler | null): void {
+  demoHandler = handler;
+}
+
 export async function request<T>(method: string, path: string, options: RequestOptions = {}): Promise<T> {
+  if (demoHandler) {
+    const demo = demoHandler(method, path);
+    if (demo !== undefined) return structuredClone(demo) as T;
+  }
   let response: Response;
   try {
     response = await fetch(path, {
