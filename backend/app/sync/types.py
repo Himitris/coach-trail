@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any, Protocol
@@ -6,6 +6,22 @@ from typing import Any, Protocol
 RAW_ACTIVITY = "activity"
 RAW_STREAM = "activity_stream"
 RAW_WELLNESS = "wellness"
+RAW_PROFILE = "profile"
+
+# États d'une source (source_status.state)
+STATE_OK = "ok"
+STATE_DEGRADED = "degraded"
+STATE_AUTH_REQUIRED = "auth_required"
+STATE_DOWN = "down"
+
+
+class SourceError(Exception):
+    """Échec d'une source avec un état et un message lisible (en français)."""
+
+    def __init__(self, state: str, message: str) -> None:
+        super().__init__(message)
+        self.state = state
+        self.user_message = message
 
 
 @dataclass(frozen=True)
@@ -25,11 +41,11 @@ class HealthResult:
 class SourceConnector(Protocol):
     name: str
 
-    def fetch_activities(self, since: datetime | None) -> list[RawRecord]: ...
+    def fetch_activities(self, since: datetime | None) -> Iterable[RawRecord]: ...
 
     def fetch_activity_stream(self, external_id: str) -> RawRecord | None: ...
 
-    def fetch_wellness(self, since: date | None) -> list[RawRecord]: ...
+    def fetch_wellness(self, since: date | None) -> Iterable[RawRecord]: ...
 
     def healthcheck(self) -> HealthResult: ...
 
@@ -74,9 +90,19 @@ class NormalizedWellness:
 
 
 @dataclass(frozen=True)
+class NormalizedProfile:
+    """Valeurs de profil fournies par la source (appliquées à athlete_profile si présentes)."""
+
+    fc_repos: int | None = None
+    seuil_lactique_fc: int | None = None
+    zones: list[dict[str, Any]] | None = None
+
+
+@dataclass(frozen=True)
 class SourceNormalizer:
     """Fonctions normalize_* d'une source : payload brut -> données normalisées (None = ignoré)."""
 
     activity: Callable[[dict[str, Any]], NormalizedActivity | None]
     stream: Callable[[dict[str, Any]], NormalizedStream | None]
     wellness: Callable[[dict[str, Any]], NormalizedWellness | None]
+    profile: Callable[[dict[str, Any]], NormalizedProfile | None] | None = None

@@ -95,7 +95,8 @@ class SyncStatusOut(BaseModel):
 class SourceHealthOut(BaseModel):
     source: str
     label: str
-    state: str  # ok | indisponible | jamais_synchronise
+    state: str  # ok | degraded | auth_required | down | jamais_synchronise
+    message: str | None
     last_success_at: datetime | None
     last_error_at: datetime | None
     last_error_message: str | None

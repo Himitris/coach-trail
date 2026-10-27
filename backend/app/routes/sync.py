@@ -56,13 +56,17 @@ def sources_health(
     for name in names:
         st = statuses.get(name)
         label = LABELS.get(name, name)
-        if st is None or (st.last_success_at is None and st.unavailable_since is None):
+        message = st.message if st else None
+        if st is None or (st.state is None and st.last_success_at is None):
             state, badge = "jamais_synchronise", None
-        elif st.unavailable_since is not None:
-            state = "indisponible"
-            badge = f"{label} indisponible depuis le {st.unavailable_since:%d/%m/%Y}"
+            message = message or "Aucune synchronisation effectuée"
         else:
-            state, badge = "ok", None
+            state = st.state or ("down" if st.unavailable_since else "ok")
+            badge = (
+                f"{label} indisponible depuis le {st.unavailable_since:%d/%m/%Y}"
+                if st.unavailable_since
+                else None
+            )
         out.append(
             SourceHealthOut(
                 source=name,
@@ -72,6 +76,7 @@ def sources_health(
                 last_error_at=st.last_error_at if st else None,
                 last_error_message=st.last_error_message if st else None,
                 unavailable_since=st.unavailable_since if st else None,
+                message=message,
                 badge=badge,
             )
         )

@@ -60,7 +60,7 @@ def test_sync_writes_raw_and_normalized(factory: sessionmaker[Session]) -> None:
     report = make_service(factory, garmin()).run_all()
     assert report.results[0].ok
     assert report.results[0].inserted == 4
-    assert count(factory, RawPayload) == 5  # 2 activités + 2 bien-être + 1 flux
+    assert count(factory, RawPayload) == 6  # 2 activités + 2 bien-être + 2 flux (1 vide)
     assert count(factory, Activity) == 2
     assert count(factory, WellnessDaily) == 2
     assert count(factory, ActivityStream) == 1
@@ -118,7 +118,7 @@ def test_rebuild_from_raw_without_calling_api(factory: sessionmaker[Session]) ->
         s.commit()
     with factory() as s:
         counts = rebuild_normalized(s, service.normalizers)
-    assert counts == {"activities": 2, "streams": 1, "wellness": 2, "skipped": 0}
+    assert counts == {"activities": 2, "streams": 2, "wellness": 2, "skipped": 0}
     assert connector.calls == calls
     with factory() as s:
         rebuilt = sorted(
@@ -128,7 +128,7 @@ def test_rebuild_from_raw_without_calling_api(factory: sessionmaker[Session]) ->
     assert rebuilt == snapshot
     assert count(factory, WellnessDaily) == 2
     assert count(factory, ActivityStream) == 1
-    assert count(factory, RawPayload) == 5
+    assert count(factory, RawPayload) == 6
 
 
 def test_source_failure_keeps_data_and_flags_unavailable(

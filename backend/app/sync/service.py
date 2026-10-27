@@ -2,27 +2,45 @@ import hashlib
 import json
 import logging
 import threading
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
+from itertools import batched
 from typing import Any
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.logging import SecretMaskingFilter
-from app.models import Activity, ActivityStream, RawPayload, SourceStatus, WellnessDaily
+from app.models import (
+    Activity,
+    ActivityStream,
+    AthleteProfile,
+    RawPayload,
+    SourceStatus,
+    WellnessDaily,
+)
 from app.sync.dedup import assign_dedup_groups
 from app.sync.streams import encode_stream
 from app.sync.types import (
     RAW_ACTIVITY,
+    RAW_PROFILE,
     RAW_STREAM,
     RAW_WELLNESS,
+    STATE_AUTH_REQUIRED,
+    STATE_DEGRADED,
+    STATE_DOWN,
+    STATE_OK,
     NormalizedActivity,
+    NormalizedProfile,
     RawRecord,
     SourceConnector,
+    SourceError,
     SourceNormalizer,
 )
+
+BATCH_SIZE = 25
+MAX_CONSECUTIVE_STREAM_FAILURES = 3
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +106,25 @@ def _apply_activity(session: Session, source: str, n: NormalizedActivity) -> Non
         act.gear = n.gear
 
 
+def _apply_profile(session: Session, n: NormalizedProfile) -> None:
+    """Met à jour athlete_profile avec les valeurs fournies (jamais fc_max). Ignore les absentes."""
+    profile = session.get(AthleteProfile, 1)
+    if profile is None:
+        return
+    changed = False
+    if n.fc_repos and profile.fc_repos != n.fc_repos:
+        profile.fc_repos = n.fc_repos
+        changed = True
+    if n.seuil_lactique_fc and profile.seuil_lactique_fc != n.seuil_lactique_fc:
+        profile.seuil_lactique_fc = n.seuil_lactique_fc
+        changed = True
+    if n.zones and profile.zones != n.zones:
+        profile.zones = n.zones
+        changed = True
+    if changed:
+        profile.updated_at = utcnow()
+
+
 def normalize_raw(
     session: Session, raw: RawPayload, normalizers: Mapping[str, SourceNormalizer]
 ) -> bool:
@@ -95,6 +132,8 @@ def normalize_raw(
     norm = normalizers.get(raw.source)
     if norm is None:
         return False
+    if not raw.payload:  # marqueur « pas de données » (ex. activité sans flux)
+        return True
     if raw.type == RAW_ACTIVITY:
         activity = norm.activity(raw.payload)
         if activity is not None:
@@ -114,6 +153,10 @@ def normalize_raw(
                 session.add(ActivityStream(activity_id=act.id, samples=blob))
             else:
                 existing.samples = blob
+    elif raw.type == RAW_PROFILE:
+        profile = norm.profile(raw.payload) if norm.profile else None
+        if profile is not None:
+            _apply_profile(session, profile)
     elif raw.type == RAW_WELLNESS:
         w = norm.wellness(raw.payload)
         if w is not None:
@@ -248,79 +291,133 @@ class SyncService:
         try:
             self._sync_source(name, result)
         except Exception as exc:
-            message = self._masker.mask(f"{type(exc).__name__}: {exc}")[:500]
+            if isinstance(exc, SourceError):
+                state, message = exc.state, exc.user_message
+            else:
+                state = STATE_DOWN
+                message = self._masker.mask(f"{type(exc).__name__}: {exc}")[:500]
             result.ok = False
             result.error = message
-            logger.warning("Source %s indisponible : %s", name, message)
-            self._record_failure(name, message)
+            logger.warning("Source %s en échec (%s) : %s", name, state, message)
+            self._record_failure(name, state, message)
         else:
-            self._record_success(name)
+            self._record_success(name, result.warnings)
         return result
+
+    @staticmethod
+    def _since(
+        last: datetime | None, progress: datetime | None, overlap: timedelta
+    ) -> datetime | None:
+        """Reprise : dernière réussite ou, après un échec partiel, dernière donnée reçue."""
+        candidates = [x - overlap for x in (last, progress) if x is not None]
+        return max(candidates) if candidates else None
+
+    @staticmethod
+    def _progress(session: Session, name: str) -> tuple[datetime | None, datetime | None]:
+        act = session.scalar(select(func.max(Activity.start_utc)).where(Activity.source == name))
+        day = session.scalar(
+            select(func.max(WellnessDaily.date)).where(WellnessDaily.source == name)
+        )
+        return act, (datetime.combine(day, datetime.min.time()) if day else None)
 
     def _sync_source(self, name: str, result: SourceResult) -> None:
         connector = self.connectors[name]
-        health = connector.healthcheck()
+        health = connector.healthcheck()  # peut lever SourceError (ex. auth_required)
         if not health.ok:
-            raise RuntimeError(f"healthcheck : {health.message or 'échec'}")
+            raise SourceError(STATE_DOWN, health.message or "Contrôle de santé en échec")
 
         with self._factory() as session:
             status = session.get(SourceStatus, name)
             last = status.last_success_at if status else None
-        since = last - self._overlap if last else None
-        since_day: date | None = since.date() if since else None
+            act_progress, well_progress = self._progress(session, name)
+        since = self._since(last, act_progress, self._overlap)
+        wellness_since = self._since(last, well_progress, self._overlap)
 
-        activities = connector.fetch_activities(since)
-        wellness = connector.fetch_wellness(since_day)
-        result.fetched = len(activities) + len(wellness)
-
-        touched_activities: list[str] = []
-        with self._factory() as session:
-            touched: list[RawPayload] = []
-            for raw_type, records in ((RAW_ACTIVITY, activities), (RAW_WELLNESS, wellness)):
-                for rec in records:
-                    row = self._upsert_raw(session, name, raw_type, rec, result)
-                    if row is not None:
-                        touched.append(row)
-                        if raw_type == RAW_ACTIVITY:
-                            touched_activities.append(rec.key)
-            session.flush()
-            for row in sorted(touched, key=lambda r: r.type != RAW_ACTIVITY):
-                normalize_raw(session, row, self.normalizers)
-            session.flush()
-            assign_dedup_groups(session)
-            session.commit()
-
-        for ext_id in touched_activities:
-            self._sync_stream(name, connector, ext_id, result)
-
-    def _sync_stream(
-        self, name: str, connector: SourceConnector, ext_id: str, result: SourceResult
-    ) -> None:
-        with self._factory() as session:
-            has = session.scalars(
-                select(RawPayload.id).where(
-                    RawPayload.source == name,
-                    RawPayload.type == RAW_STREAM,
-                    RawPayload.external_key == ext_id,
-                )
-            ).first()
-        if has is not None:
-            return
         try:
-            rec = connector.fetch_activity_stream(ext_id)
-            if rec is None:
-                return
+            self._ingest(name, RAW_ACTIVITY, connector.fetch_activities(since), result)
+            self._ingest(
+                name,
+                RAW_WELLNESS,
+                connector.fetch_wellness(wellness_since.date() if wellness_since else None),
+                result,
+            )
+            fetch_profile = getattr(connector, "fetch_profile", None)
+            if fetch_profile is not None:
+                rec = fetch_profile()
+                self._ingest(name, RAW_PROFILE, [rec] if rec else [], result)
+            self._sync_streams(name, connector, result)
+        finally:
             with self._factory() as session:
-                row = self._upsert_raw(session, name, RAW_STREAM, rec, SourceResult(name))
+                assign_dedup_groups(session)
+                session.commit()
+            pop_warnings = getattr(connector, "pop_warnings", None)
+            if pop_warnings is not None:
+                result.warnings.extend(pop_warnings())
+
+    def _ingest(
+        self, name: str, raw_type: str, records: Iterable[RawRecord], result: SourceResult
+    ) -> None:
+        """Écrit les bruts par lots (un échec en cours de route conserve les lots déjà reçus)."""
+        for batch in batched(records, BATCH_SIZE):
+            result.fetched += len(batch)
+            with self._factory() as session:
+                touched = [
+                    row
+                    for rec in batch
+                    if (row := self._upsert_raw(session, name, raw_type, rec, result)) is not None
+                ]
                 session.flush()
-                if row is not None:
+                for row in touched:
                     normalize_raw(session, row, self.normalizers)
                 session.commit()
-            result.streams += 1
-        except Exception as exc:  # un flux manquant ne fait pas échouer la source
-            msg = self._masker.mask(f"flux {ext_id} : {type(exc).__name__}: {exc}")[:300]
-            result.warnings.append(msg)
-            logger.warning("Source %s : %s", name, msg)
+
+    def _sync_streams(self, name: str, connector: SourceConnector, result: SourceResult) -> None:
+        """Récupère les flux des activités qui n'en ont pas encore (reprise après échec incluse)."""
+        with self._factory() as session:
+            have = select(RawPayload.external_key).where(
+                RawPayload.source == name, RawPayload.type == RAW_STREAM
+            )
+            missing = list(
+                session.scalars(
+                    select(RawPayload.external_key)
+                    .where(
+                        RawPayload.source == name,
+                        RawPayload.type == RAW_ACTIVITY,
+                        RawPayload.external_key.not_in(have),
+                    )
+                    .order_by(RawPayload.id)
+                )
+            )
+        failures = 0
+        for ext_id in missing:
+            try:
+                rec = connector.fetch_activity_stream(ext_id)
+                # None = la source n'a pas de flux : marqueur vide pour ne pas réessayer.
+                rec = rec or RawRecord(ext_id, {})
+                with self._factory() as session:
+                    row = self._upsert_raw(session, name, RAW_STREAM, rec, SourceResult(name))
+                    session.flush()
+                    if row is not None:
+                        normalize_raw(session, row, self.normalizers)
+                    session.commit()
+                result.streams += 1
+                failures = 0
+            except SourceError as exc:
+                if exc.state == STATE_AUTH_REQUIRED:
+                    raise
+                failures += 1
+                self._warn_stream(name, ext_id, exc.user_message, result)
+            except Exception as exc:  # un flux manquant ne fait pas échouer la source
+                failures += 1
+                self._warn_stream(name, ext_id, f"{type(exc).__name__}: {exc}", result)
+            if failures >= MAX_CONSECUTIVE_STREAM_FAILURES:
+                result.warnings.append("Récupération des flux interrompue après plusieurs échecs")
+                break
+
+    def _warn_stream(self, name: str, ext_id: str, detail: str, result: SourceResult) -> None:
+        msg = self._masker.mask(f"flux {ext_id} : {detail}")[:300]
+        result.warnings.append(msg)
+        logger.warning("Source %s : %s", name, msg)
 
     @staticmethod
     def _upsert_raw(
@@ -358,21 +455,29 @@ class SyncService:
 
     # statut ----------------------------------------------------------------------------------
 
-    def _record_success(self, name: str) -> None:
+    def _record_success(self, name: str, warnings: Sequence[str]) -> None:
         with self._factory() as session:
             st = session.get(SourceStatus, name) or SourceStatus(source=name)
             session.add(st)
             st.last_success_at = utcnow()
             st.unavailable_since = None
+            if warnings:
+                st.state = STATE_DEGRADED
+                st.message = f"Synchronisation partielle : {warnings[0]}"[:500]
+            else:
+                st.state = STATE_OK
+                st.message = "Synchronisation à jour"
             session.commit()
 
-    def _record_failure(self, name: str, message: str) -> None:
+    def _record_failure(self, name: str, state: str, message: str) -> None:
         with self._factory() as session:
             st = session.get(SourceStatus, name) or SourceStatus(source=name)
             session.add(st)
             now = utcnow()
             st.last_error_at = now
             st.last_error_message = message
+            st.state = state
+            st.message = message
             if st.unavailable_since is None:
                 st.unavailable_since = now
             session.commit()

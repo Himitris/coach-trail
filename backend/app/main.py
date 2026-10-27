@@ -3,14 +3,17 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from alembic.config import Config
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 from alembic import command
 from app import __version__
 from app.config import Settings, get_settings
 from app.db import make_engine, make_session_factory
+from app.garmin.auth import LoginManager
 from app.logging import configure_logging
-from app.routes import goals, health, profile, sync
+from app.routes import garmin, goals, health, profile, sync
 from app.sync.registry import build_sources
 from app.sync.scheduler import build_scheduler
 from app.sync.service import SyncService
@@ -25,8 +28,16 @@ def run_migrations(database_url: str) -> None:
     command.upgrade(cfg, "head")
 
 
+async def _validation_error(_request: Request, exc: RequestValidationError) -> JSONResponse:
+    """422 sans écho des valeurs reçues (elles peuvent contenir un mot de passe ou un code MFA)."""
+    detail = [{"loc": e["loc"], "msg": e["msg"], "type": e["type"]} for e in exc.errors()]
+    return JSONResponse(status_code=422, content={"detail": detail})
+
+
 def create_app(
-    settings: Settings | None = None, sync_service: SyncService | None = None
+    settings: Settings | None = None,
+    sync_service: SyncService | None = None,
+    login_manager: LoginManager | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.secret_values())
@@ -59,7 +70,9 @@ def create_app(
     app.state.session_factory = session_factory
     app.state.sync_service = sync_service
     app.state.scheduler = scheduler
-    for router in (health.router, profile.router, goals.router, sync.router):
+    app.state.garmin_login = login_manager or LoginManager(settings.garmin_token_dir)
+    app.add_exception_handler(RequestValidationError, _validation_error)  # type: ignore[arg-type]
+    for router in (health.router, profile.router, goals.router, sync.router, garmin.router):
         app.include_router(router, prefix="/api")
     return app
 

@@ -1,0 +1,19 @@
+{
+  "activityId": 17000000001,
+  "activityName": "Sortie trail",
+  "activityTypeDTO": {
+    "typeId": 6,
+    "typeKey": "trail_running"
+  },
+  "summaryDTO": {
+    "startTimeGMT": "2026-10-04T06:05:12.0",
+    "startTimeLocal": "2026-10-04T08:05:12.0",
+    "duration": 5421.3,
+    "distance": 12840.5,
+    "elevationGain": 512.0,
+    "elevationLoss": 498.0,
+    "averageHR": 147.0,
+    "maxHR": 178.0,
+    "calories": 905.0
+  }
+}

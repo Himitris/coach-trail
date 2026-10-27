@@ -1,0 +1,16 @@
+[
+  {
+    "calendarDate": "2026-10-04",
+    "timestampLocal": "2026-10-04T07:02:10.0",
+    "inputContext": "AFTER_WAKEUP_RESET",
+    "score": 68,
+    "level": "MODERATE"
+  },
+  {
+    "calendarDate": "2026-10-04",
+    "timestampLocal": "2026-10-04T15:40:00.0",
+    "inputContext": "UPDATE_REALTIME_VARIABLES",
+    "score": 55,
+    "level": "MODERATE"
+  }
+]

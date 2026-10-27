@@ -1,0 +1,137 @@
+{
+  "activityId": 17000000001,
+  "measurementCount": 8,
+  "metricsCount": 6,
+  "metricDescriptors": [
+    {
+      "metricsIndex": 0,
+      "key": "directTimestamp",
+      "unit": {
+        "key": "gmt"
+      }
+    },
+    {
+      "metricsIndex": 1,
+      "key": "sumDuration",
+      "unit": {
+        "key": "second"
+      }
+    },
+    {
+      "metricsIndex": 2,
+      "key": "directHeartRate",
+      "unit": {
+        "key": "bpm"
+      }
+    },
+    {
+      "metricsIndex": 3,
+      "key": "directElevation",
+      "unit": {
+        "key": "meter"
+      }
+    },
+    {
+      "metricsIndex": 4,
+      "key": "directSpeed",
+      "unit": {
+        "key": "mps"
+      }
+    },
+    {
+      "metricsIndex": 5,
+      "key": "sumDistance",
+      "unit": {
+        "key": "meter"
+      }
+    },
+    {
+      "metricsIndex": 6,
+      "key": "directDoubleCadence",
+      "unit": {
+        "key": "stepsPerMinute"
+      }
+    },
+    {
+      "metricsIndex": 7,
+      "key": "directPower",
+      "unit": {
+        "key": "watt"
+      }
+    }
+  ],
+  "activityDetailMetrics": [
+    {
+      "metrics": [
+        1759557912000,
+        0.0,
+        120.0,
+        300.0,
+        2.5,
+        0.0,
+        168.0,
+        250.0
+      ]
+    },
+    {
+      "metrics": [
+        1759557913000,
+        1.0,
+        123.0,
+        300.5,
+        2.6,
+        2.6,
+        169.0,
+        250.0
+      ]
+    },
+    {
+      "metrics": [
+        1759557914000,
+        2.0,
+        126.0,
+        301.0,
+        2.7,
+        5.2,
+        170.0,
+        250.0
+      ]
+    },
+    {
+      "metrics": [
+        1759557915000,
+        3.0,
+        null,
+        301.5,
+        2.8,
+        7.800000000000001,
+        171.0,
+        250.0
+      ]
+    },
+    {
+      "metrics": [
+        1759557916000,
+        4.0,
+        132.0,
+        302.0,
+        2.9,
+        10.4,
+        172.0,
+        250.0
+      ]
+    },
+    {
+      "metrics": [
+        1759557917000,
+        5.0,
+        135.0,
+        302.5,
+        3.0,
+        13.0,
+        173.0,
+        250.0
+      ]
+    }
+  ]
+}

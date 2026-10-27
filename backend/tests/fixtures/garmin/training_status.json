@@ -1,0 +1,10 @@
+{
+  "mostRecentVO2Max": {
+    "generic": {
+      "vo2MaxPreciseValue": 52.1
+    }
+  },
+  "mostRecentTrainingStatus": {
+    "latestTrainingStatusData": {}
+  }
+}

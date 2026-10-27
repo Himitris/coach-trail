@@ -1,0 +1,22 @@
+{
+  "dailySleepDTO": {
+    "calendarDate": "2026-10-04",
+    "sleepTimeSeconds": 27000,
+    "deepSleepSeconds": 5400,
+    "lightSleepSeconds": 14400,
+    "remSleepSeconds": 7200,
+    "awakeSleepSeconds": 3000,
+    "sleepStartTimestampGMT": 1759529400000,
+    "sleepEndTimestampGMT": 1759559400000,
+    "averageSpO2Value": 94.0,
+    "sleepScores": {
+      "overall": {
+        "value": 81,
+        "qualifierKey": "GOOD"
+      }
+    }
+  },
+  "avgOvernightHrv": 61.0,
+  "hrvStatus": "BALANCED",
+  "restingHeartRate": 47
+}

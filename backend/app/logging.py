@@ -1,6 +1,9 @@
 import json
 import logging
 import re
+import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any
 
@@ -17,6 +20,25 @@ _KV_RE = re.compile(
 )
 
 
+_dynamic_secrets: set[str] = set()
+_dynamic_lock = threading.Lock()
+
+
+@contextmanager
+def mask_secret(value: str) -> Iterator[None]:
+    """Masque `value` dans tous les logs le temps du bloc (ex. mot de passe d'une requête)."""
+    if len(value) < 4:
+        yield
+        return
+    with _dynamic_lock:
+        _dynamic_secrets.add(value)
+    try:
+        yield
+    finally:
+        with _dynamic_lock:
+            _dynamic_secrets.discard(value)
+
+
 class SecretMaskingFilter(logging.Filter):
     """Masque les secrets (clés/valeurs sensibles et valeurs exactes connues) dans les logs."""
 
@@ -26,7 +48,9 @@ class SecretMaskingFilter(logging.Filter):
 
     def mask(self, text: str) -> str:
         text = _KV_RE.sub(lambda m: f"{m.group('key')}{REDACTED}", text)
-        for secret in self._secrets:
+        with _dynamic_lock:
+            dynamic = list(_dynamic_secrets)
+        for secret in [*self._secrets, *dynamic]:
             text = text.replace(secret, REDACTED)
         return text
 

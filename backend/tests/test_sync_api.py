@@ -38,7 +38,7 @@ def test_sources_health_before_and_after(
     connector.fail = RuntimeError("Garmin 503")
     service.run_all()
     [src] = client.get("/api/sources/health").json()
-    assert src["state"] == "indisponible"
+    assert src["state"] == "down"
     assert src["badge"].startswith("Garmin indisponible depuis le ")
     assert src["last_success_at"] is not None  # on garde la dernière valeur
     assert client.get("/api/health").status_code == 200  # l'API reste debout

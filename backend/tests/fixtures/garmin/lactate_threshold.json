@@ -1,0 +1,10 @@
+{
+  "speed_and_heart_rate": {
+    "userProfilePK": 1,
+    "calendarDate": "2026-09-20",
+    "speed": 0.0035,
+    "heartRate": 173,
+    "heartRateCycling": null
+  },
+  "power": {}
+}

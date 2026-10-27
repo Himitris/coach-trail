@@ -116,3 +116,5 @@ class SourceStatus(Base):
     last_error_at: Mapped[datetime | None] = mapped_column(DateTime)
     last_error_message: Mapped[str | None] = mapped_column(String)
     unavailable_since: Mapped[datetime | None] = mapped_column(DateTime)
+    state: Mapped[str | None] = mapped_column(String)  # ok|degraded|auth_required|down
+    message: Mapped[str | None] = mapped_column(String)  # message lisible pour l'UI
