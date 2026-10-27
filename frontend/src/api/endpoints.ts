@@ -369,3 +369,11 @@ export interface AuthStatus {
 export const fetchAuthStatus = (): Promise<AuthStatus> => request("GET", "/api/auth/status");
 export const login = (code: string): Promise<null> => request("POST", "/api/auth/login", { body: { code } });
 export const logout = (): Promise<null> => request("POST", "/api/auth/logout");
+
+export const createGoal = (body: {
+  nom: string;
+  date: string;
+  distance_km?: number | null;
+  dplus_m?: number | null;
+  priorite?: number;
+}): Promise<Goal> => request("POST", "/api/goals", { body });

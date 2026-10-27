@@ -413,3 +413,17 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Import et documentation */
+.import-section { margin: 0.9rem 0; }
+.import-section h3, .docs-import h3 { margin: 0 0 0.4rem; font-size: 1rem; }
+.import-block { border: 1px solid var(--border); border-radius: 6px; padding: 0.4rem 0.6rem; margin: 0.4rem 0; }
+.import-block summary { cursor: pointer; }
+.import-pre { white-space: pre-wrap; word-break: break-word; max-height: 16rem; overflow: auto; background: var(--surface-2); border-radius: 6px; padding: 0.6rem; margin: 0.5rem 0; font-size: 0.8rem; }
+.import-preview { margin: 0.25rem 0 0.6rem; padding-left: 1.2rem; max-height: 14rem; overflow: auto; }
+.dialog textarea { width: 100%; padding: 0.4rem; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); font-family: ui-monospace, monospace; font-size: 0.8rem; }
+.docs-page { max-width: 62rem; }
+.docs-toc { display: flex; gap: 1rem; flex-wrap: wrap; margin: 0.5rem 0 1rem; }
+.docs-import { border-top: 1px solid var(--border); padding-top: 0.8rem; margin-top: 0.8rem; }
+.docs-page .data-table td, .docs-page .data-table th { white-space: normal; vertical-align: top; }
+.docs-page .data-table td:nth-child(2) { min-width: 16rem; }

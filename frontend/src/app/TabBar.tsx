@@ -13,6 +13,7 @@ export function TabBar() {
   const pageMatch = useMatch("/p/:pageId");
   const sourcesMatch = useMatch("/sources");
   const importMatch = useMatch("/plan/import");
+  const docsMatch = useMatch("/docs");
   const sources = useSources();
   const activeId = pageMatch?.params.pageId;
   const [menuId, setMenuId] = useState<string | null>(null);
@@ -149,6 +150,9 @@ export function TabBar() {
         aria-label="Importer un plan"
       >
         Plan
+      </Link>
+      <Link to="/docs" className={`tab tab-sources${docsMatch ? " tab-active" : ""}`} title="Widgets, imports et prompts">
+        Doc
       </Link>
       <Link to="/sources" className={`tab tab-sources${sourcesMatch ? " tab-active" : ""}`}>
         Sources{attention && <span className="dot dot-warn" aria-label="Attention requise" />}

@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { Link, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { DashboardPage } from "../pages/DashboardPage";
+import { DocsPage } from "../pages/DocsPage";
 import { PlanImportPage } from "../pages/PlanImportPage";
 import { SourcesPage } from "../pages/SourcesPage";
 import { ExportButton } from "./ExportButtons";
@@ -78,6 +79,7 @@ export function Shell() {
           <Route path="/" element={<HomeRedirect />} />
           <Route path="/p/:pageId" element={<DashboardPage />} />
           <Route path="/sources" element={<SourcesPage />} />
+          <Route path="/docs" element={<DocsPage />} />
           <Route path="/plan/import" element={<PlanImportPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

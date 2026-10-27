@@ -4,6 +4,8 @@ import { WidgetExportMenu } from "../app/ExportButtons";
 import { useDashboard } from "../app/DashboardProvider";
 import { useToast } from "../app/toasts";
 import type { WidgetInstance } from "../layout/model";
+import { ImportPanel } from "../imports/ImportPanel";
+import { getImportSpec } from "../imports/specs";
 import { getWidget } from "./registry";
 import { SettingsPanel } from "./SettingsPanel";
 import { WidgetError, WidgetErrorBoundary } from "./states";
@@ -21,6 +23,7 @@ export function WidgetFrame({
   const { dispatch } = useDashboard();
   const { notify } = useToast();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const definition = getWidget(widget.type);
 
   const remove = () => { dispatch({ type: "removeWidget", pageId, widgetId: widget.id }); };
@@ -44,6 +47,7 @@ export function WidgetFrame({
   }
 
   const settings = { ...definition.defaultSettings, ...widget.settings };
+  const importSpec = getImportSpec(definition.id);
   const hasSettings = definition.settingsSchema.length > 0;
   const { Component } = definition;
 
@@ -78,6 +82,17 @@ export function WidgetFrame({
           >
             ⤓
           </button>
+          {importSpec && (
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label={`Importer : ${definition.title}`}
+              title="Importer des données (fichier ou réponse de Claude)"
+              onClick={() => { setImportOpen(true); }}
+            >
+              ⤒
+            </button>
+          )}
           <WidgetExportMenu widgetId={widget.id} title={definition.title} />
           {editMode && (
             <button type="button" className="icon-btn icon-btn-danger" aria-label={`Supprimer : ${definition.title}`} onClick={remove}>
@@ -86,6 +101,14 @@ export function WidgetFrame({
           )}
         </div>
       </header>
+      {importOpen && importSpec && (
+        <ImportPanel
+          spec={importSpec}
+          widgetTitle={definition.title}
+          updateSettings={(patch) => { dispatch({ type: "updateSettings", pageId, widgetId: widget.id, patch }); }}
+          onClose={() => { setImportOpen(false); }}
+        />
+      )}
       {settingsOpen && hasSettings && (
         <SettingsPanel
           idPrefix={widget.id}

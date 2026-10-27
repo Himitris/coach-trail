@@ -4,7 +4,7 @@ import type { WidgetDefinition, WidgetSettings } from "../widgets/types";
 export type ExportResult = { ok: true; chars: number } | { ok: false; reason: "empty" | "failed" | "clipboard" };
 
 /** Copie via l'API moderne, sinon via un textarea temporaire (contexte non sécurisé, Safari après un await). */
-async function writeClipboard(text: string): Promise<boolean> {
+export async function writeClipboard(text: string): Promise<boolean> {
   try {
     if ("clipboard" in navigator) {
       await navigator.clipboard.writeText(text);
