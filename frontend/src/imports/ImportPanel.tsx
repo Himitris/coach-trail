@@ -254,7 +254,7 @@ export function ImportPanel({
               <label className="field">
                 <span>
                   <input type="checkbox" checked={confirmPast} onChange={(event) => { setConfirmPast(event.target.checked); }} />{" "}
-                  Je confirme la modification de {blocked} jour(s) passé(s) déjà réalisé(s)
+                  Je confirme la modification de {blocked} jour(s) protégé(s) (passés déjà réalisés ou appartenant à un autre plan)
                 </span>
               </label>
             )}

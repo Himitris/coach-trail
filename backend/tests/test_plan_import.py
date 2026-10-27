@@ -91,7 +91,7 @@ def test_importer_and_json_schema_reject_the_same_sessions(
 
 def test_schema_version_and_root_keys() -> None:
     with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate({"version": 2, "sessions": [one()]}, SCHEMA)
+        jsonschema.validate({"version": 3, "sessions": [one()]}, SCHEMA)
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate({"sessions": [one()], "extra": 1}, SCHEMA)
 
@@ -138,7 +138,7 @@ def test_errors_are_listed_per_session_in_french_and_nothing_is_written(client: 
     ("payload", "message"),
     [
         ("pas du json", "n'est pas un JSON valide"),
-        ({"version": 2, "sessions": [one()]}, "Version de plan non prise en charge"),
+        ({"version": 3, "sessions": [one()]}, "Version de plan non prise en charge"),
         ({"sessions": []}, "liste de séances est vide"),
         ({"sessions": "oui"}, "liste « sessions »"),
         ({"sessions": [one()], "autre": 1}, "Champ inconnu « autre »"),

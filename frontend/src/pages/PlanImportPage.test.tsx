@@ -26,7 +26,9 @@ const line = (titre: string, over: Record<string, unknown> = {}) => ({
 const report = (over: Partial<PlanImportReport> = {}): PlanImportReport => ({
   dry_run: true,
   applied: false,
-  summary: { sessions_in_file: 3, days_in_file: 3, created_days: 1, replaced_days: 1, unchanged_days: 0, blocked_days: 1, sessions_added: 2, sessions_removed: 1 },
+  plan: { nom: "Prépa 3 Rocs", action: "create", plan_id: null, course_id: 1, course_nom: "Trail des 3 Rocs", course_asked: "3 Rocs", date_debut: "2026-10-07", date_fin: "2026-11-05" },
+  warnings: [],
+  summary: { sessions_in_file: 3, days_in_file: 3, created_days: 1, replaced_days: 1, unchanged_days: 0, blocked_days: 1, overlap_days: 0, sessions_added: 2, sessions_removed: 1 },
   days: [
     { date: "2026-10-07", action: "blocked", reason: "Jour passé avec une séance déjà réalisée : confirmation explicite nécessaire.", existing: [line("Ancien")], incoming: [line("Nouveau")] },
     { date: "2026-11-03", action: "create", reason: null, existing: [], incoming: [line("Footing facile")] },
@@ -110,11 +112,41 @@ describe("Import de plan", () => {
     expect(api.calls).toHaveLength(0);
   });
 
+  it("affiche le plan visé et sa course, signale une course non reconnue et exige la confirmation des chevauchements", async () => {
+    const api = mockApi({
+      "POST /api/plan/import": ({ query }) => ({
+        body: report({
+          dry_run: query.dry_run === "true",
+          applied: query.dry_run !== "true",
+          plan: { nom: "Prépa Bruniquel", action: "update", plan_id: 2, course_id: null, course_nom: null, course_asked: "Bruniquel 39", date_debut: "2026-11-10", date_fin: "2026-12-20" },
+          warnings: ["Course « Bruniquel 39 » non reconnue : le plan ne sera lié à aucune course."],
+          summary: { sessions_in_file: 2, days_in_file: 2, created_days: 1, replaced_days: 0, unchanged_days: 0, blocked_days: 0, overlap_days: 1, sessions_added: 1, sessions_removed: 0 },
+          days: [
+            { date: "2026-11-03", action: "overlap", reason: "Ce jour appartient à un autre plan (Prépa 3 Rocs) : confirmation nécessaire.", existing: [line("Ancien")], incoming: [line("Nouveau")] },
+            { date: "2026-11-10", action: "create", reason: null, existing: [], incoming: [line("Footing facile")] },
+          ],
+        }),
+      }),
+    });
+    renderWithApp(<PlanImportPage />);
+    await userEvent.upload(screen.getByLabelText("Fichier du plan"), file("[]"));
+    expect(await screen.findByText("Prépa Bruniquel")).toBeInTheDocument();
+    expect(screen.getByText(/Plan existant mis à jour/)).toBeInTheDocument();
+    expect(screen.getByText(/aucune course liée/)).toBeInTheDocument();
+    expect(screen.getByText(/Course « Bruniquel 39 » non reconnue/)).toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /3 nov\./ })).toHaveTextContent("Autre plan");
+
+    await userEvent.click(screen.getByRole("checkbox", { name: /remplacement de 1 jour\(s\) qui appartiennent à un autre plan/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirmer l'import" }));
+    await waitFor(() => { expect(api.callsTo("POST /api/plan/import")).toHaveLength(2); });
+    expect(api.callsTo("POST /api/plan/import")[1]?.query).toMatchObject({ dry_run: "false", confirm_overlap: "true" });
+  });
+
   it("plan déjà à jour : rien à confirmer", async () => {
     mockApi({
       "POST /api/plan/import": () => ({
         body: report({
-          summary: { sessions_in_file: 1, days_in_file: 1, created_days: 0, replaced_days: 0, unchanged_days: 1, blocked_days: 0, sessions_added: 0, sessions_removed: 0 },
+          summary: { sessions_in_file: 1, days_in_file: 1, created_days: 0, replaced_days: 0, unchanged_days: 1, blocked_days: 0, overlap_days: 0, sessions_added: 0, sessions_removed: 0 },
           days: [{ date: "2026-11-03", action: "unchanged", reason: null, existing: [line("A")], incoming: [line("A")] }],
         }),
       }),

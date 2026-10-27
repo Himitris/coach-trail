@@ -15,7 +15,7 @@ export interface ImportPreview {
   errors: string[];
   /** Ce qui sera fait, une ligne par élément. */
   lines: string[];
-  /** Jours passés déjà réalisés, bloqués tant que `confirmPast` n'est pas coché. */
+  /** Jours passés déjà réalisés ou appartenant à un autre plan, bloqués tant que `confirmPast` n'est pas coché. */
   blocked?: number;
   /** Nombre de créations ou remplacements possibles sans confirmation. */
   changes?: number;

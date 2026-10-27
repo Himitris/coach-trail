@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { defaultLayout, sanitizeLayout } from "../layout/defaults";
 import { BREAKPOINTS } from "../layout/model";
-import { COURSE_WIDGET_TYPES, getWidget, HOME_WIDGET_TYPES, listWidgets, specFor } from ".";
+import { getWidget, HOME_WIDGET_TYPES, listWidgets, specFor } from ".";
 
 describe("catalogue des widgets", () => {
   it("les 16 widgets sont enregistrés avec réglages, taille minimale et export", () => {
@@ -52,12 +52,5 @@ describe("page d'accueil par défaut", () => {
     const sm = page?.layouts.sm ?? [];
     expect(sm.every((i) => i.x === 0 && i.w === 4)).toBe(true);
     expect(new Set(sm.map((i) => i.y)).size).toBe(5);
-  });
-});
-
-describe("page d'exemple « Course »", () => {
-  it("regroupe objectif, nutrition, fatigue et monotonie, tous enregistrés", () => {
-    expect([...COURSE_WIDGET_TYPES]).toEqual(["race-goal", "fueling", "fatigue", "monotony"]);
-    for (const type of COURSE_WIDGET_TYPES) expect(getWidget(type)).toBeDefined();
   });
 });

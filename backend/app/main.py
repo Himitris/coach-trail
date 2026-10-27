@@ -24,6 +24,7 @@ from app.routes import entries, garmin, goals, health, metrics, phase2, plan, pr
 from app.routes import export as export_routes
 from app.routes import gear as gear_routes
 from app.routes import imports as import_routes
+from app.routes import plans as plans_routes
 from app.routes import strava as strava_routes
 from app.routes import weather as weather_routes
 from app.sync.registry import build_sources, build_strava_auth
@@ -107,6 +108,7 @@ def create_app(
         metrics.router,
         entries.router,
         plan.router,
+        plans_routes.router,
         dashboard.router,
         activities.router,
         export_routes.router,

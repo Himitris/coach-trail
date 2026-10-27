@@ -31,6 +31,8 @@ export const trend = (direction: Trend["direction"] = "stable"): Trend => ({
 
 export const planned = (over: Partial<PlannedSession> = {}): PlannedSession => ({
   id: 1,
+  plan_id: null,
+  plan_nom: null,
   date: "2026-10-27",
   titre: "Footing facile",
   type: "footing",

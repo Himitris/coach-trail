@@ -1,11 +1,13 @@
 """Import d'un plan JSON (produit par Claude) : validation stricte, aperçu, enregistrement.
 
-Format (voir `docs/plan-schema.json`, `version: 1`) : `{"version": 1, "sessions": [...]}` ou une
-liste de séances. Règle de remplacement : pour chaque jour présent dans le fichier, les séances du
-fichier remplacent celles déjà prévues ce jour-là ; un jour déjà identique ne change pas (import
-idempotent).
+Format (voir `docs/plan-schema.json`) : version 1 `{"version": 1, "sessions": [...]}` (ou une
+liste de séances) ; version 2 ajoute `"plan": {"nom": ..., "course": ...}`. Les séances importées
+sont rattachées à un plan (créé, ou retrouvé par son nom : réimporter met le plan à jour).
+Règle de remplacement : pour chaque jour présent dans le fichier, les séances du fichier remplacent
+celles déjà prévues ce jour-là ; un jour déjà identique ne change pas (import idempotent).
 Un jour passé dont la séance prévue est déjà réalisée (fait / partiel) n'est jamais touché sans
-confirmation explicite (`confirm_past_done`).
+confirmation explicite (`confirm_past_done`) ; un jour qui appartient à un autre plan non plus
+(`confirm_overlap`).
 """
 
 import re
@@ -17,15 +19,18 @@ from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from app.models import PlannedSession
+from app.models import Goal, Plan, PlannedSession
 from app.plan.matching import FAIT, PARTIEL
+from app.plan.plans import refresh_bounds, resolve_course
 from app.plan.schemas import TYPE_LABELS
 from app.plan.service import match_planned, status_by_id
 
 SCHEMA_VERSION = 1
+SUPPORTED_VERSIONS = (1, 2)
+MAX_PLAN_NAME = 120
 MAX_SESSIONS = 400
 PAST_DAYS = 365
 FUTURE_DAYS = 730
@@ -85,7 +90,7 @@ def line_out(line: PlanLine) -> PlanLineOut:
     )
 
 
-DayAction = Literal["create", "replace", "unchanged", "blocked"]
+DayAction = Literal["create", "replace", "unchanged", "blocked", "overlap"]
 
 
 class DayChange(BaseModel):
@@ -103,15 +108,37 @@ class ImportSummary(BaseModel):
     replaced_days: int
     unchanged_days: int
     blocked_days: int
+    overlap_days: int = 0
     sessions_added: int
     sessions_removed: int
+
+
+class PlanInfo(BaseModel):
+    """Plan visé par l'import : existant (mise à jour) ou à créer."""
+
+    nom: str
+    action: Literal["create", "update"]
+    plan_id: int | None = None
+    course_id: int | None = None
+    course_nom: str | None = None
+    course_asked: str | None = None  # course demandée dans le fichier (même non reconnue)
+    date_debut: date
+    date_fin: date
 
 
 class ImportReport(BaseModel):
     dry_run: bool
     applied: bool
+    plan: PlanInfo | None = None
+    warnings: list[str] = []
     summary: ImportSummary
     days: list[DayChange]
+
+
+@dataclass(frozen=True)
+class PlanMeta:
+    nom: str | None = None
+    course: str | None = None
 
 
 def _type_name(value: Any) -> str:
@@ -262,28 +289,78 @@ def parse_session(
     )
 
 
-def parse_document(data: Any, today: date) -> tuple[list[tuple[date, PlanLine]], list[ImportIssue]]:
+def _parse_meta(raw: Any, issues: list[ImportIssue]) -> PlanMeta:
+    if not isinstance(raw, dict):
+        issues.append(
+            ImportIssue(
+                session=None, field="plan", message="« plan » doit être un objet {nom, course}."
+            )
+        )
+        return PlanMeta()
+    for key in raw:
+        if key not in ("nom", "course"):
+            issues.append(
+                ImportIssue(
+                    session=None,
+                    field=f"plan.{key}",
+                    message=f"Champ inconnu « {key} » dans « plan » (autorisés : nom, course).",
+                )
+            )
+    values: dict[str, str | None] = {}
+    for key, limit in (("nom", MAX_PLAN_NAME), ("course", 200)):
+        value = raw.get(key)
+        if value is None:
+            values[key] = None
+        elif not isinstance(value, str) or not value.strip() or len(value.strip()) > limit:
+            issues.append(
+                ImportIssue(
+                    session=None,
+                    field=f"plan.{key}",
+                    message=f"« plan.{key} » doit être un texte de 1 à {limit} caractères.",
+                )
+            )
+            values[key] = None
+        else:
+            values[key] = value.strip()
+    return PlanMeta(nom=values["nom"], course=values["course"])
+
+
+def parse_document(
+    data: Any, today: date
+) -> tuple[list[tuple[date, PlanLine]], list[ImportIssue], PlanMeta]:
     issues: list[ImportIssue] = []
+    meta = PlanMeta()
     if isinstance(data, dict):
         version = data.get("version", SCHEMA_VERSION)
-        if version != SCHEMA_VERSION:
+        if version not in SUPPORTED_VERSIONS or isinstance(version, bool):
             issues.append(
                 ImportIssue(
                     session=None,
                     field="version",
                     message=(
                         f"Version de plan non prise en charge : {version!r} "
-                        f"(attendu : {SCHEMA_VERSION})."
+                        f"(attendues : {', '.join(map(str, SUPPORTED_VERSIONS))})."
                     ),
                 )  # fmt: skip
             )
         for key in data:
-            if key not in ("version", "sessions"):
+            if key not in ("version", "sessions", "plan"):
                 issues.append(
                     ImportIssue(
                         session=None,
                         field=str(key),
                         message=f"Champ inconnu « {key} » à la racine.",
+                    )
+                )
+        if "plan" in data:
+            if version == 2:
+                meta = _parse_meta(data["plan"], issues)
+            else:
+                issues.append(
+                    ImportIssue(
+                        session=None,
+                        field="plan",
+                        message='« plan » demande "version": 2 à la racine du fichier.',
                     )
                 )
         sessions = data.get("sessions")
@@ -299,7 +376,7 @@ def parse_document(data: Any, today: date) -> tuple[list[tuple[date, PlanLine]],
                 ),
             )  # fmt: skip
         )
-        return [], issues
+        return [], issues, meta
     if not sessions:
         issues.append(
             ImportIssue(session=None, field="sessions", message="La liste de séances est vide.")
@@ -310,7 +387,7 @@ def parse_document(data: Any, today: date) -> tuple[list[tuple[date, PlanLine]],
                 session=None, field="sessions", message=f"Plan limité à {MAX_SESSIONS} séances."
             )
         )
-        return [], issues
+        return [], issues, meta
     parsed: list[tuple[date, PlanLine]] = []
     seen: Counter[tuple[date, PlanLine]] = Counter()
     for i, raw in enumerate(sessions, start=1):
@@ -324,7 +401,7 @@ def parse_document(data: Any, today: date) -> tuple[list[tuple[date, PlanLine]],
                     )
                 )
             parsed.append(item)
-    return parsed, issues
+    return parsed, issues, meta
 
 
 def _line(p: PlannedSession) -> PlanLine:
@@ -340,6 +417,11 @@ def _key(line: PlanLine) -> tuple[str, ...]:
     ))  # fmt: skip
 
 
+def _foreign(row: PlannedSession, target_id: int | None) -> bool:
+    """Séance rattachée à un autre plan (les séances saisies à la main, sans plan, sont libres)."""
+    return row.plan_id is not None and row.plan_id != target_id
+
+
 def plan_import(
     session: Session,
     parsed: Sequence[tuple[date, PlanLine]],
@@ -349,10 +431,26 @@ def plan_import(
     tz: ZoneInfo,
     dry_run: bool,
     confirm_past_done: bool,
+    confirm_overlap: bool = False,
+    meta: PlanMeta | None = None,
 ) -> ImportReport:
+    meta = meta or PlanMeta()
     by_day: dict[date, list[PlanLine]] = {}
     for day, line in parsed:
         by_day.setdefault(day, []).append(line)
+    first, last = min(by_day), max(by_day)
+    nom = meta.nom or f"Plan du {first:%d/%m/%Y}"
+    target = session.scalars(select(Plan).where(func.lower(Plan.nom) == nom.lower())).first()
+    target_id = target.id if target else None
+    existed = target is not None
+    goal = resolve_course(session, meta.course) if meta.course else None
+    warnings: list[str] = []
+    if meta.course and goal is None:
+        warnings.append(
+            f"Course « {meta.course} » non reconnue : le plan ne sera lié à aucune course "
+            "(à attribuer ensuite dans la page Courses)."
+        )
+
     existing_rows = list(
         session.scalars(
             select(PlannedSession)
@@ -378,16 +476,25 @@ def plan_import(
         incoming = by_day[day]
         current = existing.get(day, [])
         current_lines = [_line(p) for p in current]
+        reason = None
         if not current:
             action: DayAction = "create"
-            reason = None
         elif sorted(map(_key, current_lines)) == sorted(map(_key, incoming)):
-            action, reason = "unchanged", None
+            action = "unchanged"
         elif day in done_days and not confirm_past_done:
             action = "blocked"
             reason = "Jour passé avec une séance déjà réalisée : confirmation explicite nécessaire."
+        elif any(_foreign(p, target_id) for p in current) and not confirm_overlap:
+            action = "overlap"
+            names = sorted(
+                {p.plan.nom for p in current if p.plan is not None and _foreign(p, target_id)}
+            )
+            reason = (
+                f"Ce jour appartient à un autre plan ({', '.join(names)}) : "
+                "confirmation nécessaire."
+            )
         else:
-            action, reason = "replace", None
+            action = "replace"
         if action in ("create", "replace"):
             to_replace.append(day)
             added += len(incoming)
@@ -403,7 +510,21 @@ def plan_import(
         )
 
     applied = False
+    plan_id = target_id
     if not dry_run and to_replace:
+        if target is None:
+            target = Plan(
+                nom=nom,
+                date_debut=first,
+                date_fin=last,
+                goal_id=goal.id if goal else None,
+            )
+            session.add(target)
+            session.flush()
+        elif goal is not None:
+            target.goal_id = goal.id
+        plan_id = target.id
+        touched = {p.plan_id for d in to_replace for p in existing.get(d, [])}
         session.execute(delete(PlannedSession).where(PlannedSession.date.in_(to_replace)))
         for day in to_replace:
             for line in by_day[day]:
@@ -417,14 +538,29 @@ def plan_import(
                         zone_cible=line.zone_cible,
                         dplus_cible=line.dplus_cible,
                         consignes=line.consignes,
+                        plan_id=plan_id,
                     )  # fmt: skip
                 )
+        session.flush()
+        for pid in touched | {plan_id}:
+            refresh_bounds(session, pid)
         session.commit()
         applied = True
     counts = Counter(d.action for d in days)
     return ImportReport(
         dry_run=dry_run,
         applied=applied,
+        plan=PlanInfo(
+            nom=target.nom if target else nom,
+            action="update" if existed else "create",
+            plan_id=plan_id,
+            course_id=(goal.id if goal else (target.goal_id if target else None)),
+            course_nom=_course_name(session, goal, target),
+            course_asked=meta.course,
+            date_debut=min(first, target.date_debut) if target else first,
+            date_fin=max(last, target.date_fin) if target else last,
+        ),
+        warnings=warnings,
         summary=ImportSummary(
             sessions_in_file=len(parsed),
             days_in_file=len(by_day),
@@ -432,8 +568,18 @@ def plan_import(
             replaced_days=counts["replace"],
             unchanged_days=counts["unchanged"],
             blocked_days=counts["blocked"],
+            overlap_days=counts["overlap"],
             sessions_added=added,
             sessions_removed=removed,
         ),
         days=days,
     )
+
+
+def _course_name(session: Session, goal: Goal | None, target: Plan | None) -> str | None:
+    if goal is not None:
+        return goal.nom
+    if target is not None and target.goal_id is not None:
+        linked = session.get(Goal, target.goal_id)
+        return linked.nom if linked else None
+    return None

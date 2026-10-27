@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 from sqlalchemy import (
@@ -14,7 +14,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 
@@ -165,6 +165,23 @@ class EveningEntry(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
+class Plan(Base):
+    """Plan d'entraînement nommé (produit par le coach), éventuellement lié à une course."""
+
+    __tablename__ = "plan"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    nom: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    date_debut: Mapped[date] = mapped_column(Date, nullable=False)
+    date_fin: Mapped[date] = mapped_column(Date, nullable=False)
+    goal_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("goal.id", ondelete="SET NULL"), index=True
+    )
+    cree_le: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC).replace(tzinfo=None)
+    )
+
+
 class PlannedSession(Base):
     __tablename__ = "planned_session"
 
@@ -177,6 +194,10 @@ class PlannedSession(Base):
     zone_cible: Mapped[str | None] = mapped_column(String)
     dplus_cible: Mapped[int | None] = mapped_column(Integer)
     consignes: Mapped[str | None] = mapped_column(String)
+    plan_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("plan.id", ondelete="SET NULL"), index=True
+    )
+    plan: Mapped[Plan | None] = relationship(lazy="joined")
 
 
 class DashboardLayoutRow(Base):

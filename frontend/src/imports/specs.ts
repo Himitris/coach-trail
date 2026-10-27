@@ -145,12 +145,13 @@ const planSpec: ImportSpec = {
     if (errors.length) return { errors, lines: [] };
     try {
       const report = await importPlan(planDoc, { dryRun: true });
-      const label = { create: "Création", replace: "Remplacement", unchanged: "Inchangé", blocked: "Bloqué (jour déjà réalisé)" } as const;
+      const label = { create: "Création", replace: "Remplacement", unchanged: "Inchangé", blocked: "Bloqué (jour déjà réalisé)", overlap: "Autre plan (confirmation)" } as const;
       const lines = report.days.map(
         (d) => `${formatDay(d.date)} — ${label[d.action]} : ${d.incoming.map((l) => l.titre).join(" + ")}`,
       );
-      const { created_days, replaced_days, blocked_days } = report.summary;
-      return { errors: [], lines, blocked: blocked_days, changes: created_days + replaced_days, nothingToDo: created_days + replaced_days === 0 && blocked_days === 0 };
+      const { created_days, replaced_days, blocked_days, overlap_days } = report.summary;
+      const held = blocked_days + overlap_days; // jours qui demandent une confirmation explicite
+      return { errors: [], lines, blocked: held, changes: created_days + replaced_days, nothingToDo: created_days + replaced_days === 0 && held === 0 };
     } catch (error) {
       const issues = issuesOf(error);
       if (issues) return { errors: issues, lines: [] };
@@ -159,7 +160,11 @@ const planSpec: ImportSpec = {
   },
   async apply(doc, ctx) {
     const { doc: planDoc } = toPlanDocument(doc, ctx.weekStart);
-    const report = await importPlan(planDoc, { dryRun: false, confirmPastDone: ctx.confirmPast ?? false });
+    const report = await importPlan(planDoc, {
+      dryRun: false,
+      confirmPastDone: ctx.confirmPast ?? false,
+      confirmOverlap: ctx.confirmPast ?? false,
+    });
     await invalidateTraining(ctx.queryClient);
     return `Plan importé : ${report.summary.sessions_added} séance(s) ajoutée(s).`;
   },

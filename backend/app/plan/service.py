@@ -63,6 +63,8 @@ def planned_out(p: PlannedSession, status: str) -> PlannedOut:
         consignes=p.consignes,
         type_label=TYPE_LABELS.get(p.type, p.type),
         status=status,
+        plan_id=p.plan_id,
+        plan_nom=p.plan.nom if p.plan else None,
     )
 
 

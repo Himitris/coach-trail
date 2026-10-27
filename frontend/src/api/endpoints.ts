@@ -11,6 +11,7 @@ import type {
   FuelingSeries,
   Goal,
   GearReport,
+  Plan,
   GpxSummary,
   MonotonyReport,
   RaceGoalReport,
@@ -265,15 +266,28 @@ export interface PlanLine {
 
 export interface PlanImportDay {
   date: string;
-  action: "create" | "replace" | "unchanged" | "blocked";
+  action: "create" | "replace" | "unchanged" | "blocked" | "overlap";
   reason: string | null;
   existing: PlanLine[];
   incoming: PlanLine[];
 }
 
+export interface PlanImportInfo {
+  nom: string;
+  action: "create" | "update";
+  plan_id: number | null;
+  course_id: number | null;
+  course_nom: string | null;
+  course_asked: string | null;
+  date_debut: string;
+  date_fin: string;
+}
+
 export interface PlanImportReport {
   dry_run: boolean;
   applied: boolean;
+  plan: PlanImportInfo | null;
+  warnings: string[];
   summary: {
     sessions_in_file: number;
     days_in_file: number;
@@ -281,6 +295,7 @@ export interface PlanImportReport {
     replaced_days: number;
     unchanged_days: number;
     blocked_days: number;
+    overlap_days: number;
     sessions_added: number;
     sessions_removed: number;
   };
@@ -295,11 +310,28 @@ export interface PlanImportIssue {
 
 export const importPlan = (
   doc: unknown,
-  options: { dryRun: boolean; confirmPastDone?: boolean },
+  options: { dryRun: boolean; confirmPastDone?: boolean; confirmOverlap?: boolean },
 ): Promise<PlanImportReport> =>
-  request("POST", `/api/plan/import${search({ dry_run: options.dryRun, confirm_past_done: options.confirmPastDone ?? false })}`, {
-    body: doc,
-  });
+  request(
+    "POST",
+    `/api/plan/import${search({
+      dry_run: options.dryRun,
+      confirm_past_done: options.confirmPastDone ?? false,
+      confirm_overlap: options.confirmOverlap ?? false,
+    })}`,
+    { body: doc },
+  );
+
+// --- plans et courses ---------------------------------------------------------------------------
+
+export const fetchPlans = (): Promise<Plan[]> => request("GET", "/api/plans");
+
+/** Attribue le plan à une course, ou le détache (`null`). */
+export const setPlanCourse = (planId: number, goalId: number | null): Promise<Plan> =>
+  request("PUT", `/api/plans/${planId}/course`, { body: { goal_id: goalId } });
+
+export const deletePlan = (planId: number): Promise<{ removed: number; kept: number }> =>
+  request("DELETE", `/api/plans/${planId}`);
 
 // --- Strava (optionnel) -------------------------------------------------------------------------
 
@@ -374,10 +406,14 @@ export const fetchAuthStatus = (): Promise<AuthStatus> => request("GET", "/api/a
 export const login = (code: string): Promise<null> => request("POST", "/api/auth/login", { body: { code } });
 export const logout = (): Promise<null> => request("POST", "/api/auth/logout");
 
-export const createGoal = (body: {
+export interface GoalInput {
   nom: string;
   date: string;
   distance_km?: number | null;
   dplus_m?: number | null;
   priorite?: number;
-}): Promise<Goal> => request("POST", "/api/goals", { body });
+}
+
+export const createGoal = (body: GoalInput): Promise<Goal> => request("POST", "/api/goals", { body });
+export const updateGoal = (id: number, body: GoalInput): Promise<Goal> => request("PUT", `/api/goals/${id}`, { body });
+export const deleteGoal = (id: number): Promise<null> => request("DELETE", `/api/goals/${id}`);

@@ -1,7 +1,14 @@
 from datetime import date, datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 SessionType = Literal[
     "footing", "cotes", "seuil", "longue", "fractionne", "course", "renfo", "repos", "autre"
@@ -111,6 +118,47 @@ class PlannedOut(PlannedIn):
     id: int
     type_label: str
     status: str
+    plan_id: int | None = None
+    plan_nom: str | None = None
+
+
+# --- plans ----------------------------------------------------------------------------------
+
+
+class PlanIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    nom: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
+    date_debut: date
+    date_fin: date
+    goal_id: int | None = None
+
+    @model_validator(mode="after")
+    def _ordered(self) -> "PlanIn":
+        if self.date_debut > self.date_fin:
+            raise ValueError("date_debut doit précéder date_fin")
+        return self
+
+
+class PlanCourseIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    goal_id: int | None  # None : détache le plan de sa course
+
+
+class PlanOut(BaseModel):
+    id: int
+    nom: str
+    date_debut: date
+    date_fin: date
+    goal_id: int | None
+    goal_nom: str | None
+    nb_seances: int
+
+
+class PlanDeleteOut(BaseModel):
+    removed: int
+    kept: int  # séances déjà réalisées, conservées sans plan
 
 
 class SessionMatchOut(BaseModel):

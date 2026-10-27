@@ -1,9 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
-/** Page d'exemple « Course » : vérification visuelle bureau / téléphone (captures dans test-results/). */
+/** Page Courses : plan attribué à une course, vérification visuelle bureau / téléphone (captures dans test-results/). */
 test.describe.configure({ mode: "serial" });
-
-const TITLES = ["Objectif de course", "Nutrition en course", "Fatigue musculaire", "Monotonie et tension"];
 
 async function noHorizontalOverflow(page: Page) {
   const measure = () =>
@@ -20,27 +18,29 @@ async function noHorizontalOverflow(page: Page) {
   expect((await measure()).overflow).toBeLessThanOrEqual(1);
 }
 
-test("la page « Course » s'affiche sur ordinateur et sur téléphone", async ({ page, request }) => {
-  await request.post("/api/sync/run");
-  await expect.poll(async () => ((await (await request.get("/api/activities?limit=200")).json()) as unknown[]).length).toBeGreaterThan(5);
+test("la page Courses attribue un plan à une course, sur ordinateur et sur téléphone", async ({ page, request }) => {
+  const goal = (await (await request.post("/api/goals", { data: { nom: "Course e2e", date: "2027-03-14", distance_km: 42, dplus_m: 2000 } })).json()) as { id: number };
+  const doc = { version: 2, plan: { nom: "Plan e2e" }, sessions: [{ date: "2027-03-01", type: "footing", duree_min: 45 }, { date: "2027-03-03", type: "seuil" }] };
+  const imported = await request.post("/api/plan/import?dry_run=false", { data: doc });
+  expect(imported.ok()).toBe(true);
 
-  await page.goto("/");
-  await page.getByRole("button", { name: "+ Course" }).click();
-  for (const title of TITLES) await expect(page.getByRole("heading", { name: title })).toBeVisible();
-
-  // la sortie longue de 4 h est proposée pour la nutrition, la saisie rapide fonctionne
-  const fueling = page.locator("article", { has: page.getByRole("heading", { name: "Nutrition en course" }) });
-  await fueling.getByRole("button", { name: "Saisir" }).click();
-  await fueling.getByLabel("Glucides (g/h)").fill("72");
-  await fueling.getByRole("button", { name: "Score digestif : 1" }).click();
-  await fueling.getByRole("button", { name: "Enregistrer" }).click();
-  await expect(fueling.getByText("72 g/h")).toBeVisible();
+  await page.goto("/courses");
+  await expect(page.getByRole("heading", { name: "Courses", level: 1 })).toBeVisible();
+  await expect(page.getByText("Plans sans course")).toBeVisible();
+  await page.getByLabel("Attribuer à une course").selectOption(String(goal.id));
+  const card = page.getByRole("article", { name: "Course e2e" });
+  await expect(card.getByText("Plan e2e")).toBeVisible();
+  await expect(card.getByText(/2 séance/)).toBeVisible();
 
   await noHorizontalOverflow(page);
-  await page.screenshot({ path: "test-results/course-desktop.png", fullPage: true });
-
+  await page.screenshot({ path: "test-results/courses-desktop.png", fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
-  for (const title of TITLES) await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  await expect(card.getByText("Plan e2e")).toBeVisible();
   await noHorizontalOverflow(page);
-  await page.screenshot({ path: "test-results/course-mobile.png", fullPage: true });
+  await page.screenshot({ path: "test-results/courses-mobile.png", fullPage: true });
+
+  // nettoyage : le plan (séances comprises) puis la course
+  const plans = (await (await request.get("/api/plans")).json()) as { id: number; nom: string }[];
+  for (const plan of plans.filter((p) => p.nom === "Plan e2e")) await request.delete(`/api/plans/${plan.id}`);
+  await request.delete(`/api/goals/${goal.id}`);
 });

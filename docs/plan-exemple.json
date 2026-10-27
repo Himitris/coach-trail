@@ -1,5 +1,9 @@
 {
-  "version": 1,
+  "version": 2,
+  "plan": {
+    "nom": "Fin de préparation – Trail des 3 Rocs",
+    "course": "Trail des 3 Rocs"
+  },
   "sessions": [
     {
       "date": "2026-11-02",

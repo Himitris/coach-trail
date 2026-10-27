@@ -46,6 +46,19 @@ export interface PlannedSession extends PlannedInput {
   id: number;
   type_label: string;
   status: PlanStatus;
+  plan_id: number | null;
+  plan_nom: string | null;
+}
+
+/** Plan d'entraînement nommé, éventuellement attribué à une course. */
+export interface Plan {
+  id: number;
+  nom: string;
+  date_debut: string;
+  date_fin: string;
+  goal_id: number | null;
+  goal_nom: string | null;
+  nb_seances: number;
 }
 
 export interface ActivityBrief {

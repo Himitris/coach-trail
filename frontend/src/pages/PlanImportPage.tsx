@@ -17,6 +17,7 @@ const ACTION_LABELS: Record<PlanImportDay["action"], string> = {
   replace: "Remplacement",
   unchanged: "Inchangé",
   blocked: "Bloqué (jour réalisé)",
+  overlap: "Autre plan (confirmation)",
 };
 
 function describe(line: PlanLine): string {
@@ -45,6 +46,7 @@ export function PlanImportPage() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [confirmPast, setConfirmPast] = useState(false);
+  const [confirmOverlap, setConfirmOverlap] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [result, setResult] = useState<PlanImportReport | null>(null);
 
@@ -53,7 +55,7 @@ export function PlanImportPage() {
     onMutate: () => { setResult(null); },
   });
   const apply = useMutation({
-    mutationFn: () => importPlan(doc, { dryRun: false, confirmPastDone: confirmPast }),
+    mutationFn: () => importPlan(doc, { dryRun: false, confirmPastDone: confirmPast, confirmOverlap }),
     onSuccess: async (report) => {
       setResult(report);
       await invalidateTraining(queryClient);
@@ -64,6 +66,7 @@ export function PlanImportPage() {
   const load = async (file: File) => {
     setLocalError(null);
     setConfirmPast(false);
+    setConfirmOverlap(false);
     setFileName(file.name);
     setDoc(null);
     preview.reset();
@@ -90,6 +93,7 @@ export function PlanImportPage() {
   const otherError = preview.error && !issues ? preview.error.message : apply.error && !issuesOf(apply.error) ? apply.error.message : null;
   const summary = report?.summary;
   const changes = summary ? summary.created_days + summary.replaced_days : 0;
+  const plan = report?.plan ?? null;
 
   return (
     <section className="plan-import">
@@ -151,8 +155,19 @@ export function PlanImportPage() {
               : "Aperçu (rien n'est enregistré). "}
             {summary.sessions_in_file} séance(s) sur {summary.days_in_file} jour(s) : {summary.created_days} création(s),{" "}
             {summary.replaced_days} remplacement(s), {summary.unchanged_days} inchangé(s)
-            {summary.blocked_days > 0 && `, ${summary.blocked_days} bloqué(s)`}.
+            {summary.blocked_days > 0 && `, ${summary.blocked_days} bloqué(s)`}
+            {summary.overlap_days > 0 && `, ${summary.overlap_days} sur un autre plan`}.
           </p>
+          {plan && (
+            <p className="plan-target">
+              {plan.action === "update" ? "Plan existant mis à jour" : "Nouveau plan"} : <strong>{plan.nom}</strong>
+              {" "}({formatDay(plan.date_debut)} → {formatDay(plan.date_fin)})
+              {plan.course_nom ? <> · course : <strong>{plan.course_nom}</strong></> : " · aucune course liée"}
+            </p>
+          )}
+          {report.warnings.map((w) => (
+            <p key={w} className="form-warning" role="status">{w}</p>
+          ))}
           <div className="table-scroll">
             <table className="data-table">
               <thead>
@@ -189,17 +204,31 @@ export function PlanImportPage() {
               </span>
             </label>
           )}
+          {summary.overlap_days > 0 && !result?.applied && (
+            <label className="field">
+              <span>
+                <input
+                  type="checkbox"
+                  checked={confirmOverlap}
+                  onChange={(event) => {
+                    setConfirmOverlap(event.target.checked);
+                  }}
+                />{" "}
+                Je confirme le remplacement de {summary.overlap_days} jour(s) qui appartiennent à un autre plan
+              </span>
+            </label>
+          )}
           {!result?.applied && (
             <div className="entry-row">
               <button
                 type="button"
                 className="btn btn-primary"
-                disabled={apply.isPending || (changes === 0 && !(confirmPast && summary.blocked_days > 0))}
+                disabled={apply.isPending || (changes === 0 && !(confirmPast && summary.blocked_days > 0) && !(confirmOverlap && summary.overlap_days > 0))}
                 onClick={() => { apply.mutate(); }}
               >
                 Confirmer l'import
               </button>
-              {changes === 0 && summary.blocked_days === 0 && <span className="muted">Rien à changer : le plan est déjà à jour.</span>}
+              {changes === 0 && summary.blocked_days === 0 && summary.overlap_days === 0 && <span className="muted">Rien à changer : le plan est déjà à jour.</span>}
             </div>
           )}
         </>

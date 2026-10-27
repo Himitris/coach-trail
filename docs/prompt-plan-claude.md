@@ -2,7 +2,7 @@
 
 Copiez le texte ci-dessous dans Claude (avec l'export « Copier pour Claude » de l'appli, qui contient
 votre profil, vos objectifs et vos dernières semaines), puis enregistrez la réponse dans un fichier
-`plan.json` et importez-le dans l'appli (page **Importer un plan**).
+`plan.json` et importez-le dans l'appli (page **Importer un plan**). L'appli range ce plan sous son nom et peut le lier à une course (page **Courses**) ; importer à l'avance le plan de la course suivante ne touche pas au premier.
 
 ---
 
@@ -10,11 +10,15 @@ Tu es mon entraîneur de trail. À partir de l'export Coach Trail ci-joint (prof
 récent, récupération, plan prévu vs réalisé), propose-moi le plan des prochaines semaines.
 
 **Format de sortie obligatoire** : réponds uniquement avec un bloc de code JSON, sans commentaire
-autour, qui respecte exactement ce schéma (version 1) :
+autour, qui respecte exactement ce schéma (version 2) :
 
 ```json
 {
-  "version": 1,
+  "version": 2,
+  "plan": {
+    "nom": "nom court du plan, ex. « Fin de prépa 3 Rocs »",
+    "course": "nom de la course visée (facultatif)"
+  },
   "sessions": [
     {
       "date": "AAAA-MM-JJ",
@@ -31,7 +35,8 @@ autour, qui respecte exactement ce schéma (version 1) :
 ```
 
 Règles :
-- `date` et `type` sont obligatoires ; tout le reste est facultatif. Aucun autre champ.
+- `version` vaut 2 ; `plan.nom` est obligatoire, `plan.course` est le nom de la course visée telle qu'elle figure dans l'export (facultatif). Aucun autre champ dans `plan`.
+- Dans chaque séance, `date` et `type` sont obligatoires ; tout le reste est facultatif. Aucun autre champ.
 - `date` au format `AAAA-MM-JJ` ; une ligne par séance (plusieurs séances le même jour sont permises) ;
   inclus aussi les jours de repos (`"type": "repos"`).
 - `type` exactement l'une des valeurs listées (en minuscules, sans accent).
@@ -42,4 +47,4 @@ Règles :
 - Hausse de temps hebdomadaire d'environ +10 % au plus comme repère de bon sens.
 - Ne propose que des descriptions de séance : rien n'est envoyé à la montre.
 
-Exemple complet : `docs/plan-exemple.json`. Schéma formel : `docs/plan-schema.json`.
+Le format sans bloc `plan` (version 1, `"version": 1`) reste accepté. Exemple complet : `docs/plan-exemple.json`. Schéma formel : `docs/plan-schema.json`.

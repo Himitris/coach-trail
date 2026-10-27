@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.metrics.models import monday
 from app.models import PlannedSession
 from app.plan import importer, service
+from app.plan.plans import refresh_bounds
 from app.plan.schemas import PlannedIn, PlannedOut, WeekPlanOut
 from app.routes.deps import get_db
 
@@ -107,13 +108,18 @@ def update_session(
 ) -> PlannedOut:
     planned = _get(db, session_id)
     service.apply_fields(planned, body)
+    refresh_bounds(db, planned.plan_id)
     db.commit()
     return _out(request, db, planned)
 
 
 @router.delete("/sessions/{session_id}", status_code=204)
 def delete_session(session_id: int, db: Annotated[Session, Depends(get_db)]) -> Response:
-    db.delete(_get(db, session_id))
+    planned = _get(db, session_id)
+    plan_id = planned.plan_id
+    db.delete(planned)
+    db.flush()
+    refresh_bounds(db, plan_id)
     db.commit()
     return Response(status_code=204)
 
@@ -124,10 +130,12 @@ async def import_plan(
     db: Annotated[Session, Depends(get_db)],
     dry_run: bool = True,
     confirm_past_done: bool = False,
+    confirm_overlap: bool = False,
 ) -> importer.ImportReport | JSONResponse:
     """Importe un plan JSON. `dry_run=true` (défaut) : aperçu sans rien écrire.
 
-    Les jours passés dont la séance est déjà réalisée ne sont modifiés qu'avec `confirm_past_done`.
+    Les jours passés dont la séance est déjà réalisée ne sont modifiés qu'avec `confirm_past_done` ;
+    les jours qui appartiennent à un autre plan, qu'avec `confirm_overlap`.
     """
     priority, tz, today = _ctx(request)
     try:
@@ -140,7 +148,7 @@ async def import_plan(
                 )
             ]
         )
-    parsed, issues = importer.parse_document(data, today)
+    parsed, issues, meta = importer.parse_document(data, today)
     if issues:
         return _import_errors(issues)
     return importer.plan_import(
@@ -151,6 +159,8 @@ async def import_plan(
         tz=tz,
         dry_run=dry_run,
         confirm_past_done=confirm_past_done,
+        confirm_overlap=confirm_overlap,
+        meta=meta,
     )
 
 
