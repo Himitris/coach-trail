@@ -1,4 +1,4 @@
-# Coach Trail — socle (phase 0). Variables lues dans deploy/.env (copie de ../.env.example).
+# Coach Trail. Variables lues dans deploy/.env (copie de ../.env.example).
 services:
   caddy:
     build: ./caddy
@@ -29,6 +29,8 @@ services:
     environment:
       TZ: ${TZ:-Europe/Paris}
       DATABASE_PATH: /data/coach.db
+      BACKUP_DIR: /backup
+      BACKUP_TIME: ${BACKUP_TIME:-04:30}
       GARMIN_TOKEN_DIR: /data/garmin_tokens
       INTERVALS_ATHLETE_ID: ${INTERVALS_ATHLETE_ID:-}
       INTERVALS_API_KEY: ${INTERVALS_API_KEY:-}
@@ -36,6 +38,8 @@ services:
       STRAVA_CLIENT_SECRET: ${STRAVA_CLIENT_SECRET:-}
     volumes:
       - ../data:/data
+      # Disque physiquement distinct de ../data (voir README, « Sauvegardes »).
+      - ${BACKUP_HOST_DIR:?BACKUP_HOST_DIR manquant}:/backup
     expose:
       - "8000"
 

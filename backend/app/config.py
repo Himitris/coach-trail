@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     tz: str = "Europe/Paris"
     database_path: str = "/data/coach.db"
     backup_dir: str = "/backup"
+    backup_time: str = "04:30"
     garmin_token_dir: str = "/data/garmin_tokens"  # noqa: S105
     intervals_athlete_id: str = ""
     intervals_api_key: SecretStr = SecretStr("")
@@ -28,16 +29,21 @@ class Settings(BaseSettings):
     garmin_max_delay_s: float = 3.0
     garmin_stream_max_points: int = 20000
 
-    @field_validator("sync_time")
+    @field_validator("sync_time", "backup_time")
     @classmethod
     def _check_sync_time(cls, v: str) -> str:
         if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", v):
-            raise ValueError("SYNC_TIME doit être au format HH:MM")
+            raise ValueError("SYNC_TIME et BACKUP_TIME doivent être au format HH:MM")
         return v
 
     @property
     def sync_hour_minute(self) -> tuple[int, int]:
         h, m = self.sync_time.split(":")
+        return int(h), int(m)
+
+    @property
+    def backup_hour_minute(self) -> tuple[int, int]:
+        h, m = self.backup_time.split(":")
         return int(h), int(m)
 
     @property

@@ -1,4 +1,4 @@
-# Déploiement — Coach Trail (phase 0)
+# Déploiement — Coach Trail
 
 Objectif : `https://coach.himitris.fr` accessible **uniquement via Tailscale**, certificat Let's Encrypt obtenu par défi DNS-01 (OVH), aucun port public.
 
@@ -61,7 +61,17 @@ docker compose logs -f caddy  # attendre « certificate obtained successfully »
 ```bash
 ./check.sh
 ```
-Le script contrôle que `https://coach.himitris.fr/api/ping` répond `{"ok":true}` et qu'aucun port 80/443 n'écoute sur `0.0.0.0` ni sur l'IP publique.
+Le script contrôle que `https://coach.himitris.fr/api/ping` répond `{"ok":true}`, qu'aucun port 80/443 n'écoute sur `0.0.0.0` ni sur l'IP publique, que les en-têtes de sécurité sont présents et le CORS fermé, qu'aucun secret connu n'apparaît dans les journaux, que les jetons Garmin ne sont lisibles que par leur propriétaire, et affiche l'état de la dernière sauvegarde.
+
+## 7. Sauvegardes
+
+Renseigner `BACKUP_HOST_DIR` dans `.env` : dossier de l'hôte sur un **disque physiquement distinct** (second disque, montage réseau d'un autre appareil…), monté dans l'API en `/backup`. `docker compose` refuse de démarrer s'il manque. Le dossier doit appartenir à l'uid 1000 (`chown 1000:1000`).
+
+```bash
+docker compose exec api python -m app.cli backup   # sauvegarde immédiate
+./restore.sh                                       # liste ; ./restore.sh daily/coach-AAAA-MM-JJ.db restaure
+```
+Procédure complète et rotation : voir le `README.md` à la racine. La checklist de mise en service est dans `docs/recette-phase1.md`.
 
 **Critère final** : depuis le téléphone, Tailscale activé, `https://coach.himitris.fr` affiche « Coach Trail — OK » en HTTPS valide ; Tailscale coupé (ou depuis un autre réseau), aucune réponse.
 

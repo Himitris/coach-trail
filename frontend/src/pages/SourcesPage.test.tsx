@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SourceHealth } from "../api/endpoints";
@@ -28,6 +28,22 @@ const mount = () =>
       </ToastProvider>
     </QueryClientProvider>,
   );
+
+const backup = {
+  backup_dir: "/backup",
+  last_run_at: "2026-10-15T02:30:00",
+  ok: true,
+  message: "Sauvegarde réussie en 0.2 s.",
+  file: "coach-2026-10-15.db",
+  size_bytes: 2_621_440,
+  integrity: "ok",
+  daily: 7,
+  weekly: 4,
+  monthly: 2,
+  total_size_bytes: 31_457_280,
+  stale: false,
+  warning: null,
+};
 
 const status = { running: false, nightly_time: "03:30", next_run_at: null };
 
@@ -152,5 +168,55 @@ describe("Santé des sources", () => {
     expect(screen.queryByLabelText("E-mail Garmin")).toBeNull();
     await userEvent.click(await screen.findByRole("button", { name: "Se reconnecter à Garmin" }));
     expect(screen.getByLabelText("E-mail Garmin")).toBeInTheDocument();
+  });
+
+  it("affiche le statut de la dernière sauvegarde : date, taille, contrôle d'intégrité, rotation", async () => {
+    mockApi({
+      "GET /api/sources/health": () => ({ body: [source({})] }),
+      "GET /api/sync/status": () => ({ body: status }),
+      "GET /api/backup/status": () => ({ body: backup }),
+    });
+    mount();
+    const card = within(await screen.findByLabelText("Sauvegardes"));
+    expect(await card.findByText("Réussie")).toBeInTheDocument();
+    expect(card.getByText("2,5 Mo")).toBeInTheDocument();
+    expect(card.getByText("réussi")).toBeInTheDocument();
+    expect(card.getByText(/7 quotidiennes · 4 hebdomadaires · 2 mensuelles/)).toBeInTheDocument();
+  });
+
+  it("signale une sauvegarde en échec, ancienne ou sur le même disque", async () => {
+    mockApi({
+      "GET /api/sources/health": () => ({ body: [source({})] }),
+      "GET /api/sync/status": () => ({ body: status }),
+      "GET /api/backup/status": () => ({
+        body: {
+          ...backup,
+          ok: false,
+          stale: true,
+          integrity: null,
+          size_bytes: null,
+          message: "Échec : BackupError: base introuvable",
+          warning: "La sauvegarde est sur le même volume que la base.",
+        },
+      }),
+    });
+    mount();
+    const card = within(await screen.findByLabelText("Sauvegardes"));
+    expect(await card.findByText("Échec")).toBeInTheDocument();
+    expect(card.getByText(/base introuvable/)).toBeInTheDocument();
+    expect(card.getByText(/même volume/)).toBeInTheDocument();
+  });
+
+  it("indique qu'aucune sauvegarde n'a encore eu lieu", async () => {
+    mockApi({
+      "GET /api/sources/health": () => ({ body: [source({})] }),
+      "GET /api/sync/status": () => ({ body: status }),
+      "GET /api/backup/status": () => ({
+        body: { ...backup, ok: null, last_run_at: null, message: "Aucune sauvegarde effectuée.", daily: 0, weekly: 0, monthly: 0, total_size_bytes: 0, stale: true, file: null, size_bytes: null, integrity: null },
+      }),
+    });
+    mount();
+    const card = within(await screen.findByLabelText("Sauvegardes"));
+    expect(await card.findByText("Aucune sauvegarde")).toBeInTheDocument();
   });
 });

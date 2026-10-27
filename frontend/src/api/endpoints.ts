@@ -145,3 +145,25 @@ export const exportStreamsUrl = (period: ExportPeriod): string =>
   `/api/export/streams${search({ from: period.from, to: period.to })}`;
 
 export const fetchActivityExport = (id: number): Promise<string> => request("GET", `/api/export/activity/${id}`);
+
+// --- sauvegardes ------------------------------------------------------------------------------
+
+export interface BackupStatus {
+  backup_dir: string;
+  last_run_at: string | null;
+  /** `null` : aucune sauvegarde tentée. */
+  ok: boolean | null;
+  message: string;
+  file: string | null;
+  size_bytes: number | null;
+  integrity: string | null;
+  daily: number;
+  weekly: number;
+  monthly: number;
+  total_size_bytes: number;
+  /** Dernière sauvegarde absente, en échec ou vieille de plus de 36 h. */
+  stale: boolean;
+  warning: string | null;
+}
+
+export const fetchBackupStatus = (): Promise<BackupStatus> => request("GET", "/api/backup/status");

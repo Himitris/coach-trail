@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addDays,
+  formatBytes,
   formatDuration,
   formatDurationS,
   formatKm,
@@ -60,5 +61,15 @@ describe("formats", () => {
     expect(addDays("2026-03-01", -1)).toBe("2026-02-28");
     expect(parseUtc("2026-10-14T03:31:00").toISOString()).toBe("2026-10-14T03:31:00.000Z");
     expect(parseUtc("2026-10-14T03:31:00+02:00").toISOString()).toBe("2026-10-14T01:31:00.000Z");
+  });
+});
+
+describe("formatBytes", () => {
+  it("choisit l'unité et la virgule française", () => {
+    expect(formatBytes(null)).toBe("—");
+    expect(formatBytes(512)).toBe("512 o");
+    expect(formatBytes(1536)).toBe("1,5 Ko");
+    expect(formatBytes(5 * 1024 * 1024)).toBe("5 Mo");
+    expect(formatBytes(3 * 1024 ** 3)).toBe("3 Go");
   });
 });

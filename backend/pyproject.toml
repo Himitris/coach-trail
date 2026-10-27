@@ -23,6 +23,7 @@ dev = [
     "pytest>=8",
     "pytest-asyncio>=0.24",
     "ruff>=0.8",
+    "pyyaml>=6",
     "mypy>=1.13",
 ]
 
@@ -51,5 +52,5 @@ plugins = ["pydantic.mypy"]
 files = ["app", "tests", "alembic"]
 
 [[tool.mypy.overrides]]
-module = ["apscheduler.*"]
+module = ["apscheduler.*", "yaml"]
 ignore_missing_imports = true

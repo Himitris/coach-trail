@@ -97,3 +97,17 @@ function localDate(iso: string): Date {
 
 export const formatDay = (iso: string): string => dayMonth.format(localDate(iso));
 export const formatWeekdayDay = (iso: string): string => weekdayDayMonth.format(localDate(iso));
+
+/** Taille de fichier lisible (1 024 octets = 1 Ko, comme l'explorateur de fichiers). */
+export function formatBytes(bytes: number | null): string {
+  if (bytes === null) return "—";
+  const units = ["o", "Ko", "Mo", "Go"];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  const text = unit === 0 ? String(Math.round(value)) : value.toLocaleString("fr-FR", { maximumFractionDigits: 1 });
+  return `${text} ${units[unit] ?? "o"}`;
+}

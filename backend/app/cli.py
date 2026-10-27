@@ -1,11 +1,13 @@
-"""Commandes d'administration : `python -m app.cli garmin-login | seed-demo`."""
+"""Commandes d'administration : `python -m app.cli garmin-login | seed-demo | backup | restore`."""
 
 import argparse
 import getpass
 import sys
 from datetime import date, datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from app.backup import BackupError, BackupService, restore_backup
 from app.config import get_settings
 from app.db import make_engine, make_session_factory
 from app.garmin.auth import login_interactive
@@ -51,6 +53,26 @@ def seed_demo(week: str | None, force: bool) -> int:
     return 0
 
 
+def backup() -> int:
+    settings = get_settings()
+    service = BackupService(Path(settings.database_path), Path(settings.backup_dir), settings.tz)
+    status = service.run()
+    print(status.message)
+    return 0 if status.ok else 1
+
+
+def restore(file: str) -> int:
+    """À lancer API arrêtée (voir deploy/restore.sh)."""
+    settings = get_settings()
+    try:
+        safety = restore_backup(Path(file), Path(settings.database_path))
+    except (BackupError, OSError) as exc:
+        print(f"Restauration impossible : {exc}", file=sys.stderr)
+        return 1
+    print(f"Base restaurée depuis {file}. Ancienne base conservée : {safety}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -62,9 +84,16 @@ def main(argv: list[str] | None = None) -> int:
     seed.add_argument(
         "--force", action="store_true", help="ajouter même si la semaine a des séances"
     )
+    sub.add_parser("backup", help="sauvegarde immédiate vers BACKUP_DIR")
+    rest = sub.add_parser("restore", help="restaure une sauvegarde (API arrêtée)")
+    rest.add_argument("file", help="fichier .db de sauvegarde")
     args = parser.parse_args(argv)
     if args.command == "garmin-login":
         return garmin_login()
+    if args.command == "backup":
+        return backup()
+    if args.command == "restore":
+        return restore(args.file)
     return seed_demo(args.week, args.force)
 
 

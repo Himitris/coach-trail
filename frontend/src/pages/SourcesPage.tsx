@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { ApiError } from "../api/client";
-import { fetchSyncStatus, runSync, type SourceHealth } from "../api/endpoints";
-import { formatDateTime, STATE_LABELS } from "../app/format";
+import { fetchBackupStatus, fetchSyncStatus, runSync, type SourceHealth } from "../api/endpoints";
+import { formatBytes, formatDateTime, STATE_LABELS } from "../app/format";
 import { useToast } from "../app/toasts";
 import { useSources } from "../app/useSources";
 import { GarminLogin } from "./GarminLogin";
@@ -35,6 +35,40 @@ function SourceCard({ source }: { source: SourceHealth }) {
         </button>
       )}
       {needsLogin && <GarminLogin onDone={() => { setLoginOpen(false); }} />}
+    </li>
+  );
+}
+
+function BackupCard() {
+  const backup = useQuery({ queryKey: ["backup"], queryFn: fetchBackupStatus, refetchInterval: 300_000 });
+  const b = backup.data;
+  const state = b === undefined ? "down" : b.ok === true && !b.stale ? "ok" : b.ok === null ? "jamais_synchronise" : "down";
+  const label = b === undefined ? (backup.isError ? "Illisible" : "Chargement…") : b.ok === null ? "Aucune sauvegarde" : b.ok ? (b.stale ? "Ancienne" : "Réussie") : "Échec";
+  return (
+    <li className={`source source-${state}`} aria-label="Sauvegardes">
+      <div className="source-head">
+        <h2>Sauvegardes</h2>
+        <span className={`badge badge-${state}`}>{label}</span>
+      </div>
+      {backup.isError && <p>Impossible de lire l'état des sauvegardes : {backup.error.message}</p>}
+      {b && (
+        <>
+          <p>{b.message}</p>
+          {b.warning && <p className="source-badge">{b.warning}</p>}
+          <dl className="source-dates">
+            <dt>Dernière sauvegarde</dt>
+            <dd>{formatDateTime(b.last_run_at)}</dd>
+            <dt>Taille</dt>
+            <dd>{formatBytes(b.size_bytes)}</dd>
+            <dt>Contrôle d'intégrité</dt>
+            <dd>{b.integrity === "ok" ? "réussi" : (b.integrity ?? "—")}</dd>
+            <dt>Copies conservées</dt>
+            <dd>
+              {b.daily} quotidiennes · {b.weekly} hebdomadaires · {b.monthly} mensuelles ({formatBytes(b.total_size_bytes)})
+            </dd>
+          </dl>
+        </>
+      )}
     </li>
   );
 }
@@ -113,6 +147,7 @@ export function SourcesPage() {
           {sources.data.map((source) => (
             <SourceCard key={source.source} source={source} />
           ))}
+          <BackupCard />
         </ul>
       )}
     </section>

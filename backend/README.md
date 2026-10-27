@@ -137,3 +137,14 @@ Voir `app/plan/matching.py` (testée dans `tests/test_plan_matching.py`) :
   (`app/metrics/climbs.py` : dénivelé net ≥ 50 m, pente moyenne ≥ 3 %, hystérésis 20 m).
 - `GET /api/metrics/wellness?days=` : valeurs quotidiennes (HRV, FC repos, sommeil, Training
   Readiness, Body Battery) pour les courbes ; uniquement les jours reçus, rien d'interpolé.
+
+## Sauvegardes
+
+`app/backup.py` : copie quotidienne de la base (API `backup` de SQLite + `PRAGMA integrity_check`), rotation 7/4/6 et restauration. Planifiée par l'application à `BACKUP_TIME` (défaut 04:30) vers `BACKUP_DIR`.
+
+```bash
+python -m app.cli backup                    # sauvegarde immédiate
+python -m app.cli restore /backup/daily/coach-2026-10-15.db   # API arrêtée ; utiliser deploy/restore.sh
+```
+
+État : `GET /api/backup/status` (lecture seule). Tests : `tests/test_backup.py`, `tests/test_security.py`, et le parcours complet `tests/e2e_server.py` (utilisé par `npm run e2e`).
