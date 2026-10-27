@@ -2,7 +2,7 @@
 
 Objectif : `https://coach.himitris.fr` accessible **uniquement via Tailscale**, certificat Let's Encrypt obtenu par défi DNS-01 (OVH), aucun port public.
 
-Architecture : `caddy` (HTTPS, seul service publié, lié à l'IP Tailscale) → `api` (FastAPI, `/api/*`) et `web` (statique, le reste).
+Architecture : `caddy` (HTTPS, seul service publié, lié à l'IP Tailscale) → `api` (FastAPI, `/api/*`) et `web` (interface construite par `frontend/Dockerfile`, servie en statique par un Caddy minimal).
 
 ## 1. Préparer le conteneur / la VM Proxmox
 

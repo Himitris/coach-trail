@@ -1,0 +1,17 @@
+/// <reference types="vitest" />
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    // En développement, l'API tourne sur le port 8000 (uvicorn app.main:app_factory --factory).
+    proxy: { "/api": "http://127.0.0.1:8000" },
+  },
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: ["./src/test/setup.ts"],
+    css: false,
+  },
+});

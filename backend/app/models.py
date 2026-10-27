@@ -169,3 +169,15 @@ class PlannedSession(Base):
     zone_cible: Mapped[str | None] = mapped_column(String)
     dplus_cible: Mapped[int | None] = mapped_column(Integer)
     consignes: Mapped[str | None] = mapped_column(String)
+
+
+class DashboardLayoutRow(Base):
+    """Document unique : pages, widgets, positions par point de rupture, réglages."""
+
+    __tablename__ = "dashboard_layout"
+    __table_args__ = (CheckConstraint("id = 1", name="ck_dashboard_layout_single_row"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    data: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
