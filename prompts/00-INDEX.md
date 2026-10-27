@@ -20,5 +20,9 @@
 | 14 | 14-import-plan-exports.md | 2 | Import plan JSON, exports JSON/CSV |
 | 15 | 15-api-lecture-mcp.md | 3 | API GET /export + serveur MCP |
 | 16 | 16-confort-phase3.md | 3 | Strava, matériel, météo, PWA, verrouillage |
+| 17 | 17-corrections-nav-sync.md | V2 | Menu ⋯, raccourcis AZERTY, « Vérifier les nouveautés » |
+| 18 | 18-plans-et-courses.md | V2 | Plans rattachés aux courses, page Courses |
+| 19 | 19-calendrier.md | V2 | Calendrier semaine/mois |
+| 20 | 20-import-unique-et-doc.md | V2 | Import unique, doc visuelle |
 
 Règle commune à tous : ne rien ajouter hors périmètre du prompt, ne jamais mettre de secret dans le code/logs, écrire les tests, finir par un commit clair.
