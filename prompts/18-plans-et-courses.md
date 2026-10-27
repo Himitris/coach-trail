@@ -1,6 +1,6 @@
 # Prompt 18 — Plans rattachés aux courses, page Courses (V2)
 
-Lis `CLAUDE.md` et `docs/cahier-des-charges-v2.md` (§2.2, §2.4 pour le format d'import). Prérequis : 17 terminé.
+Lis `CLAUDE.md` et `docs/Cahier des charges – Coach Trail.docx` (section 10, V2). Prérequis : 17 terminé.
 
 ## À faire
 1. **Migration versionnée** : table `plan` (`id`, `nom`, `date_debut`, `date_fin`, `goal_id` nullable → `goal`, `cree_le`) ; colonne `planned_session.plan_id` (nullable, index). Les séances existantes → un plan « Plan importé » (dates min/max). Test de migration sur une base V1 remplie.

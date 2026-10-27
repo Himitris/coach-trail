@@ -1,6 +1,6 @@
 # Prompt 19 — Calendrier navigable (V2)
 
-Lis `CLAUDE.md` et `docs/cahier-des-charges-v2.md` (§2.3). Prérequis : 18 terminé.
+Lis `CLAUDE.md` et `docs/Cahier des charges – Coach Trail.docx` (section 10, V2). Prérequis : 18 terminé.
 
 ## À faire
 1. **Backend** : `GET /plan/range?from=&to=` → par jour : séances prévues (avec plan et couleur), activités réalisées (brèves), statut prévu/réalisé (réutiliser `plan/matching.py`). Plafonner l'intervalle à 62 jours. Courses du jour incluses.

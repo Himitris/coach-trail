@@ -1,6 +1,6 @@
 # Prompt 20 — Import unique et documentation visuelle (V2)
 
-Lis `CLAUDE.md` et `docs/cahier-des-charges-v2.md` (§2.4, §2.6). Prérequis : 19 terminé.
+Lis `CLAUDE.md` et `docs/Cahier des charges – Coach Trail.docx` (section 10, V2). Prérequis : 19 terminé.
 
 ## À faire
 1. **Import unique** : remplacer l'onglet « Plan » et la page `PlanImportPage` par un bouton **Importer** dans l'en-tête (dialogue ou page `/importer`) : zone « coller le texte » + dépôt de fichier. Détection du contenu par clés racine (`plan`/`sessions`, `courses`, `materiel`, `saisies`, `semaine_type`, `note`) via un moteur unique côté frontend (`frontend/src/imports/`) qui s'appuie sur les `ImportSpec` existantes — un document peut contenir plusieurs sections ; aperçu par section, case à cocher pour chacune, une seule confirmation. Formats V1 conservés. Les boutons d'import des widgets appellent le même moteur. Erreurs en français, rien d'écrit avant confirmation.

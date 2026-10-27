@@ -1,6 +1,6 @@
 # Prompt 17 — Corrections, raccourcis AZERTY, « Vérifier les nouveautés » (V2)
 
-Lis `CLAUDE.md` et `docs/cahier-des-charges-v2.md` (§2.1 et §2.5). Périmètre strict.
+Lis `CLAUDE.md` et `docs/Cahier des charges – Coach Trail.docx` (section 10 : navigation, synchronisation Garmin). Périmètre strict.
 
 ## À faire
 1. **Menu ⋯ des pages** (`frontend/src/app/TabBar.tsx`, `styles.css`) : le menu est rogné par `.tabs { overflow-x:auto; overflow-y:hidden }`. Le rendre via un portail (`createPortal`) positionné sous le bouton (position fixe calculée depuis `getBoundingClientRect`), fermeture sur clic extérieur / Échap. Test : le menu est dans `document.body`, « Supprimer » supprime la page après confirmation.
