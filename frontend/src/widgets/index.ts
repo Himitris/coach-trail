@@ -14,6 +14,7 @@ import "./MonotonyWidget";
 import "./FatigueWidget";
 import "./StrengthWidget";
 import "./GearWidget";
+import "./WeatherWidget";
 
 export { getWidget, listWidgets, specFor } from "./registry";
 

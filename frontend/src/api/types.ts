@@ -481,3 +481,48 @@ export interface GearReport {
   unassigned_total: number;
   evidence: Evidence;
 }
+
+// --- météo --------------------------------------------------------------------------------------
+
+export interface WeatherPlace {
+  nom: string;
+  lat: number;
+  lon: number;
+}
+
+export interface WeatherHour {
+  hour: number;
+  temp_c: number | null;
+  feels_c: number | null;
+  rain_prob_pct: number | null;
+  rain_mm: number | null;
+  wind_kmh: number | null;
+  gust_kmh: number | null;
+  label: string;
+}
+
+export interface WeatherResponse {
+  day_basis: "session" | "today" | "tomorrow" | "date";
+  session: { date: string; titre: string; type_label: string; duree_min: number | null } | null;
+  weather: {
+    place: WeatherPlace;
+    day: {
+      date: string;
+      label: string;
+      temp_min_c: number | null;
+      temp_max_c: number | null;
+      rain_mm: number | null;
+      rain_prob_max_pct: number | null;
+      wind_max_kmh: number | null;
+      gust_max_kmh: number | null;
+      sunrise: string | null;
+      sunset: string | null;
+    };
+    periods: { name: string; temp_c: number | null; rain_prob_pct: number | null; rain_mm: number | null; wind_kmh: number | null }[];
+    hours: WeatherHour[];
+    fetched_at: number;
+    stale: boolean;
+    attribution: string;
+    evidence: Evidence;
+  };
+}

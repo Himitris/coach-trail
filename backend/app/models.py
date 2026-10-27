@@ -29,6 +29,9 @@ class AthleteProfile(Base):
     seuil_lactique_fc: Mapped[int | None] = mapped_column(Integer)
     zones: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False)
     renfo_objectif_hebdo: Mapped[int | None] = mapped_column(Integer)
+    meteo_lieu: Mapped[str | None] = mapped_column(String)
+    meteo_lat: Mapped[float | None] = mapped_column(Float)
+    meteo_lon: Mapped[float | None] = mapped_column(Float)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 

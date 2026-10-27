@@ -14,6 +14,8 @@ import type {
   GpxSummary,
   MonotonyReport,
   RaceGoalReport,
+  WeatherPlace,
+  WeatherResponse,
   StrengthReport,
   IntensityReport,
   PlannedInput,
@@ -329,3 +331,11 @@ export const deleteGear = (id: number): Promise<null> => request("DELETE", `/api
 
 export const assignGear = (activityId: number, gearId: number | null): Promise<null> =>
   request("PUT", "/api/gear/assign/activity", { body: { activity_id: activityId, gear_id: gearId } });
+
+// --- météo --------------------------------------------------------------------------------------
+
+export const fetchWeather = (day: string): Promise<WeatherResponse> => request("GET", `/api/weather${search({ day })}`);
+export const fetchWeatherLocation = (): Promise<WeatherPlace | null> => request("GET", "/api/weather/location");
+export const geocodePlace = (q: string): Promise<WeatherPlace[]> => request("GET", `/api/weather/geocode${search({ q })}`);
+export const setWeatherLocation = (place: WeatherPlace): Promise<WeatherPlace> =>
+  request("PUT", "/api/weather/location", { body: place });

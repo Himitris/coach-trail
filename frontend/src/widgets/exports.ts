@@ -10,6 +10,7 @@ import type {
   MonotonyReport,
   RaceGoalReport,
   StrengthReport,
+  WeatherResponse,
   RecoveryMetrics,
   WeekMetrics,
   WeekPlan,
@@ -383,4 +384,26 @@ export function formatGear(g: GearReport): string {
   for (const i of g.items) if (i.message) lines.push("", `- ${i.nom} : ${i.message}`);
   if (g.unassigned_total) lines.push("", `${g.unassigned_total} sortie(s) de course à pied sans paire affectée.`);
   return [...lines, "", `_${g.evidence.summary}_`, ""].join("\n");
+}
+
+const numCell = (v: number | null, unit: string, digits: 0 | 1 | 2 = 0): string | null => (v === null ? null : `${formatNumber(v, digits)} ${unit}`);
+
+export function formatWeather(r: WeatherResponse): string {
+  const w = r.weather;
+  const d = w.day;
+  const lines = [
+    `## Météo — ${w.place.nom}, ${formatDay(d.date)}`,
+    "",
+    r.session ? `Séance prévue : ${r.session.titre} (${r.session.type_label}${r.session.duree_min ? `, ${formatDuration(r.session.duree_min)}` : ""}).` : "Aucune séance prévue ce jour-là.",
+    "",
+    `${d.label} · ${d.temp_min_c === null ? "—" : formatNumber(d.temp_min_c)}–${d.temp_max_c === null ? "—" : formatNumber(d.temp_max_c)} °C · pluie ${d.rain_mm === null ? "—" : formatNumber(d.rain_mm, 1)} mm (probabilité max ${d.rain_prob_max_pct === null ? "—" : formatNumber(d.rain_prob_max_pct)} %) · vent max ${d.wind_max_kmh === null ? "—" : formatNumber(d.wind_max_kmh)} km/h (rafales ${d.gust_max_kmh === null ? "—" : formatNumber(d.gust_max_kmh)}) · soleil ${d.sunrise ?? "—"}–${d.sunset ?? "—"}`,
+    "",
+    table(
+      ["Période", "Température", "Pluie (prob.)", "Pluie (mm)", "Vent max"],
+      w.periods.map((p) => row(p.name, numCell(p.temp_c, "°C"), numCell(p.rain_prob_pct, "%"), p.rain_mm === null ? null : formatNumber(p.rain_mm, 1), numCell(p.wind_kmh, "km/h"))),
+    ),
+    "",
+    `_${w.evidence.summary} ${w.attribution}${w.stale ? " Données conservées : service météo injoignable." : ""}_`,
+  ];
+  return [...lines, ""].join("\n");
 }

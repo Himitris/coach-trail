@@ -26,6 +26,10 @@ Garmin Connect est la source principale. **Intervals.icu** (clé personnelle : `
 
 Export Markdown, JSON versionné et CSV (séries), par période, par widget et par séance ; import d'un plan JSON produit par Claude (aperçu, confirmation, jours réalisés protégés). Voir [`docs/export.md`](docs/export.md) et [`docs/prompt-plan-claude.md`](docs/prompt-plan-claude.md).
 
+## Météo
+
+Widget « Météo du jour de sortie » : prévisions Open-Meteo (gratuit, sans clé) pour le lieu de votre choix (recherche par nom dans le widget), pour le jour de la prochaine séance prévue, aujourd'hui ou demain. Seules les coordonnées du lieu sont envoyées à Open-Meteo ; les prévisions sont gardées 30 minutes en mémoire et la dernière prévision connue reste affichée si le service tombe. Données : Open-Meteo.com (CC BY 4.0).
+
 ## Matériel
 
 Widget « Matériel » : kilométrage par paire de chaussures (nom fourni par la montre — Garmin `get_activity_gear`, Intervals.icu, Strava — ou affectation manuelle d'une sortie, qui prévaut), seuil d'usure réglable (800 km par défaut) et alerte douce à 90 % puis 100 % (information : l'usure réelle dépend du terrain et de la foulée), km déjà parcourus avant l'appli, paires retirables.
