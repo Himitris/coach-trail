@@ -24,10 +24,16 @@ services:
       - web
 
   api:
-    build: ./api
+    build: ../backend
     restart: unless-stopped
     environment:
       TZ: ${TZ:-Europe/Paris}
+      DATABASE_PATH: /data/coach.db
+      GARMIN_TOKEN_DIR: /data/garmin_tokens
+      INTERVALS_ATHLETE_ID: ${INTERVALS_ATHLETE_ID:-}
+      INTERVALS_API_KEY: ${INTERVALS_API_KEY:-}
+      STRAVA_CLIENT_ID: ${STRAVA_CLIENT_ID:-}
+      STRAVA_CLIENT_SECRET: ${STRAVA_CLIENT_SECRET:-}
     volumes:
       - ../data:/data
     expose:

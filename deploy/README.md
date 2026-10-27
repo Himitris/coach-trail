@@ -48,6 +48,8 @@ nano .env     # DOMAIN, TAILSCALE_IP, ACME_EMAIL, OVH_*
 
 ## 5. Lancer
 
+L'API tourne en utilisateur non root (uid 1000) : `chown 1000:1000 ../data` avant le premier lancement. Les migrations sont appliquées automatiquement au démarrage.
+
 ```bash
 docker compose config -q      # valide la configuration
 docker compose up -d --build  # le 1er build compile Caddy avec xcaddy (quelques minutes)
