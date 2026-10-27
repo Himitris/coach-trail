@@ -1,0 +1,62 @@
+# Coach Trail (variante homelab derrière NPM). Variables lues dans deploy/.env (copie de ../.env.example).
+services:
+  # Variante homelab : Nginx Proxy Manager termine HTTPS ; ce Caddy ne fait que router en interne.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Europe/Paris}
+    ports:
+      - "80:80"
+    volumes:
+      - ./caddy/Caddyfile.homelab:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - api
+      - mcp
+      - web
+
+  api:
+    build: ../backend
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Europe/Paris}
+      DATABASE_PATH: /data/coach.db
+      BACKUP_DIR: /backup
+      BACKUP_TIME: ${BACKUP_TIME:-04:30}
+      GARMIN_TOKEN_DIR: /data/garmin_tokens
+      INTERVALS_ATHLETE_ID: ${INTERVALS_ATHLETE_ID:-}
+      INTERVALS_API_KEY: ${INTERVALS_API_KEY:-}
+      STRAVA_ENABLED: ${STRAVA_ENABLED:-false}
+      STRAVA_TOKEN_DIR: /data/strava_tokens
+      STRAVA_REDIRECT_URI: https://${DOMAIN}/api/strava/callback
+      STRAVA_CLIENT_ID: ${STRAVA_CLIENT_ID:-}
+      STRAVA_CLIENT_SECRET: ${STRAVA_CLIENT_SECRET:-}
+      ACCESS_CODE: ${ACCESS_CODE:-}
+    volumes:
+      - ../data:/data
+      # Disque physiquement distinct de ../data (voir README, « Sauvegardes »).
+      - ${BACKUP_HOST_DIR:?BACKUP_HOST_DIR manquant}:/backup
+    expose:
+      - "8000"
+
+  # Serveur MCP en lecture seule (phase 3) : n'appelle que des GET de l'API. Jeton optionnel.
+  mcp:
+    build: ../backend
+    restart: unless-stopped
+    command: ["python", "-m", "app.mcp_server", "--transport", "http", "--host", "0.0.0.0", "--port", "8765"]
+    environment:
+      TZ: ${TZ:-Europe/Paris}
+      MCP_API_URL: http://api:8000
+      MCP_TOKEN: ${MCP_TOKEN:-}
+      ACCESS_CODE: ${ACCESS_CODE:-}  # transmis à l'API (lecture) si le verrou est actif
+      MCP_ALLOWED_HOSTS: ${MCP_ALLOWED_HOSTS:-localhost:*,127.0.0.1:*,${DOMAIN}:*}
+    expose:
+      - "8765"
+    depends_on:
+      - api
+
+  web:
+    build: ../frontend
+    restart: unless-stopped
+    expose:
+      - "80"

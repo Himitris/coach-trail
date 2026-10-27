@@ -34,7 +34,11 @@ class GarminAPI(Protocol):
     """Sous-ensemble de garminconnect.Garmin utilisé ici (permet de tester sans réseau)."""
 
     def get_activities_by_date(
-        self, startdate: str, enddate: str | None = None, sortorder: str | None = None
+        self,
+        startdate: str,
+        enddate: str | None = None,
+        activitytype: str | None = None,
+        sortorder: str | None = None,
     ) -> list[dict[str, Any]]: ...
     def get_activity(self, activity_id: str) -> dict[str, Any]: ...
     def get_activity_gear(self, activity_id: str) -> Any: ...
@@ -109,6 +113,7 @@ class GarminConnector:
             api.get_activities_by_date,
             start.isoformat(),
             self._today().isoformat(),
+            None,  # activitytype : la bibliothèque attend ici le type, pas l'ordre de tri
             "asc",
             required=True,
         )

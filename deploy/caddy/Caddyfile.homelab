@@ -1,0 +1,33 @@
+# Routage interne derrière Nginx Proxy Manager (qui gère HTTPS et le certificat *.himitris.fr).
+{
+	admin off
+	auto_https off
+}
+
+:80 {
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Resource-Policy "same-origin"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		-Server
+	}
+
+	handle /mcp* {
+		reverse_proxy mcp:8765 {
+			flush_interval -1
+		}
+	}
+
+	handle /api/* {
+		header Cache-Control "no-store"
+		reverse_proxy api:8000
+	}
+
+	handle {
+		reverse_proxy web:80
+	}
+}

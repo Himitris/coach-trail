@@ -36,7 +36,11 @@ class FakeGarminAPI:
         return [a for n, a in self.calls if n == name]
 
     def get_activities_by_date(
-        self, startdate: str, enddate: str | None = None, sortorder: str | None = None
+        self,
+        startdate: str,
+        enddate: str | None = None,
+        activitytype: str | None = None,
+        sortorder: str | None = None,
     ) -> list[dict[str, Any]]:
         out = []
         for aid in self.activity_ids:
@@ -44,7 +48,7 @@ class FakeGarminAPI:
             s["activityId"] = int(aid)
             out.append(s)
         return self._do(  # type: ignore[no-any-return]
-            "get_activities_by_date", (startdate, enddate, sortorder), out
+            "get_activities_by_date", (startdate, enddate, sortorder), out  # activitytype toujours None ici
         )
 
     def get_activity(self, activity_id: str) -> dict[str, Any]:
