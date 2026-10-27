@@ -1,0 +1,10 @@
+{
+  "expo": {
+    "name": "Trail Running",
+    "slug": "trail-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "platforms": ["android"]
+  }
+}
