@@ -19,7 +19,7 @@ import type {
   SessionType,
   WorkoutType,
 } from "../api/types";
-import { addDays, formatDay, formatDuration, formatKm, formatMeters, formatSigned } from "../app/format";
+import { addDays, formatDay, formatDuration, formatKm, formatMeters, formatSigned, formatNumber } from "../app/format";
 import { EvidenceBadge } from "./common";
 import { formatWeekPlan } from "./exports";
 import { SESSION_TYPE_OPTIONS, sportLabel, STATUS_CLASS } from "./labels";
@@ -27,6 +27,7 @@ import { Overlay } from "./Overlay";
 import { invalidateTraining, REFRESH_MS } from "./queries";
 import { registerWidget } from "./registry";
 import { WidgetData } from "./states";
+import { SummaryLayout } from "./summary";
 
 /** `date` : un jour de la semaine voulue (la semaine en cours si absent). */
 const useWeekPlan = (date?: string) =>
@@ -500,14 +501,47 @@ export function SessionDialog({
   );
 }
 
+export function WeekPlanSummary() {
+  const query = useWeekPlan();
+  return (
+    <WidgetData query={query}>
+      {(week) => {
+        const today = week.days.find((d) => d.is_today);
+        const ratio = week.planned_min > 0 ? Math.min(100, (week.done_min / week.planned_min) * 100) : 0;
+        return (
+          <SummaryLayout
+            value={formatDuration(week.done_min)}
+            unit={`sur ${formatDuration(week.planned_min)} prévues`}
+          >
+            <span className="summary-bar"><span style={{ width: `${formatNumber(ratio)}%` }} /></span>
+            <ul className="summary-list">
+              {today && today.sessions.length > 0 ? (
+                today.sessions.map((s) => (
+                  <li key={s.planned.id}>
+                    <span>{s.planned.titre}</span>
+                    <span className="muted">{s.status}</span>
+                  </li>
+                ))
+              ) : (
+                <li><span className="muted">Rien de prévu aujourd'hui</span></li>
+              )}
+            </ul>
+          </SummaryLayout>
+        );
+      }}
+    </WidgetData>
+  );
+}
+
 registerWidget({
   id: "week-plan",
   title: "Programme de la semaine",
   description: "La séance du jour, les 7 jours avec leur statut, et le réalisé à côté du prévu.",
-  defaultSize: { w: 12, h: 6 },
-  minSize: { w: 4, h: 4 },
+  defaultSize: { w: 12, h: 3 },
+  minSize: { w: 3, h: 3 },
   defaultSettings: {},
   settingsSchema: [],
   Component: WeekPlanWidget,
+  Summary: WeekPlanSummary,
   exportData: async () => ({ title: "Programme de la semaine", markdown: formatWeekPlan(await fetchPlanWeek()) }),
 });

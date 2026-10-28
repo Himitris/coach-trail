@@ -210,14 +210,40 @@ export function GearWidget({ settings }: WidgetProps<GearSettings>) {
   return <WidgetData query={query}>{(report) => <GearView report={report} showRetired={settings.showRetired} />}</WidgetData>;
 }
 
+export function GearSummary() {
+  const query = useQuery({ queryKey: ["gear"], queryFn: fetchGear, refetchInterval: REFRESH_MS });
+  return (
+    <WidgetData query={query} isEmpty={(r) => r.items.length === 0} emptyMessage="Aucun équipement suivi.">
+      {(report) => (
+        <ul className="summary-list">
+          {report.items
+            .filter((g) => g.status !== "retire")
+            .sort((a, b) => b.usage_pct - a.usage_pct)
+            .slice(0, 3)
+            .map((g) => (
+              <li key={g.id ?? g.nom} style={{ flexDirection: "column", gap: "0.2rem" }}>
+                <span style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>{g.nom}</span>
+                  <span className="muted">{formatNumber(g.km_total)} / {formatNumber(g.seuil_km)} km</span>
+                </span>
+                <span className="summary-bar"><span style={{ width: `${Math.min(100, g.usage_pct)}%` }} /></span>
+              </li>
+            ))}
+        </ul>
+      )}
+    </WidgetData>
+  );
+}
+
 registerWidget<GearSettings>({
   id: "gear",
   title: "Matériel",
   description: "Kilométrage par paire de chaussures, seuil d'usure réglable et alerte douce, affectation des sorties.",
-  defaultSize: { w: 6, h: 9 },
-  minSize: { w: 4, h: 6 },
+  defaultSize: { w: 4, h: 4 },
+  minSize: { w: 3, h: 3 },
   defaultSettings: { showRetired: false },
   settingsSchema: [{ key: "showRetired", label: "Afficher les paires retirées", type: "boolean" }],
   Component: GearWidget,
+  Summary: GearSummary,
   exportData: async () => ({ title: "Matériel", markdown: formatGear(await fetchGear()) }),
 });

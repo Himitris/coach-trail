@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { addStrengthSession, fetchStrength, setStrengthTarget } from "../api/endpoints";
 import type { StrengthReport } from "../api/types";
-import { formatDay, todayIso } from "../app/format";
+import { formatDay, formatNumber, todayIso } from "../app/format";
 import { EvidenceNote } from "./common";
 import { formatStrength } from "./exports";
 import { weeksSetting } from "./MonotonyWidget";
@@ -10,6 +10,7 @@ import { REFRESH_MS } from "./queries";
 import { registerWidget } from "./registry";
 import { WidgetData } from "./states";
 import type { WidgetProps } from "./types";
+import { MiniBars, SummaryLayout } from "./summary";
 
 interface StrengthSettings extends Record<string, unknown> {
   weeks: string;
@@ -91,12 +92,32 @@ export function StrengthWidget({ settings }: WidgetProps<StrengthSettings>) {
   return <WidgetData query={query}>{(report) => <StrengthView report={report} />}</WidgetData>;
 }
 
+export function StrengthSummary({ settings }: WidgetProps<StrengthSettings>) {
+  const weeks = weeksSetting(settings.weeks, 8);
+  const query = useQuery({ queryKey: ["metrics", "strength", weeks], queryFn: () => fetchStrength(weeks), refetchInterval: REFRESH_MS });
+  return (
+    <WidgetData query={query}>
+      {(report) => {
+        const last = report.weeks.at(-1);
+        return (
+          <SummaryLayout
+            value={formatNumber(last?.count ?? 0)}
+            unit={report.target === null ? "séance(s) cette semaine" : `/ ${report.target} cette semaine`}
+          >
+            <MiniBars data={report.weeks.map((w) => ({ label: formatDay(w.week_start), value: w.count }))} reference={report.target ?? undefined} />
+          </SummaryLayout>
+        );
+      }}
+    </WidgetData>
+  );
+}
+
 registerWidget<StrengthSettings>({
   id: "strength",
   title: "Renforcement",
   description: "Compteur hebdomadaire de séances de renforcement face à l'objectif que vous fixez.",
-  defaultSize: { w: 4, h: 7 },
-  minSize: { w: 3, h: 5 },
+  defaultSize: { w: 4, h: 4 },
+  minSize: { w: 3, h: 3 },
   defaultSettings: { weeks: "8" },
   settingsSchema: [
     {
@@ -111,5 +132,6 @@ registerWidget<StrengthSettings>({
     },
   ],
   Component: StrengthWidget,
+  Summary: StrengthSummary,
   exportData: async (settings) => ({ title: "Renforcement", markdown: formatStrength(await fetchStrength(weeksSetting(settings.weeks, 8))) }),
 });

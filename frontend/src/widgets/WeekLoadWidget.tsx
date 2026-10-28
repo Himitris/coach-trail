@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchWeekMetrics } from "../api/endpoints";
-import type { VolumeTotals, WeekMetrics } from "../api/types";
+import { fetchWeekMetrics, fetchActivities } from "../api/endpoints";
+import type { VolumeTotals, WeekMetrics, Activity } from "../api/types";
 import {
   addDays,
   formatDay,
@@ -17,6 +17,7 @@ import { REFRESH_MS } from "./queries";
 import { registerWidget } from "./registry";
 import { WidgetData } from "./states";
 import type { WidgetProps } from "./types";
+import { MiniBars, SummaryLayout } from "./summary";
 
 type Getter = (t: VolumeTotals) => string;
 
@@ -116,6 +117,7 @@ export function WeekLoad({ week }: { week: WeekMetrics }) {
 
 interface LoadSettings extends Record<string, unknown> {
   week: "current" | "last";
+  metric: string;
 }
 
 const dateFor = (week: unknown): string | undefined =>
@@ -139,17 +141,71 @@ export function WeekLoadWidget({ settings }: WidgetProps<LoadSettings>) {
   );
 }
 
+const mondayOf = (iso: string): string => addDays(iso, -((new Date(`${iso}T00:00:00`).getDay() + 6) % 7));
+
+const LOAD_METRICS = {
+  km: { label: "km", pick: (a: Activity) => a.distance_km ?? 0, digits: 1 as const },
+  dplus: { label: "m de D+", pick: (a: Activity) => a.dplus_m ?? 0, digits: 0 as const },
+  temps: { label: "h de course", pick: (a: Activity) => a.duration_min / 60, digits: 1 as const },
+};
+type LoadMetric = keyof typeof LOAD_METRICS;
+const loadMetricOf = (value: unknown): LoadMetric => (value === "dplus" || value === "temps" ? value : "km");
+
+/** Résumé : un seul graphique, la métrique choisie semaine par semaine (8 dernières semaines). */
+export function WeekLoadSummary({ settings }: WidgetProps<LoadSettings>) {
+  const metric = LOAD_METRICS[loadMetricOf(settings.metric)];
+  const today = todayIso();
+  const from = addDays(mondayOf(today), -7 * 7);
+  const query = useQuery({
+    queryKey: ["activities", "weekly", from],
+    queryFn: () => fetchActivities({ from, to: today, limit: 500 }),
+    refetchInterval: REFRESH_MS,
+  });
+  return (
+    <WidgetData query={query} isEmpty={(items) => items.length === 0} emptyMessage="Aucune sortie enregistrée sur les dernières semaines.">
+      {(items) => {
+        const weeks = Array.from({ length: 8 }, (_, i) => {
+          const start = addDays(from, 7 * i);
+          const value = items.filter((a) => mondayOf(a.day) === start).reduce((sum, a) => sum + metric.pick(a), 0);
+          return { label: formatDay(start), value };
+        });
+        const current = weeks[7]?.value ?? 0;
+        const previous = weeks[6]?.value ?? 0;
+        return (
+          <SummaryLayout
+            value={formatNumber(current, metric.digits)}
+            unit={`${metric.label} cette semaine`}
+            sub={`Semaine précédente : ${formatNumber(previous, metric.digits)}`}
+          >
+            <MiniBars data={weeks} />
+          </SummaryLayout>
+        );
+      }}
+    </WidgetData>
+  );
+}
+
 registerWidget<LoadSettings>({
   id: "week-load",
   title: "Charge de la semaine",
   description: "Temps, distance, D+ et D− vs semaine précédente et moyenne 4 semaines, avec le repère +10 %.",
-  defaultSize: { w: 6, h: 6 },
-  minSize: { w: 4, h: 4 },
-  defaultSettings: { week: "current" },
+  defaultSize: { w: 4, h: 4 },
+  minSize: { w: 3, h: 3 },
+  defaultSettings: { week: "current", metric: "km" },
   settingsSchema: [
     {
+      key: "metric",
+      label: "Graphique",
+      type: "select",
+      options: [
+        { value: "km", label: "Distance (km)" },
+        { value: "dplus", label: "Dénivelé positif" },
+        { value: "temps", label: "Temps de course" },
+      ],
+    },
+    {
       key: "week",
-      label: "Semaine affichée",
+      label: "Semaine affichée (détail)",
       type: "select",
       options: [
         { value: "current", label: "Semaine en cours" },
@@ -158,6 +214,7 @@ registerWidget<LoadSettings>({
     },
   ],
   Component: WeekLoadWidget,
+  Summary: WeekLoadSummary,
   exportData: async (settings) => ({
     title: "Charge de la semaine",
     markdown: formatWeekLoad(await fetchWeekMetrics(dateFor(settings.week))),

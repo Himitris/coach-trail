@@ -10,6 +10,7 @@ import { REFRESH_MS } from "./queries";
 import { registerWidget } from "./registry";
 import { WidgetEmpty, WidgetError, WidgetLoading } from "./states";
 import type { WidgetProps } from "./types";
+import { SummaryLayout } from "./summary";
 
 interface WeatherSettings extends Record<string, unknown> {
   day: "session" | "today" | "tomorrow";
@@ -217,12 +218,37 @@ export function WeatherWidget({ settings }: WidgetProps<WeatherSettings>) {
   return <WeatherView data={forecast.data} onChangePlace={() => { setChanging(true); }} />;
 }
 
+export function WeatherSummary({ settings }: WidgetProps<WeatherSettings>) {
+  const day = dayFor(settings.day);
+  const location = useQuery({ queryKey: ["weather-location"], queryFn: fetchWeatherLocation });
+  const place = location.data ?? null;
+  const forecast = useQuery({
+    queryKey: ["weather", day, place?.lat, place?.lon],
+    queryFn: () => fetchWeather(day),
+    enabled: place !== null,
+    refetchInterval: REFRESH_MS,
+    retry: false,
+  });
+  if (location.isPending || (place !== null && forecast.isPending)) return <WidgetLoading />;
+  if (place === null) return <WidgetEmpty message="Lieu à choisir : ouvrez le détail." />;
+  if (forecast.isError) return <WidgetError message={forecast.error.message} onRetry={() => void forecast.refetch()} />;
+  if (!forecast.data) return <WidgetLoading />;
+  const d = forecast.data.weather.day;
+  return (
+    <SummaryLayout
+      value={`${formatNumber(d.temp_min_c)}–${formatNumber(d.temp_max_c)}`}
+      unit="°C"
+      sub={`${d.label} · pluie ${formatNumber(d.rain_prob_max_pct)} % · vent ${formatNumber(d.wind_max_kmh)} km/h`}
+    />
+  );
+}
+
 registerWidget<WeatherSettings>({
   id: "weather",
   title: "Météo du jour de sortie",
   description: "Prévisions du jour de la prochaine séance prévue (Open-Meteo, sans clé) pour le lieu de votre choix.",
-  defaultSize: { w: 6, h: 9 },
-  minSize: { w: 4, h: 6 },
+  defaultSize: { w: 4, h: 4 },
+  minSize: { w: 3, h: 3 },
   defaultSettings: { day: "session" },
   settingsSchema: [
     {
@@ -237,6 +263,7 @@ registerWidget<WeatherSettings>({
     },
   ],
   Component: WeatherWidget,
+  Summary: WeatherSummary,
   exportData: async (settings) => {
     try {
       return { title: "Météo du jour de sortie", markdown: formatWeather(await fetchWeather(dayFor(settings.day))) };

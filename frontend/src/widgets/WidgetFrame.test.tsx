@@ -126,6 +126,37 @@ describe("WidgetFrame", () => {
   });
 });
 
+describe("WidgetFrame : résumé et détail", () => {
+  beforeEach(() => {
+    registerWidget({
+      id: "resume",
+      title: "Widget résumé",
+      description: "",
+      defaultSize: { w: 4, h: 3 },
+      minSize: { w: 2, h: 2 },
+      defaultSettings: {},
+      settingsSchema: [],
+      Summary: () => <p>vue simple</p>,
+      Component: () => <p>vue détaillée</p>,
+      exportData: () => null,
+    });
+  });
+
+  it("affiche le résumé ; un clic ouvre le détail dans une fenêtre, Échap la ferme", () => {
+    render(
+      <ToastProvider>
+        <WidgetFrame pageId="p" widget={widget("w4", "resume")} editMode={false} />
+      </ToastProvider>,
+    );
+    expect(screen.getByText("vue simple")).toBeInTheDocument();
+    expect(screen.queryByText("vue détaillée")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Voir le détail : Widget résumé" }));
+    expect(screen.getByRole("dialog", { name: "Widget résumé" })).toHaveTextContent("vue détaillée");
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+});
+
 describe("états homogènes", () => {
   it("chargement, vide et erreur ont des rôles accessibles", () => {
     render(

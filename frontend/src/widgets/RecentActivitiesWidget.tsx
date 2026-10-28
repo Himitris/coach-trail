@@ -19,6 +19,7 @@ import { registerWidget } from "./registry";
 import { sportField } from "./settingFields";
 import { WidgetData } from "./states";
 import type { WidgetProps } from "./types";
+import { SummaryLayout } from "./summary";
 
 interface RecentSettings extends Record<string, unknown> {
   count: number;
@@ -101,15 +102,50 @@ export function RecentActivitiesWidget({ settings }: WidgetProps<RecentSettings>
   );
 }
 
+export function RecentActivitiesSummary({ settings }: WidgetProps<RecentSettings>) {
+  const limit = clampCount(settings.count);
+  const group = settings.sport;
+  const query = useQuery({
+    queryKey: ["activities", "recent", limit, group],
+    queryFn: () => fetchActivities({ limit, group }),
+    refetchInterval: REFRESH_MS,
+  });
+  return (
+    <WidgetData query={query} isEmpty={(items) => items.length === 0} emptyMessage="Aucune sortie enregistrée.">
+      {(items) => {
+        const [last, ...others] = items;
+        if (!last) return null;
+        return (
+          <SummaryLayout
+            value={formatNumber(last.distance_km, 1)}
+            unit="km"
+            sub={`${sportLabel(last.sport)} · ${formatDay(last.day)} · ${formatDuration(last.duration_min)}`}
+          >
+            <ul className="summary-list">
+              {others.slice(0, 3).map((a) => (
+                <li key={a.id}>
+                  <span>{sportLabel(a.sport)}</span>
+                  <span className="muted">{formatDay(a.day)} · {formatNumber(a.distance_km, 1)} km</span>
+                </li>
+              ))}
+            </ul>
+          </SummaryLayout>
+        );
+      }}
+    </WidgetData>
+  );
+}
+
 registerWidget<RecentSettings>({
   id: "recent-activities",
   title: "Dernières sorties",
   description: "Les 5 à 10 dernières sorties (durée, distance, D+, FC, RPE) ; un clic ouvre le détail.",
-  defaultSize: { w: 6, h: 5 },
-  minSize: { w: 4, h: 3 },
+  defaultSize: { w: 4, h: 4 },
+  minSize: { w: 3, h: 3 },
   defaultSettings: { count: 7, sport: "all" },
   settingsSchema: [{ key: "count", label: "Nombre de sorties (5 à 10)", type: "number", min: 5, max: 10, step: 1 }, sportField()],
   Component: RecentActivitiesWidget,
+  Summary: RecentActivitiesSummary,
   exportData: async (settings) => ({
     title: "Dernières sorties",
     markdown: formatRecentActivities(

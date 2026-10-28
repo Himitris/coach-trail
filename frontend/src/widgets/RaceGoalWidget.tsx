@@ -9,8 +9,9 @@ import { ChartBox, EvidenceNote, Stat } from "./common";
 import { formatRaceGoal } from "./exports";
 import { REFRESH_MS } from "./queries";
 import { registerWidget } from "./registry";
-import { WidgetData, WidgetEmpty } from "./states";
+import { WidgetData, WidgetEmpty, WidgetLoading } from "./states";
 import type { WidgetProps } from "./types";
+import { SummaryLayout } from "./summary";
 
 interface RaceGoalSettings extends Record<string, unknown> {
   goalId: number | null;
@@ -225,15 +226,37 @@ export function RaceGoalWidget({ settings, updateSettings }: WidgetProps<RaceGoa
   );
 }
 
+export function RaceGoalSummary({ settings }: WidgetProps<RaceGoalSettings>) {
+  const goalId = goalIdOf(settings.goalId);
+  const query = useQuery({
+    queryKey: ["race-goal", goalId],
+    queryFn: () => fetchRaceGoal(goalId),
+    refetchInterval: REFRESH_MS,
+    retry: false,
+  });
+  if (query.isPending) return <WidgetLoading />;
+  if (query.isError) {
+    return <WidgetEmpty message="Aucun objectif de course : ouvrez le détail pour en choisir un." />;
+  }
+  const race = query.data;
+  return (
+    <SummaryLayout
+      value={`J-${race.days_left}`}
+      sub={[race.nom, formatDay(race.date), race.distance_km === null ? null : `${formatNumber(race.distance_km)} km`, race.dplus_m === null ? null : `${formatNumber(race.dplus_m)} m D+`].filter(Boolean).join(" · ")}
+    />
+  );
+}
+
 registerWidget<RaceGoalSettings>({
   id: "race-goal",
   title: "Objectif de course",
   description: "Compte à rebours, volume des 4 dernières semaines face au profil de la course, TSB projeté, profil D+ (saisie ou GPX).",
-  defaultSize: { w: 6, h: 11 },
-  minSize: { w: 4, h: 7 },
+  defaultSize: { w: 4, h: 4 },
+  minSize: { w: 3, h: 3 },
   defaultSettings: { goalId: null },
   settingsSchema: [],
   Component: RaceGoalWidget,
+  Summary: RaceGoalSummary,
   exportData: async (settings) => {
     try {
       return { title: "Objectif de course", markdown: formatRaceGoal(await fetchRaceGoal(goalIdOf(settings.goalId))) };

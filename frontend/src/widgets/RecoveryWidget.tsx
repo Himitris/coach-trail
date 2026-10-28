@@ -9,6 +9,7 @@ import { REFRESH_MS } from "./queries";
 import { registerWidget } from "./registry";
 import { WidgetData } from "./states";
 import type { WidgetProps } from "./types";
+import { MiniLine, SummaryLayout } from "./summary";
 
 interface RecoverySettings extends Record<string, unknown> {
   window: string;
@@ -204,18 +205,53 @@ export function RecoveryWidget({ settings }: WidgetProps<RecoverySettings>) {
   );
 }
 
+export function RecoverySummary({ settings }: WidgetProps<RecoverySettings>) {
+  const window = toInt(settings.window, 28, 7, 90);
+  const baseline = toInt(settings.baseline, 60, 30, 60);
+  const recovery = useQuery({
+    queryKey: ["metrics", "recovery", baseline],
+    queryFn: () => fetchRecovery(baseline),
+    refetchInterval: REFRESH_MS,
+  });
+  const wellness = useQuery({
+    queryKey: ["metrics", "wellness", window],
+    queryFn: () => fetchWellness(window),
+    refetchInterval: REFRESH_MS,
+  });
+  return (
+    <WidgetData
+      query={recovery}
+      isEmpty={(r) => r.hrv.recent_mean === null && r.resting_hr.recent_mean === null}
+      emptyMessage="Aucune donnée de récupération reçue (montre non synchronisée ?)."
+    >
+      {(r) => (
+        <SummaryLayout
+          value={formatNumber(r.hrv.recent_mean)}
+          unit="ms · VFC moyenne 7 j"
+          sub={`Base : ${formatNumber(r.hrv.baseline_mean)} ms · FC repos ${formatNumber(r.resting_hr.recent_mean)} bpm`}
+        >
+          {wellness.data && (
+            <MiniLine data={wellness.data.points.map((p) => ({ label: formatDay(p.date), value: p.hrv_nuit }))} />
+          )}
+        </SummaryLayout>
+      )}
+    </WidgetData>
+  );
+}
+
 registerWidget<RecoverySettings>({
   id: "recovery",
   title: "Récupération",
   description: "HRV, FC repos et sommeil sur 7 jours face à votre base ; avis Garmin étiquetés, sans feu vert/rouge.",
-  defaultSize: { w: 6, h: 9 },
-  minSize: { w: 4, h: 6 },
+  defaultSize: { w: 4, h: 4 },
+  minSize: { w: 3, h: 3 },
   defaultSettings: { window: "28", baseline: "60" },
   settingsSchema: [
     { key: "window", label: "Courbe HRV sur", type: "select", options: WINDOWS },
     { key: "baseline", label: "Base de comparaison", type: "select", options: BASELINES },
   ],
   Component: RecoveryWidget,
+  Summary: RecoverySummary,
   exportData: async (settings) => ({
     title: "Récupération",
     markdown: formatRecovery(await fetchRecovery(toInt(settings.baseline, 60, 30, 60))),

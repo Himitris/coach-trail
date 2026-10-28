@@ -35,7 +35,10 @@ export interface WidgetDefinition<S extends WidgetSettings = WidgetSettings> {
   minSize: WidgetSize;
   defaultSettings: S;
   settingsSchema: readonly SettingField[];
+  /** Contenu complet : affiché dans la fenêtre de détail si `Summary` existe, sinon directement dans le cadre. */
   Component: ComponentType<WidgetProps<S>>;
+  /** Vue simple du cadre (un chiffre, un graphique) ; un clic ouvre `Component` dans une fenêtre. */
+  Summary?: ComponentType<WidgetProps<S>>;
   /** Données du widget pour l'export vers Claude ; `null` = rien à exporter. */
   exportData: (settings: S) => ExportBlock | null | Promise<ExportBlock | null>;
 }

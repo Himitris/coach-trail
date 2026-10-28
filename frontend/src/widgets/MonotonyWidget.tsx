@@ -9,6 +9,7 @@ import { REFRESH_MS } from "./queries";
 import { registerWidget } from "./registry";
 import { WidgetData } from "./states";
 import type { WidgetProps } from "./types";
+import { MiniLine, SummaryLayout } from "./summary";
 
 interface MonotonySettings extends Record<string, unknown> {
   weeks: string;
@@ -88,12 +89,33 @@ export function MonotonyWidget({ settings }: WidgetProps<MonotonySettings>) {
   );
 }
 
+export function MonotonySummary({ settings }: WidgetProps<MonotonySettings>) {
+  const weeks = weeksSetting(settings.weeks, 12);
+  const query = useQuery({ queryKey: ["metrics", "monotony", weeks], queryFn: () => fetchMonotony(weeks), refetchInterval: REFRESH_MS });
+  return (
+    <WidgetData query={query} isEmpty={(r) => r.weeks.every((w) => w.monotony === null)} emptyMessage="Pas encore assez de semaines pour la monotonie.">
+      {(report) => {
+        const last = report.weeks.filter((w) => w.monotony !== null).at(-1);
+        return (
+          <SummaryLayout
+            value={last?.monotony == null ? "—" : formatNumber(last.monotony, 2)}
+            unit="monotonie"
+            sub={`Repère : ${formatNumber(report.reference)}`}
+          >
+            <MiniLine data={report.weeks.map((w) => ({ label: formatDay(w.week_start), value: w.monotony }))} />
+          </SummaryLayout>
+        );
+      }}
+    </WidgetData>
+  );
+}
+
 registerWidget<MonotonySettings>({
   id: "monotony",
   title: "Monotonie et tension",
   description: "Monotonie (moyenne ÷ écart-type des charges quotidiennes) et tension par semaine, repère à 2. Information seulement.",
-  defaultSize: { w: 6, h: 7 },
-  minSize: { w: 4, h: 5 },
+  defaultSize: { w: 4, h: 4 },
+  minSize: { w: 3, h: 3 },
   defaultSettings: { weeks: "12" },
   settingsSchema: [
     {
@@ -108,5 +130,6 @@ registerWidget<MonotonySettings>({
     },
   ],
   Component: MonotonyWidget,
+  Summary: MonotonySummary,
   exportData: async (settings) => ({ title: "Monotonie et tension", markdown: formatMonotony(await fetchMonotony(weeksSetting(settings.weeks, 12))) }),
 });

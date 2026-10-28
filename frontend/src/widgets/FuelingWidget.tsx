@@ -10,6 +10,7 @@ import { REFRESH_MS } from "./queries";
 import { registerWidget } from "./registry";
 import { WidgetData } from "./states";
 import type { WidgetProps } from "./types";
+import { MiniLine, SummaryLayout } from "./summary";
 
 interface FuelingSettings extends Record<string, unknown> {
   minHours: string;
@@ -167,12 +168,41 @@ export function FuelingWidget({ settings }: WidgetProps<FuelingSettings>) {
   );
 }
 
+export function FuelingSummary({ settings }: WidgetProps<FuelingSettings>) {
+  const minHours = minHoursOf(settings.minHours);
+  const query = useQuery({
+    queryKey: ["fueling", "series", minHours],
+    queryFn: () => fetchFuelingSeries(minHours),
+    refetchInterval: REFRESH_MS,
+  });
+  return (
+    <WidgetData
+      query={query}
+      isEmpty={(s) => s.points.length === 0}
+      emptyMessage={`Aucune sortie de plus de ${formatNumber(minHours, 1)} h pour l'instant.`}
+    >
+      {(series) => {
+        const last = series.points.filter((p) => p.carbs_g_per_h !== null).at(-1);
+        return (
+          <SummaryLayout
+            value={last ? formatNumber(last.carbs_g_per_h) : "—"}
+            unit="g de glucides / h"
+            sub={last ? `Dernière sortie longue : ${formatDay(last.day)}` : "Aucune nutrition saisie"}
+          >
+            <MiniLine data={series.points.map((p) => ({ label: formatDay(p.day), value: p.carbs_g_per_h }))} />
+          </SummaryLayout>
+        );
+      }}
+    </WidgetData>
+  );
+}
+
 registerWidget<FuelingSettings>({
   id: "fueling",
   title: "Nutrition en course",
   description: "Glucides par heure et score digestif des longues sorties, courbe de progression et saisie rapide.",
-  defaultSize: { w: 6, h: 9 },
-  minSize: { w: 4, h: 6 },
+  defaultSize: { w: 4, h: 4 },
+  minSize: { w: 3, h: 3 },
   defaultSettings: { minHours: "2.5" },
   settingsSchema: [
     {
@@ -188,5 +218,6 @@ registerWidget<FuelingSettings>({
     },
   ],
   Component: FuelingWidget,
+  Summary: FuelingSummary,
   exportData: async (settings) => ({ title: "Nutrition en course", markdown: formatFueling(await fetchFuelingSeries(minHoursOf(settings.minHours))) }),
 });

@@ -10,6 +10,7 @@ import { registerWidget } from "./registry";
 import { periodField } from "./settingFields";
 import { WidgetData } from "./states";
 import type { WidgetProps } from "./types";
+import { MiniLine, SummaryLayout } from "./summary";
 
 interface FitnessSettings extends Record<string, unknown> {
   period: string;
@@ -144,15 +145,43 @@ export function FitnessWidget({ settings }: WidgetProps<FitnessSettings>) {
   );
 }
 
+export function FitnessSummary({ settings }: WidgetProps<FitnessSettings>) {
+  const today = todayIso();
+  const from = addDays(today, -daysFor(settings.period));
+  const query = useQuery({
+    queryKey: ["metrics", "fitness", from, today],
+    queryFn: () => fetchFitness(from, today),
+    refetchInterval: REFRESH_MS,
+  });
+  return (
+    <WidgetData query={query} isEmpty={(r) => r.points.length === 0} emptyMessage="Pas encore assez d'historique pour la courbe de forme.">
+      {(report) => {
+        const last = report.points[report.points.length - 1];
+        if (!last) return null;
+        return (
+          <SummaryLayout
+            value={formatNumber(last.ctl, 1)}
+            unit="forme (CTL)"
+            sub={`Fatigue ${formatNumber(last.atl, 1)} · fraîcheur ${formatSigned(last.tsb, 1)}`}
+          >
+            <MiniLine data={report.points.map((p) => ({ label: formatDay(p.date), value: p.ctl }))} />
+          </SummaryLayout>
+        );
+      }}
+    </WidgetData>
+  );
+}
+
 registerWidget<FitnessSettings>({
   id: "fitness",
   title: "Forme (CTL / ATL / TSB)",
   description: "Courbes de charge chronique et aiguë, rampe de CTL, jours de course marqués.",
-  defaultSize: { w: 6, h: 8 },
-  minSize: { w: 4, h: 5 },
+  defaultSize: { w: 4, h: 4 },
+  minSize: { w: 3, h: 3 },
   defaultSettings: { period: "26w" },
   settingsSchema: [periodField(PERIODS)],
   Component: FitnessWidget,
+  Summary: FitnessSummary,
   exportData: async (settings) => {
     const today = todayIso();
     return {

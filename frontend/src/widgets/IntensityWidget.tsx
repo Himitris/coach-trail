@@ -10,6 +10,7 @@ import { registerWidget } from "./registry";
 import { periodField } from "./settingFields";
 import { WidgetData } from "./states";
 import type { WidgetProps } from "./types";
+import { MiniBars, SummaryLayout } from "./summary";
 
 interface IntensitySettings extends Record<string, unknown> {
   period: string;
@@ -157,15 +158,48 @@ export function IntensityWidget({ settings }: WidgetProps<IntensitySettings>) {
   );
 }
 
+export function IntensityWidgetSummary({ settings }: WidgetProps<IntensitySettings>) {
+  const weeks = weeksFor(settings.period);
+  const query = useQuery({
+    queryKey: ["metrics", "intensity", weeks],
+    queryFn: () => fetchIntensity(weeks),
+    refetchInterval: REFRESH_MS,
+  });
+  return (
+    <WidgetData
+      query={query}
+      isEmpty={(r) => r.weeks.every((w) => w.hr_time_s <= 0)}
+      emptyMessage="Aucune donnée de fréquence cardiaque sur la période."
+    >
+      {(report) => {
+        const last = report.weeks.filter((w) => w.low_share_pct !== null).at(-1);
+        return (
+          <SummaryLayout
+            value={last?.low_share_pct == null ? "—" : formatNumber(last.low_share_pct)}
+            unit="% en bas d'intensité"
+            sub={`Cible ${report.target_min_pct}–${report.target_max_pct} %`}
+          >
+            <MiniBars
+              data={report.weeks.map((w) => ({ label: formatDay(w.week_start), value: w.low_share_pct }))}
+              reference={report.target_min_pct}
+            />
+          </SummaryLayout>
+        );
+      }}
+    </WidgetData>
+  );
+}
+
 registerWidget<IntensitySettings>({
   id: "intensity",
   title: "Répartition des intensités",
   description: "Temps par zone de FC chaque semaine, avec la cible de 75–80 % en bas d'intensité.",
-  defaultSize: { w: 6, h: 7 },
-  minSize: { w: 4, h: 5 },
+  defaultSize: { w: 4, h: 4 },
+  minSize: { w: 3, h: 3 },
   defaultSettings: { period: "8w" },
   settingsSchema: [periodField(PERIODS)],
   Component: IntensityWidget,
+  Summary: IntensityWidgetSummary,
   exportData: async (settings) => ({
     title: "Répartition des intensités",
     markdown: formatIntensity(await fetchIntensity(weeksFor(settings.period))),

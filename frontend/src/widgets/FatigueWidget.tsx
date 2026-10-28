@@ -10,6 +10,7 @@ import { REFRESH_MS } from "./queries";
 import { registerWidget } from "./registry";
 import { WidgetData } from "./states";
 import type { WidgetProps } from "./types";
+import { MiniBars, SummaryLayout } from "./summary";
 
 interface FatigueSettings extends Record<string, unknown> {
   weeks: string;
@@ -86,12 +87,33 @@ export function FatigueWidget({ settings }: WidgetProps<FatigueSettings>) {
   );
 }
 
+export function FatigueSummary({ settings }: WidgetProps<FatigueSettings>) {
+  const weeks = weeksSetting(settings.weeks, 8);
+  const query = useQuery({ queryKey: ["metrics", "fatigue", weeks], queryFn: () => fetchFatigue(weeks), refetchInterval: REFRESH_MS });
+  return (
+    <WidgetData query={query} isEmpty={(r) => r.weeks.every((w) => w.sessions === 0)} emptyMessage="Aucune sortie sur la période.">
+      {(report) => {
+        const last = report.weeks.at(-1);
+        return (
+          <SummaryLayout
+            value={formatNumber(last?.loss_m ?? 0)}
+            unit="m de D− cette semaine"
+            sub={`${last?.strong_sessions ?? 0} séance(s) à fort D−`}
+          >
+            <MiniBars data={report.weeks.map((w) => ({ label: formatDay(w.week_start), value: w.loss_m }))} />
+          </SummaryLayout>
+        );
+      }}
+    </WidgetData>
+  );
+}
+
 registerWidget<FatigueSettings>({
   id: "fatigue",
   title: "Fatigue musculaire",
   description: "D− hebdomadaire, séances à fort D− et courbatures saisies 48 h après.",
-  defaultSize: { w: 6, h: 8 },
-  minSize: { w: 4, h: 6 },
+  defaultSize: { w: 4, h: 4 },
+  minSize: { w: 3, h: 3 },
   defaultSettings: { weeks: "8" },
   settingsSchema: [
     {
@@ -106,5 +128,6 @@ registerWidget<FatigueSettings>({
     },
   ],
   Component: FatigueWidget,
+  Summary: FatigueSummary,
   exportData: async (settings) => ({ title: "Fatigue musculaire", markdown: formatFatigue(await fetchFatigue(weeksSetting(settings.weeks, 8))) }),
 });
