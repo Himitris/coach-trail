@@ -89,6 +89,11 @@ describe("Programme de la semaine", () => {
     renderWithApp(<WeekPlanWidget />);
     expect(await screen.findByText("couru, hors objectif")).toBeInTheDocument();
     expect(screen.getByText(/FC est restée sous le seuil/)).toBeInTheDocument();
+    expect(screen.getByText("Footing")).toBeInTheDocument(); // type calculé, pas de menu tant qu'on ne modifie pas
+    expect(screen.queryByRole("combobox", { name: "Type de la séance réalisée" })).toBeNull();
+    await userEvent.hover(screen.getByText("couru, hors objectif"));
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(/séance facile/);
+    await userEvent.click(screen.getByRole("button", { name: "Modifier le type de la séance" }));
     const select = screen.getByRole("combobox", { name: "Type de la séance réalisée" });
     expect(select).toHaveValue("footing");
     await userEvent.selectOptions(select, "seuil");

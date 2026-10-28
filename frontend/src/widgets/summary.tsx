@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Area, AreaChart, Bar, BarChart, Cell, Line, LineChart, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, Bar, BarChart, Cell, LabelList, Line, LineChart, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
 import { ChartBox } from "./common";
 
 const AXIS = { fontSize: 10, fill: "var(--muted)" };
@@ -60,6 +60,29 @@ export function SummaryLayout({
 export interface MiniPoint {
   label: string;
   value: number | null;
+  /** Titre complet de l'info-bulle (ex. « Semaine du 21 sept. »). */
+  title?: string;
+  /** Lignes supplémentaires de l'info-bulle. */
+  detail?: string[];
+}
+
+interface TipProps {
+  active?: boolean;
+  payload?: { payload: MiniPoint }[];
+}
+
+/** Info-bulle lisible : titre, valeur en grand, puis les lignes de détail. */
+function BarTip({ active, payload, unit, digits }: TipProps & { unit: string; digits: number }) {
+  const point = active ? payload?.[0]?.payload : undefined;
+  if (!point) return null;
+  const value = typeof point.value === "number" ? point.value.toLocaleString("fr-FR", { maximumFractionDigits: digits }) : "—";
+  return (
+    <div className="chart-tip">
+      <div className="chart-tip-title">{point.title ?? point.label}</div>
+      <div className="chart-tip-value">{value}{unit}</div>
+      {point.detail?.map((line) => <div key={line} className="chart-tip-line">{line}</div>)}
+    </div>
+  );
 }
 
 const fmtTip = (unit: string, digits = 0) => (v: unknown) =>
@@ -71,15 +94,24 @@ export function MiniBars({ data, reference, unit = "", digits = 0 }: { data: Min
     <div className="summary-chart">
       <ChartBox minHeight={40}>
         {({ width, height }) => (
-          <BarChart width={width} height={height} data={data} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
+          <BarChart width={width} height={height} data={data} margin={{ top: 16, right: 0, bottom: 0, left: 0 }}>
             <XAxis dataKey="label" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" />
             <YAxis hide domain={[0, "auto"]} />
-            <Tooltip cursor={false} {...TOOLTIP} formatter={fmtTip(unit, digits)} />
+            <Tooltip cursor={{ fill: "var(--surface-2)", opacity: 0.6 }} content={<BarTip unit={unit} digits={digits} />} />
             {reference !== undefined && <ReferenceLine y={reference} stroke="var(--muted)" strokeDasharray="3 3" />}
             <Bar dataKey="value" radius={[3, 3, 0, 0]} isAnimationActive={false}>
               {data.map((d, i) => (
-                <Cell key={`${d.label}-${i}`} fill="var(--accent)" fillOpacity={i === data.length - 1 ? 1 : 0.3} />
+                <Cell key={`${d.label}-${i}`} fill="var(--accent)" fillOpacity={i === data.length - 1 ? 1 : 0.55} />
               ))}
+              {data.length <= 10 && (
+                <LabelList
+                  dataKey="value"
+                  position="top"
+                  fontSize={10}
+                  fill="var(--text)"
+                  formatter={(v: unknown) => (typeof v === "number" ? v.toLocaleString("fr-FR", { maximumFractionDigits: digits }) : "")}
+                />
+              )}
             </Bar>
           </BarChart>
         )}

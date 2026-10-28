@@ -172,8 +172,18 @@ export function WeekLoadSummary({ settings }: WidgetProps<LoadSettings>) {
       {(items) => {
         const weeks = Array.from({ length: 8 }, (_, i) => {
           const start = addDays(from, 7 * i);
-          const value = items.filter((a) => mondayOf(a.day) === start).reduce((sum, a) => sum + metric.pick(a), 0);
-          return { label: formatDay(start), value };
+          const inWeek = items.filter((a) => mondayOf(a.day) === start);
+          const value = inWeek.reduce((sum, a) => sum + metric.pick(a), 0);
+          const sum = (pick: (a: Activity) => number) => inWeek.reduce((t, a) => t + pick(a), 0);
+          const detail = [
+            `${formatNumber(inWeek.length)} sortie(s) · ${formatKm(sum((a) => a.distance_km ?? 0))}`,
+            `D+ ${formatMeters(sum((a) => a.dplus_m ?? 0))} · ${formatDurationS(sum((a) => a.duration_min * 60))}`,
+          ];
+          return { label: formatDay(start), title: `Semaine du ${formatDay(start)} au ${formatDay(addDays(start, 6))}`, value, detail };
+        });
+        weeks.forEach((wk, i) => {
+          const prev = weeks[i - 1];
+          if (prev && prev.value > 0) wk.detail.push(`${formatSignedPct(((wk.value - prev.value) / prev.value) * 100)} vs semaine précédente`);
         });
         const w = week.data;
         const change = w?.complete ? w.time_change_vs_previous_pct : null;

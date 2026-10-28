@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import type { Direction, Evidence, EvidenceLevel, Trend } from "../api/types";
 
 /** Petit libellé de niveau de preuve ; la phrase complète est dans l'infobulle. */
@@ -99,5 +100,34 @@ export function ChartBox({
     <div ref={ref} className="chart-box" style={{ minHeight }}>
       {size.width > 0 && size.height > 0 && children(size)}
     </div>
+  );
+}
+
+/** Bulle d'explication au survol ou au focus ; rendue dans <body>, donc jamais rognée par un cadre qui défile. */
+export function Tip({ text, children, className = "" }: { text: string; children: ReactNode; className?: string }) {
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const show = (el: HTMLElement) => {
+    const r = el.getBoundingClientRect();
+    setPos({ x: r.left + r.width / 2, y: r.bottom + 6 });
+  };
+  return (
+    <span
+      className={`tip-anchor ${className}`}
+      tabIndex={0}
+      onMouseEnter={(e) => { show(e.currentTarget); }}
+      onMouseLeave={() => { setPos(null); }}
+      onFocus={(e) => { show(e.currentTarget); }}
+      onBlur={() => { setPos(null); }}
+      onKeyDown={(e) => { if (e.key === "Escape") setPos(null); }}
+    >
+      {children}
+      {pos &&
+        createPortal(
+          <span className="tip-bubble" role="tooltip" style={{ left: pos.x, top: pos.y }}>
+            {text}
+          </span>,
+          document.body,
+        )}
+    </span>
   );
 }

@@ -20,7 +20,7 @@ import type {
   WorkoutType,
 } from "../api/types";
 import { addDays, formatDay, formatDuration, formatKm, formatMeters, formatSigned } from "../app/format";
-import { EvidenceBadge } from "./common";
+import { EvidenceBadge, Tip } from "./common";
 import { formatWeekPlan } from "./exports";
 import { SESSION_TYPE_OPTIONS, sportLabel, STATUS_CLASS } from "./labels";
 import { Overlay } from "./Overlay";
@@ -84,42 +84,63 @@ export function ConformityChip({ conformity, reason }: { conformity: Conformity 
   if (!conformity) return null;
   const chip = CONFORMITY_CHIP[conformity];
   return (
-    <span className={`chip chip-${chip.cls}`} title={reason ?? undefined}>
-      {chip.text}
-    </span>
+    <Tip text={reason ?? chip.text}>
+      <span className={`chip chip-${chip.cls}`}>{chip.text}</span>
+    </Tip>
   );
 }
 
-/** Type de la sortie réalisée : calculé d'après la FC (hypothèse), corrigeable à la main. */
+/** Type de la sortie réalisée : calculé d'après la FC (hypothèse), modifiable avec le crayon. */
 function WorkoutLine({ activityId, workout }: { activityId: number; workout: DetectedWorkout }) {
   const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
   const change = useMutation({
     mutationFn: (type: WorkoutType | null) => setWorkoutType(activityId, type),
+    onSuccess: () => { setEditing(false); },
     onSettled: () => invalidateTraining(queryClient),
   });
+  const origin = workout.source === "manuel" ? "choisi" : `calculé par l'appli · confiance ${workout.confidence}`;
   return (
     <div className="plan-workout">
-      <label>
-        <span className="muted">
-          {workout.source === "manuel" ? "Type choisi" : `Type détecté (confiance ${workout.confidence})`}
-        </span>
-        <select
-          aria-label="Type de la séance réalisée"
-          value={workout.type}
-          disabled={change.isPending}
-          onChange={(event) => { change.mutate(event.target.value as WorkoutType); }}
+      <span className="plan-workout-type">
+        <span className="muted">Type :</span>{" "}
+        <Tip text={workout.reasons[0] ?? origin}>
+          <strong>{workout.label}</strong>
+        </Tip>{" "}
+        <span className="muted">({origin})</span>
+      </span>
+      {editing ? (
+        <>
+          <select
+            aria-label="Type de la séance réalisée"
+            value={workout.type}
+            disabled={change.isPending}
+            onChange={(event) => { change.mutate(event.target.value as WorkoutType); }}
+          >
+            {WORKOUT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          {workout.source === "manuel" && (
+            <button type="button" className="btn btn-small" onClick={() => { change.mutate(null); }}>
+              Recalculer
+            </button>
+          )}
+          <button type="button" className="btn btn-small" onClick={() => { setEditing(false); }}>
+            Annuler
+          </button>
+        </>
+      ) : (
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="Modifier le type de la séance"
+          title="Le type n'est pas correct ? Le modifier"
+          onClick={() => { setEditing(true); }}
         >
-          {WORKOUT_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-      </label>
-      {workout.source === "manuel" && (
-        <button type="button" className="btn btn-small" onClick={() => { change.mutate(null); }}>
-          Recalculer
+          ✎
         </button>
       )}
-      {workout.reasons[0] && <span className="muted plan-workout-why">{workout.reasons[0]}</span>}
       {change.isError && <span className="form-error" role="alert">{change.error.message}</span>}
     </div>
   );

@@ -526,8 +526,9 @@ button.plan-planned:hover { background: var(--surface-2); }
 .summary-stats > div { min-width: 0; }
 .summary-stats dt { font-family: var(--mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .summary-stats dd { margin: 0; font-family: var(--mono); font-size: 0.85rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.summary-more { display: none; }
-.widget-summary:hover .summary-more { display: block; }
+.summary-more { position: absolute; right: 0; bottom: 0; opacity: 0; pointer-events: none; transition: opacity .12s; }
+.widget-summary { position: relative; }
+.widget-summary:hover .summary-more, .widget-summary:focus-visible .summary-more { opacity: 1; }
 .summary-list { gap: 0.2rem; overflow: hidden; }
 .summary-list li { font-size: 0.8rem; align-items: baseline; }
 .summary-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; font-variant-numeric: tabular-nums; }
@@ -551,3 +552,13 @@ html { scrollbar-color: var(--border) transparent; scrollbar-width: thin; }
 .widget ::-webkit-scrollbar-thumb { border-color: var(--surface); }
 .app-main { padding-left: 0.9rem; padding-right: 0.9rem; }
 @media (max-width: 640px) { .app-main { padding-left: 0.5rem; padding-right: 0.5rem; } }
+
+/* Bulle au survol (Tip) et info-bulle des graphiques. */
+.tip-anchor { display: inline-flex; align-items: center; cursor: help; }
+.tip-anchor:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.tip-bubble { position: fixed; z-index: 90; transform: translateX(-50%); max-width: min(22rem, 90vw); padding: 0.45rem 0.65rem; background: var(--text); color: var(--bg); border-radius: 8px; font-size: 0.8rem; line-height: 1.35; font-weight: 400; text-transform: none; letter-spacing: 0; box-shadow: 0 6px 20px rgb(0 0 0 / 30%); pointer-events: none; }
+.chart-tip { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.7rem; box-shadow: 0 6px 20px rgb(0 0 0 / 25%); font-size: 0.8rem; min-width: 11rem; }
+.chart-tip-title { color: var(--muted); font-size: 0.72rem; margin-bottom: 0.15rem; }
+.chart-tip-value { font-family: var(--mono); font-size: 1.15rem; font-weight: 700; margin-bottom: 0.25rem; }
+.chart-tip-line { color: var(--muted); font-size: 0.75rem; }
+.plan-workout-type { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; }
