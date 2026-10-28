@@ -159,7 +159,7 @@ export function WeekLoadSummary({ settings }: WidgetProps<LoadSettings>) {
   const from = addDays(mondayOf(today), -7 * 7);
   const activities = useQuery({
     queryKey: ["activities", "weekly", from],
-    queryFn: () => fetchActivities({ from, to: today, limit: 500 }),
+    queryFn: () => fetchActivities({ from, to: today, limit: 200 }),
     refetchInterval: REFRESH_MS,
   });
   const week = useQuery({
