@@ -26,11 +26,28 @@ function useContainerWidth(): [React.RefObject<HTMLDivElement>, number] {
   return [ref, width];
 }
 
+/** Hauteur restante sous le haut de la zone, jusqu'en bas de la fenêtre. */
+function useRemainingHeight(ref: React.RefObject<HTMLDivElement>, deps: unknown[]): number {
+  const [height, setHeight] = useState(0);
+  useEffect(() => {
+    const measure = () => {
+      const top = ref.current?.getBoundingClientRect().top ?? 0;
+      setHeight(Math.max(0, Math.floor(window.innerHeight - top - 8)));
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => { window.removeEventListener("resize", measure); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+  return height;
+}
+
 export function DashboardPage() {
   const { pageId } = useParams();
   const { layout, dispatch, editMode, setEditMode } = useDashboard();
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [containerRef, width] = useContainerWidth();
+  const availableHeight = useRemainingHeight(containerRef, [editMode, pageId]);
   const page = layout.pages.find((p) => p.id === pageId);
   if (!page) return <Navigate to="/" replace />;
 
@@ -93,7 +110,7 @@ export function DashboardPage() {
             </button>
           </div>
         ) : (
-          width > 0 && <WidgetGrid page={page} width={width} bp={bp} editMode={editMode} />
+          width > 0 && <WidgetGrid page={page} width={width} bp={bp} editMode={editMode} availableHeight={availableHeight} />
         )}
       </div>
       {catalogOpen && (

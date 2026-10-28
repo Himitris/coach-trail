@@ -3,7 +3,7 @@ import { CartesianGrid, ComposedChart, Line, ReferenceLine, Tooltip, XAxis, YAxi
 import { fetchMonotony } from "../api/endpoints";
 import type { MonotonyReport } from "../api/types";
 import { formatDay, formatNumber } from "../app/format";
-import { ChartBox, EvidenceNote } from "./common";
+import { ChartBox, EvidenceNote, EvidenceBadge } from "./common";
 import { formatMonotony } from "./exports";
 import { REFRESH_MS } from "./queries";
 import { registerWidget } from "./registry";
@@ -100,9 +100,14 @@ export function MonotonySummary({ settings }: WidgetProps<MonotonySettings>) {
           <SummaryLayout
             value={last?.monotony == null ? "—" : formatNumber(last.monotony, 2)}
             unit="monotonie"
-            sub={`Repère : ${formatNumber(report.reference)}`}
+            tag={<EvidenceBadge evidence={report.evidence} />}
+            stats={[
+              { label: "Repère", value: formatNumber(report.reference) },
+              { label: "Tension", value: last?.strain == null ? "—" : formatNumber(last.strain) },
+              { label: "Charge", value: formatNumber(last?.load) },
+            ]}
           >
-            <MiniLine data={report.weeks.map((w) => ({ label: formatDay(w.week_start), value: w.monotony }))} />
+            <MiniLine data={report.weeks.map((w) => ({ label: formatDay(w.week_start), value: w.monotony }))} digits={2} />
           </SummaryLayout>
         );
       }}

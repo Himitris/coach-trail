@@ -11,7 +11,7 @@ import {
   formatSignedPct,
   todayIso,
 } from "../app/format";
-import { EvidenceNote, TrendWord } from "./common";
+import { EvidenceNote, TrendWord, EvidenceBadge } from "./common";
 import { formatWeekLoad } from "./exports";
 import { REFRESH_MS } from "./queries";
 import { registerWidget } from "./registry";
@@ -145,39 +145,55 @@ const mondayOf = (iso: string): string => addDays(iso, -((new Date(`${iso}T00:00
 
 const LOAD_METRICS = {
   km: { label: "km", pick: (a: Activity) => a.distance_km ?? 0, digits: 1 as const },
-  dplus: { label: "m de D+", pick: (a: Activity) => a.dplus_m ?? 0, digits: 0 as const },
-  temps: { label: "h de course", pick: (a: Activity) => a.duration_min / 60, digits: 1 as const },
+  dplus: { label: "m D+", pick: (a: Activity) => a.dplus_m ?? 0, digits: 0 as const },
+  temps: { label: "h", pick: (a: Activity) => a.duration_min / 60, digits: 1 as const },
 };
 type LoadMetric = keyof typeof LOAD_METRICS;
 const loadMetricOf = (value: unknown): LoadMetric => (value === "dplus" || value === "temps" ? value : "km");
 
-/** Résumé : un seul graphique, la métrique choisie semaine par semaine (8 dernières semaines). */
+/** Vue condensée : la métrique choisie semaine par semaine (8 semaines) et les totaux de la semaine. */
 export function WeekLoadSummary({ settings }: WidgetProps<LoadSettings>) {
   const metric = LOAD_METRICS[loadMetricOf(settings.metric)];
+  const date = dateFor(settings.week);
   const today = todayIso();
   const from = addDays(mondayOf(today), -7 * 7);
-  const query = useQuery({
+  const activities = useQuery({
     queryKey: ["activities", "weekly", from],
     queryFn: () => fetchActivities({ from, to: today, limit: 500 }),
     refetchInterval: REFRESH_MS,
   });
+  const week = useQuery({
+    queryKey: ["metrics", "week", date ?? "current"],
+    queryFn: () => fetchWeekMetrics(date),
+    refetchInterval: REFRESH_MS,
+  });
   return (
-    <WidgetData query={query} isEmpty={(items) => items.length === 0} emptyMessage="Aucune sortie enregistrée sur les dernières semaines.">
+    <WidgetData query={activities} isEmpty={(items) => items.length === 0} emptyMessage="Aucune sortie enregistrée sur les dernières semaines.">
       {(items) => {
         const weeks = Array.from({ length: 8 }, (_, i) => {
           const start = addDays(from, 7 * i);
           const value = items.filter((a) => mondayOf(a.day) === start).reduce((sum, a) => sum + metric.pick(a), 0);
           return { label: formatDay(start), value };
         });
-        const current = weeks[7]?.value ?? 0;
-        const previous = weeks[6]?.value ?? 0;
+        const w = week.data;
+        const change = w?.complete ? w.time_change_vs_previous_pct : null;
         return (
           <SummaryLayout
-            value={formatNumber(current, metric.digits)}
+            value={formatNumber(weeks[7]?.value ?? 0, metric.digits)}
             unit={`${metric.label} cette semaine`}
-            sub={`Semaine précédente : ${formatNumber(previous, metric.digits)}`}
+            sub={`Semaine précédente : ${formatNumber(weeks[6]?.value ?? 0, metric.digits)} ${metric.label}`}
+            tag={w && <EvidenceBadge evidence={w.evidence} />}
+            stats={
+              w && [
+                { label: "Temps", value: formatDurationS(w.current.time_s) },
+                { label: "D+", value: formatMeters(w.current.gain_m) },
+                { label: "D−", value: formatMeters(w.current.loss_m) },
+                { label: "Séances", value: formatNumber(w.current.sessions) },
+                ...(change === null ? [] : [{ label: "Temps vs préc.", value: formatSignedPct(change) }]),
+              ]
+            }
           >
-            <MiniBars data={weeks} />
+            <MiniBars data={weeks} unit={` ${metric.label}`} digits={metric.digits} />
           </SummaryLayout>
         );
       }}
@@ -189,7 +205,7 @@ registerWidget<LoadSettings>({
   id: "week-load",
   title: "Charge de la semaine",
   description: "Temps, distance, D+ et D− vs semaine précédente et moyenne 4 semaines, avec le repère +10 %.",
-  defaultSize: { w: 4, h: 4 },
+  defaultSize: { w: 3, h: 6 },
   minSize: { w: 3, h: 3 },
   defaultSettings: { week: "current", metric: "km" },
   settingsSchema: [

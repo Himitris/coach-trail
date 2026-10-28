@@ -19,7 +19,6 @@ import { registerWidget } from "./registry";
 import { sportField } from "./settingFields";
 import { WidgetData } from "./states";
 import type { WidgetProps } from "./types";
-import { SummaryLayout } from "./summary";
 
 interface RecentSettings extends Record<string, unknown> {
   count: number;
@@ -102,6 +101,7 @@ export function RecentActivitiesWidget({ settings }: WidgetProps<RecentSettings>
   );
 }
 
+/** Vue condensée : une ligne par sortie (date, sport, durée, distance, D+, FC). */
 export function RecentActivitiesSummary({ settings }: WidgetProps<RecentSettings>) {
   const limit = clampCount(settings.count);
   const group = settings.sport;
@@ -112,26 +112,22 @@ export function RecentActivitiesSummary({ settings }: WidgetProps<RecentSettings
   });
   return (
     <WidgetData query={query} isEmpty={(items) => items.length === 0} emptyMessage="Aucune sortie enregistrée.">
-      {(items) => {
-        const [last, ...others] = items;
-        if (!last) return null;
-        return (
-          <SummaryLayout
-            value={formatNumber(last.distance_km, 1)}
-            unit="km"
-            sub={`${sportLabel(last.sport)} · ${formatDay(last.day)} · ${formatDuration(last.duration_min)}`}
-          >
-            <ul className="summary-list">
-              {others.slice(0, 3).map((a) => (
-                <li key={a.id}>
-                  <span>{sportLabel(a.sport)}</span>
-                  <span className="muted">{formatDay(a.day)} · {formatNumber(a.distance_km, 1)} km</span>
-                </li>
-              ))}
-            </ul>
-          </SummaryLayout>
-        );
-      }}
+      {(items) => (
+        <table className="summary-table">
+          <tbody>
+            {items.map((a) => (
+              <tr key={a.id}>
+                <td>{formatDay(a.day)}</td>
+                <td>{sportLabel(a.sport)}{a.is_race ? " 🏁" : ""}</td>
+                <td>{formatDuration(a.duration_min)}</td>
+                <td>{a.distance_km === null ? "—" : `${formatNumber(a.distance_km, 1)} km`}</td>
+                <td>{a.dplus_m === null ? "—" : `${formatMeters(a.dplus_m)} D+`}</td>
+                <td>{a.hr_avg === null ? "" : `${formatNumber(a.hr_avg)} bpm`}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </WidgetData>
   );
 }
@@ -140,7 +136,7 @@ registerWidget<RecentSettings>({
   id: "recent-activities",
   title: "Dernières sorties",
   description: "Les 5 à 10 dernières sorties (durée, distance, D+, FC, RPE) ; un clic ouvre le détail.",
-  defaultSize: { w: 4, h: 4 },
+  defaultSize: { w: 3, h: 6 },
   minSize: { w: 3, h: 3 },
   defaultSettings: { count: 7, sport: "all" },
   settingsSchema: [{ key: "count", label: "Nombre de sorties (5 à 10)", type: "number", min: 5, max: 10, step: 1 }, sportField()],

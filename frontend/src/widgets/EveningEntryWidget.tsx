@@ -181,8 +181,8 @@ registerWidget<EntrySettings>({
   id: "evening-entry",
   title: "Saisie du soir",
   description: "RPE de la séance, courbatures, malade, note : un appui par valeur, enregistré aussitôt.",
-  defaultSize: { w: 6, h: 6 },
-  minSize: { w: 4, h: 6 },
+  defaultSize: { w: 3, h: 6 },
+  minSize: { w: 3, h: 4 },
   defaultSettings: { day: "today" },
   settingsSchema: [
     {

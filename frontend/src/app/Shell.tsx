@@ -10,6 +10,7 @@ import { useDashboard } from "./DashboardProvider";
 import { newId } from "./ids";
 import { usePageShortcuts } from "./shortcuts";
 import { TabBar } from "./TabBar";
+import { useTheme } from "./theme";
 import { useSources } from "./useSources";
 import { OfflineBanner } from "./OfflineBanner";
 
@@ -22,6 +23,7 @@ const SAVE_LABELS = {
 
 function Header() {
   const { saveStatus } = useDashboard();
+  const [theme, toggleTheme] = useTheme();
   const sources = useSources();
   const badges = (sources.data ?? []).filter((s) => s.badge !== null);
   return (
@@ -36,6 +38,15 @@ function Header() {
           </Link>
         ))}
       </div>
+      <button
+        type="button"
+        className="icon-btn theme-toggle"
+        aria-label={theme === "dark" ? "Passer au thème clair" : "Passer au thème sombre"}
+        title={theme === "dark" ? "Thème clair" : "Thème sombre"}
+        onClick={toggleTheme}
+      >
+        {theme === "dark" ? "☀" : "☾"}
+      </button>
       <ExportButton />
       <span className={`save-status save-${saveStatus}`} aria-live="polite">
         {SAVE_LABELS[saveStatus]}

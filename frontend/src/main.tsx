@@ -4,12 +4,15 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
+import { applyStoredTheme } from "./app/theme";
 import { LockGate } from "./app/LockGate";
 import { DashboardProvider } from "./app/DashboardProvider";
 import { Shell } from "./app/Shell";
 import { ToastProvider } from "./app/toasts";
 import "./styles.css";
 import "./widgets";
+
+applyStoredTheme();
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },

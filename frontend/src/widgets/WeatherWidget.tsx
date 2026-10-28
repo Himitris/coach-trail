@@ -233,13 +233,35 @@ export function WeatherSummary({ settings }: WidgetProps<WeatherSettings>) {
   if (place === null) return <WidgetEmpty message="Lieu à choisir : ouvrez le détail." />;
   if (forecast.isError) return <WidgetError message={forecast.error.message} onRetry={() => void forecast.refetch()} />;
   if (!forecast.data) return <WidgetLoading />;
-  const d = forecast.data.weather.day;
+  const { day: d, periods } = forecast.data.weather;
   return (
     <SummaryLayout
-      value={`${formatNumber(d.temp_min_c)}–${formatNumber(d.temp_max_c)}`}
-      unit="°C"
-      sub={`${d.label} · pluie ${formatNumber(d.rain_prob_max_pct)} % · vent ${formatNumber(d.wind_max_kmh)} km/h`}
-    />
+      value={`${formatNumber(d.temp_min_c)}–${formatNumber(d.temp_max_c)}°`}
+      unit={d.label}
+      sub={`${place.nom}${forecast.data.session ? ` · ${forecast.data.session.titre}` : ""}`}
+      stats={[
+        { label: "Pluie", value: `${formatNumber(d.rain_prob_max_pct)} %` },
+        { label: "Cumul", value: `${formatNumber(d.rain_mm, 1)} mm` },
+        { label: "Vent", value: `${formatNumber(d.wind_max_kmh)} km/h` },
+        { label: "Rafales", value: `${formatNumber(d.gust_max_kmh)} km/h` },
+        { label: "Soleil", value: `${d.sunrise ?? "—"}–${d.sunset ?? "—"}` },
+      ]}
+    >
+      {periods.length > 0 && (
+        <table className="summary-table">
+          <tbody>
+            {periods.map((p) => (
+              <tr key={p.name}>
+                <td>{p.name}</td>
+                <td>{formatNumber(p.temp_c)}°</td>
+                <td>{formatNumber(p.rain_prob_pct)} % pluie</td>
+                <td>{formatNumber(p.wind_kmh)} km/h</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </SummaryLayout>
   );
 }
 

@@ -10,7 +10,7 @@ import { registerWidget } from "./registry";
 import { periodField } from "./settingFields";
 import { WidgetData } from "./states";
 import type { WidgetProps } from "./types";
-import { MiniBars, SummaryLayout } from "./summary";
+import { SummaryLayout, MiniStacked } from "./summary";
 
 interface IntensitySettings extends Record<string, unknown> {
   period: string;
@@ -176,11 +176,17 @@ export function IntensityWidgetSummary({ settings }: WidgetProps<IntensitySettin
         return (
           <SummaryLayout
             value={last?.low_share_pct == null ? "—" : formatNumber(last.low_share_pct)}
-            unit="% en bas d'intensité"
-            sub={`Cible ${report.target_min_pct}–${report.target_max_pct} %`}
+            unit="% bas d'intensité"
+            tag={<TrendWord trend={report.trend} />}
+            stats={[
+              { label: "Cible", value: `${report.target_min_pct}–${report.target_max_pct} %` },
+              { label: "Moyenne", value: report.average_low_share_pct === null ? "—" : `${formatNumber(report.average_low_share_pct)} %` },
+              ...(last?.delta_to_target_pct == null ? [] : [{ label: "Écart cible", value: formatSigned(last.delta_to_target_pct, 0, " pt") }]),
+            ]}
           >
-            <MiniBars
-              data={report.weeks.map((w) => ({ label: formatDay(w.week_start), value: w.low_share_pct }))}
+            <MiniStacked
+              data={toBarRows(report.weeks)}
+              keys={ZONE_KEYS.map((key, i) => ({ key, color: `var(--zone-${i + 1})` }))}
               reference={report.target_min_pct}
             />
           </SummaryLayout>

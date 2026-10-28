@@ -215,21 +215,23 @@ export function GearSummary() {
   return (
     <WidgetData query={query} isEmpty={(r) => r.items.length === 0} emptyMessage="Aucun équipement suivi.">
       {(report) => (
-        <ul className="summary-list">
-          {report.items
-            .filter((g) => g.status !== "retire")
-            .sort((a, b) => b.usage_pct - a.usage_pct)
-            .slice(0, 3)
-            .map((g) => (
-              <li key={g.id ?? g.nom} style={{ flexDirection: "column", gap: "0.2rem" }}>
-                <span style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span>{g.nom}</span>
-                  <span className="muted">{formatNumber(g.km_total)} / {formatNumber(g.seuil_km)} km</span>
-                </span>
-                <span className="summary-bar"><span style={{ width: `${Math.min(100, g.usage_pct)}%` }} /></span>
-              </li>
-            ))}
-        </ul>
+        <>
+          <ul className="summary-list">
+            {report.items
+              .filter((g) => g.status !== "retire")
+              .sort((a, b) => b.usage_pct - a.usage_pct)
+              .map((g) => (
+                <li key={g.id ?? g.nom} style={{ flexDirection: "column", gap: "0.1rem" }}>
+                  <span style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+                    <span>{g.nom}{g.status === "surveiller" || g.status === "atteint" ? " ⚠" : ""}</span>
+                    <span className="muted">{formatNumber(g.km_total)} / {formatNumber(g.seuil_km)} km</span>
+                  </span>
+                  <span className="summary-bar"><span style={{ width: `${Math.min(100, g.usage_pct)}%` }} /></span>
+                </li>
+              ))}
+          </ul>
+          {report.unassigned_total > 0 && <span className="summary-sub">{report.unassigned_total} sortie(s) sans matériel</span>}
+        </>
       )}
     </WidgetData>
   );

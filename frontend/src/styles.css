@@ -21,13 +21,32 @@
   --zone-4: #cf8f5a;
   --zone-5: #b8573f;
   --radius: 10px;
-  --tabbar-h: 44px;
-  --header-h: 52px;
+  --tabbar-h: 36px;
+  --header-h: 40px;
   --mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 16px;
   line-height: 1.4;
 }
+
+/* Thème sombre : choisi à la main (data-theme) ou, à défaut, suivant le système. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #15130f; --surface: #1d1a15; --surface-2: #28241d; --text: #ece6d8; --muted: #9b9484;
+  --border: #353026; --accent: #ece6d8; --accent-2: #d9825f; --accent-text: #15130f;
+  --warn: #e0b04f; --warn-bg: #3a2f14; --danger: #e8776a; --ok: #8fb27a;
+  --zone-1: #7e9a79; --zone-2: #a3a67a; --zone-3: #cbb05f; --zone-4: #c98551; --zone-5: #c2634b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #15130f; --surface: #1d1a15; --surface-2: #28241d; --text: #ece6d8; --muted: #9b9484;
+    --border: #353026; --accent: #ece6d8; --accent-2: #d9825f; --accent-text: #15130f;
+    --warn: #e0b04f; --warn-bg: #3a2f14; --danger: #e8776a; --ok: #8fb27a;
+    --zone-1: #7e9a79; --zone-2: #a3a67a; --zone-3: #cbb05f; --zone-4: #c98551; --zone-5: #c2634b;
+  }
+}
+.theme-toggle { font-size: 1rem; }
 
 * { box-sizing: border-box; }
 html, body, #root { min-height: 100%; }
@@ -96,7 +115,7 @@ button:disabled { cursor: default; opacity: 0.5; }
 .menu button { text-align: left; background: none; border: 0; padding: 0.55rem 0.7rem; border-radius: 6px; }
 .menu button:hover:not(:disabled) { background: var(--surface-2); }
 
-.app-main { padding: calc(var(--header-h) + var(--tabbar-h) + 0.75rem) 0.75rem 3rem; max-width: 1600px; margin: 0 auto; }
+.app-main { padding: calc(var(--header-h) + var(--tabbar-h) + 0.4rem) 0.4rem 0.5rem; }
 
 /* Badges */
 .badge { display: inline-block; padding: 0.1rem 0.55rem; border-radius: 999px; font-size: 0.75rem; text-decoration: none; background: var(--surface-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -105,7 +124,9 @@ button:disabled { cursor: default; opacity: 0.5; }
 .badge-degraded { background: var(--warn-bg); color: var(--warn); }
 
 /* Barre d'outils de page */
-.toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.5rem; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.3rem; }
+.toolbar h1 { font-size: 0.95rem; }
+.toolbar .btn { min-height: 28px; padding: 0.1rem 0.7rem; }
 .toolbar-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .hint { color: var(--muted); font-size: 0.875rem; margin: 0 0 0.75rem; }
 .empty-dashboard, .fullpage { text-align: center; color: var(--muted); padding: 3rem 1rem; }
@@ -222,9 +243,7 @@ button:disabled { cursor: default; opacity: 0.5; }
 .toast { background: var(--text); color: var(--bg); padding: 0.6rem 0.9rem; border-radius: 8px; box-shadow: var(--shadow); }
 .toast-error { background: var(--danger); color: #fff; }
 
-@media (min-width: 700px) {
-  .app-main { padding-left: 1.25rem; padding-right: 1.25rem; }
-}
+
 
 /* ---- Widgets de phase 1 ---- */
 .muted { color: var(--muted); }
@@ -479,3 +498,45 @@ button.plan-planned:hover { background: var(--surface-2); }
 @container (min-width: 820px) {
   .plan-days .plan-workout label { flex-direction: column; align-items: flex-start; gap: 0.1rem; }
 }
+
+/* Programme de la semaine : version condensée (moins de texte, le détail s'ouvre au clic sur la séance). */
+.plan-summary { margin: 0 0 0.25rem; font-size: 0.78rem; color: var(--muted); }
+.plan-summary strong { color: var(--text); font-weight: 600; }
+.plan .evidence-note { display: none; }
+.plan-day { padding: 0.25rem 0.4rem; margin-bottom: 0.25rem; }
+.plan-day h3 { font-size: 0.8rem; }
+.plan-session { padding: 0.15rem 0; font-size: 0.78rem; gap: 0.15rem 0.4rem; }
+.plan-planned { padding: 0.05rem 0.2rem; }
+.plan-done .muted, .plan-notes, .plan-conformity-note, .plan-workout > .muted, .plan-workout-why { display: none; }
+.plan-workout { gap: 0.2rem; }
+.plan-workout select { max-width: 100%; }
+.week-nav { margin-bottom: 0.2rem; gap: 0.25rem; }
+.widget-body:has(.plan) { padding-top: 0; }
+
+/* Résumés denses */
+.widget-bar { min-height: 30px; padding-top: 0.15rem; }
+.widget-body { padding: 0.1rem 0.6rem 0.45rem; }
+.widget-summary { gap: 0.3rem; }
+.summary-head { gap: 0.4rem; flex-wrap: nowrap; }
+.summary-value { font-size: 1.6rem; white-space: nowrap; }
+.summary-unit { font-size: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.summary-tag { margin-left: auto; display: inline-flex; gap: 0.3rem; align-items: center; flex: none; }
+.summary-sub { font-size: 0.75rem; line-height: 1.25; }
+.summary-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(4.2rem, 1fr)); gap: 0.2rem 0.5rem; margin: 0; }
+.summary-stats > div { min-width: 0; }
+.summary-stats dt { font-family: var(--mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.summary-stats dd { margin: 0; font-family: var(--mono); font-size: 0.85rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.summary-more { display: none; }
+.widget-summary:hover .summary-more { display: block; }
+.summary-list { gap: 0.2rem; overflow: hidden; }
+.summary-list li { font-size: 0.8rem; align-items: baseline; }
+.summary-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+.summary-table td { padding: 0.12rem 0.3rem 0.12rem 0; white-space: nowrap; font-family: var(--mono); }
+.summary-table td:first-child { color: var(--muted); }
+.summary-table td:nth-child(2) { font-family: inherit; max-width: 6rem; overflow: hidden; text-overflow: ellipsis; }
+.summary-table tr:not(:last-child) td { border-bottom: 1px solid var(--border); }
+.widget-summary .evidence, .widget-summary .trend { font-size: 0.6rem; }
+.summary-chart { position: relative; display: block; }
+.summary-chart > .chart-box { position: absolute; inset: 0; min-height: 0 !important; }
+.summary-table td { padding-right: 0.6rem; }
+.plan-day header .chip-none { display: none; }

@@ -10,7 +10,7 @@ import { registerWidget } from "./registry";
 import { periodField } from "./settingFields";
 import { WidgetData } from "./states";
 import type { WidgetProps } from "./types";
-import { MiniLine, SummaryLayout } from "./summary";
+import { SummaryLayout, MiniLines } from "./summary";
 
 interface FitnessSettings extends Record<string, unknown> {
   period: string;
@@ -161,10 +161,19 @@ export function FitnessSummary({ settings }: WidgetProps<FitnessSettings>) {
         return (
           <SummaryLayout
             value={formatNumber(last.ctl, 1)}
-            unit="forme (CTL)"
-            sub={`Fatigue ${formatNumber(last.atl, 1)} · fraîcheur ${formatSigned(last.tsb, 1)}`}
+            unit="CTL · forme"
+            tag={<TrendWord trend={report.trend} />}
+            stats={[
+              { label: "ATL fatigue", value: formatNumber(last.atl, 1) },
+              { label: "TSB fraîcheur", value: formatSigned(last.tsb, 1) },
+              { label: "CTL 4 sem.", value: report.ctl_ramp_4w === null ? "—" : formatSigned(report.ctl_ramp_4w, 1) },
+            ]}
           >
-            <MiniLine data={report.points.map((p) => ({ label: formatDay(p.date), value: p.ctl }))} />
+            <MiniLines
+              data={report.points.map((p) => ({ label: formatDay(p.date), ctl: p.ctl, atl: p.atl }))}
+              lines={[{ key: "ctl", color: "var(--accent)" }, { key: "atl", color: "var(--accent-2)", dashed: true }]}
+              digits={1}
+            />
           </SummaryLayout>
         );
       }}

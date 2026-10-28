@@ -4,7 +4,7 @@ import { CartesianGrid, ComposedChart, Line, Tooltip, XAxis, YAxis } from "recha
 import { createFueling, deleteFueling, fetchFuelingSeries, updateFueling } from "../api/endpoints";
 import type { FuelingPoint, FuelingSeries } from "../api/types";
 import { formatDay, formatDuration, formatKm, formatNumber, formatSigned } from "../app/format";
-import { ChartBox, EvidenceNote } from "./common";
+import { ChartBox, EvidenceNote, EvidenceBadge } from "./common";
 import { formatFueling } from "./exports";
 import { REFRESH_MS } from "./queries";
 import { registerWidget } from "./registry";
@@ -182,14 +182,23 @@ export function FuelingSummary({ settings }: WidgetProps<FuelingSettings>) {
       emptyMessage={`Aucune sortie de plus de ${formatNumber(minHours, 1)} h pour l'instant.`}
     >
       {(series) => {
-        const last = series.points.filter((p) => p.carbs_g_per_h !== null).at(-1);
+        const withCarbs = series.points.filter((p) => p.carbs_g_per_h !== null);
+        const last = withCarbs.at(-1);
+        const mean = withCarbs.length ? withCarbs.reduce((sum, p) => sum + (p.carbs_g_per_h ?? 0), 0) / withCarbs.length : null;
         return (
           <SummaryLayout
             value={last ? formatNumber(last.carbs_g_per_h) : "—"}
-            unit="g de glucides / h"
-            sub={last ? `Dernière sortie longue : ${formatDay(last.day)}` : "Aucune nutrition saisie"}
+            unit="g glucides / h"
+            tag={<EvidenceBadge evidence={series.evidence} />}
+            sub={last ? `Dernière : ${formatDay(last.day)} · ${formatNumber(last.duration_h, 1)} h` : "Aucune nutrition saisie"}
+            stats={[
+              { label: "Moyenne", value: mean === null ? "—" : `${formatNumber(mean)} g/h` },
+              { label: "Digestion", value: last?.gi_score == null ? "—" : `${last.gi_score}/10` },
+              { label: "Sorties", value: formatNumber(series.points.length) },
+              ...(series.missing > 0 ? [{ label: "À saisir", value: formatNumber(series.missing) }] : []),
+            ]}
           >
-            <MiniLine data={series.points.map((p) => ({ label: formatDay(p.day), value: p.carbs_g_per_h }))} />
+            <MiniLine data={series.points.map((p) => ({ label: formatDay(p.day), value: p.carbs_g_per_h }))} unit=" g/h" />
           </SummaryLayout>
         );
       }}

@@ -11,7 +11,7 @@ import { REFRESH_MS } from "./queries";
 import { registerWidget } from "./registry";
 import { WidgetData, WidgetEmpty, WidgetLoading } from "./states";
 import type { WidgetProps } from "./types";
-import { SummaryLayout } from "./summary";
+import { SummaryLayout, MiniArea } from "./summary";
 
 interface RaceGoalSettings extends Record<string, unknown> {
   goalId: number | null;
@@ -239,11 +239,23 @@ export function RaceGoalSummary({ settings }: WidgetProps<RaceGoalSettings>) {
     return <WidgetEmpty message="Aucun objectif de course : ouvrez le détail pour en choisir un." />;
   }
   const race = query.data;
+  const prediction = race.predictions[0];
   return (
     <SummaryLayout
       value={`J-${race.days_left}`}
-      sub={[race.nom, formatDay(race.date), race.distance_km === null ? null : `${formatNumber(race.distance_km)} km`, race.dplus_m === null ? null : `${formatNumber(race.dplus_m)} m D+`].filter(Boolean).join(" · ")}
-    />
+      unit={race.nom}
+      sub={[formatDay(race.date), race.distance_km === null ? null : `${formatNumber(race.distance_km)} km`, race.dplus_m === null ? null : `${formatNumber(race.dplus_m)} m D+`].filter(Boolean).join(" · ")}
+      stats={[
+        { label: "Km / sem.", value: formatNumber(race.recent.avg_weekly_km, 1) },
+        { label: "D+ / sem.", value: `${formatNumber(race.recent.avg_weekly_dplus_m)} m` },
+        { label: "Plus longue", value: race.recent.longest_km === null ? "—" : `${formatNumber(race.recent.longest_km, 1)} km` },
+        ...(prediction ? [{ label: prediction.label, value: formatDurationS(prediction.seconds) }] : []),
+      ]}
+    >
+      {race.profile && race.profile.length > 1 && (
+        <MiniArea data={race.profile.map(([km, alt]) => ({ label: `${formatNumber(km)} km`, value: alt }))} />
+      )}
+    </SummaryLayout>
   );
 }
 

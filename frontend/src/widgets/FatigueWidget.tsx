@@ -3,7 +3,7 @@ import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 import { fetchFatigue } from "../api/endpoints";
 import type { FatigueReport } from "../api/types";
 import { formatDay, formatMeters, formatNumber } from "../app/format";
-import { ChartBox, EvidenceNote } from "./common";
+import { ChartBox, EvidenceNote, EvidenceBadge } from "./common";
 import { formatFatigue } from "./exports";
 import { weeksSetting } from "./MonotonyWidget";
 import { REFRESH_MS } from "./queries";
@@ -94,13 +94,20 @@ export function FatigueSummary({ settings }: WidgetProps<FatigueSettings>) {
     <WidgetData query={query} isEmpty={(r) => r.weeks.every((w) => w.sessions === 0)} emptyMessage="Aucune sortie sur la période.">
       {(report) => {
         const last = report.weeks.at(-1);
+        const strong = report.strong_sessions.at(-1);
         return (
           <SummaryLayout
             value={formatNumber(last?.loss_m ?? 0)}
-            unit="m de D− cette semaine"
-            sub={`${last?.strong_sessions ?? 0} séance(s) à fort D−`}
+            unit="m D− cette semaine"
+            tag={<EvidenceBadge evidence={report.evidence} />}
+            sub={report.suggestion?.message}
+            stats={[
+              { label: "Séances", value: formatNumber(last?.sessions ?? 0) },
+              { label: "Fort D−", value: formatNumber(last?.strong_sessions ?? 0) },
+              ...(strong?.soreness == null ? [] : [{ label: "Courbatures", value: `${strong.soreness}/10` }]),
+            ]}
           >
-            <MiniBars data={report.weeks.map((w) => ({ label: formatDay(w.week_start), value: w.loss_m }))} />
+            <MiniBars data={report.weeks.map((w) => ({ label: formatDay(w.week_start), value: w.loss_m }))} unit=" m" />
           </SummaryLayout>
         );
       }}

@@ -9,7 +9,7 @@ import { REFRESH_MS } from "./queries";
 import { registerWidget } from "./registry";
 import { WidgetData } from "./states";
 import type { WidgetProps } from "./types";
-import { MiniLine, SummaryLayout } from "./summary";
+import { SummaryLayout, MiniLines } from "./summary";
 
 interface RecoverySettings extends Record<string, unknown> {
   window: string;
@@ -227,11 +227,23 @@ export function RecoverySummary({ settings }: WidgetProps<RecoverySettings>) {
       {(r) => (
         <SummaryLayout
           value={formatNumber(r.hrv.recent_mean)}
-          unit="ms · VFC moyenne 7 j"
-          sub={`Base : ${formatNumber(r.hrv.baseline_mean)} ms · FC repos ${formatNumber(r.resting_hr.recent_mean)} bpm`}
+          unit="ms · VFC 7 j"
+          tag={<TrendWord trend={r.hrv.trend} />}
+          sub={`Base ${formatNumber(r.hrv.baseline_mean)} ms`}
+          stats={[
+            { label: "FC repos", value: `${formatNumber(r.resting_hr.recent_mean)} bpm` },
+            { label: "Sommeil", value: `${formatNumber(r.sleep_duration_h.recent_mean, 1)} h` },
+            { label: "Efficacité", value: r.sleep_efficiency_pct.recent_mean === null ? "—" : `${formatNumber(r.sleep_efficiency_pct.recent_mean)} %` },
+            { label: "Readiness ⌚", value: formatNumber(r.training_readiness.value) },
+            { label: "Body Batt. ⌚", value: formatNumber(r.body_battery_max.value) },
+          ]}
         >
           {wellness.data && (
-            <MiniLine data={wellness.data.points.map((p) => ({ label: formatDay(p.date), value: p.hrv_nuit }))} />
+            <MiniLines
+              data={wellness.data.points.map((p) => ({ label: formatDay(p.date), vfc: p.hrv_nuit, base: r.hrv.baseline_mean }))}
+              lines={[{ key: "vfc", color: "var(--accent)" }, { key: "base", color: "var(--muted)", dashed: true }]}
+              unit=" ms"
+            />
           )}
         </SummaryLayout>
       )}
@@ -243,7 +255,7 @@ registerWidget<RecoverySettings>({
   id: "recovery",
   title: "Récupération",
   description: "HRV, FC repos et sommeil sur 7 jours face à votre base ; avis Garmin étiquetés, sans feu vert/rouge.",
-  defaultSize: { w: 4, h: 4 },
+  defaultSize: { w: 3, h: 6 },
   minSize: { w: 3, h: 3 },
   defaultSettings: { window: "28", baseline: "60" },
   settingsSchema: [

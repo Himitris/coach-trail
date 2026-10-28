@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { addStrengthSession, fetchStrength, setStrengthTarget } from "../api/endpoints";
 import type { StrengthReport } from "../api/types";
 import { formatDay, formatNumber, todayIso } from "../app/format";
-import { EvidenceNote } from "./common";
+import { EvidenceNote, EvidenceBadge } from "./common";
 import { formatStrength } from "./exports";
 import { weeksSetting } from "./MonotonyWidget";
 import { REFRESH_MS } from "./queries";
@@ -99,10 +99,18 @@ export function StrengthSummary({ settings }: WidgetProps<StrengthSettings>) {
     <WidgetData query={query}>
       {(report) => {
         const last = report.weeks.at(-1);
+        const done = report.weeks.filter((w) => w.complete && w.target_met).length;
+        const complete = report.weeks.filter((w) => w.complete).length;
         return (
           <SummaryLayout
             value={formatNumber(last?.count ?? 0)}
             unit={report.target === null ? "séance(s) cette semaine" : `/ ${report.target} cette semaine`}
+            tag={<EvidenceBadge evidence={report.evidence} />}
+            stats={[
+              { label: "Détectées", value: formatNumber(last?.detected ?? 0) },
+              { label: "Manuelles", value: formatNumber(last?.manual ?? 0) },
+              ...(report.target === null ? [] : [{ label: "Cible tenue", value: `${done}/${complete} sem.` }]),
+            ]}
           >
             <MiniBars data={report.weeks.map((w) => ({ label: formatDay(w.week_start), value: w.count }))} reference={report.target ?? undefined} />
           </SummaryLayout>
