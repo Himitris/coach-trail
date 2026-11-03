@@ -15,6 +15,7 @@ import "./FatigueWidget";
 import "./StrengthWidget";
 import "./GearWidget";
 import "./WeatherWidget";
+import "./CustomMetricWidget";
 
 export { getWidget, listWidgets, specFor } from "./registry";
 

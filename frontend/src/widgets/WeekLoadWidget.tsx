@@ -17,7 +17,7 @@ import { REFRESH_MS } from "./queries";
 import { registerWidget } from "./registry";
 import { WidgetData } from "./states";
 import type { WidgetProps } from "./types";
-import { MiniBars, SummaryLayout } from "./summary";
+import { MiniBars, MiniCurve, SummaryLayout } from "./summary";
 
 type Getter = (t: VolumeTotals) => string;
 
@@ -118,6 +118,7 @@ export function WeekLoad({ week }: { week: WeekMetrics }) {
 interface LoadSettings extends Record<string, unknown> {
   week: "current" | "last";
   metric: string;
+  chart: "bars" | "line";
 }
 
 const dateFor = (week: unknown): string | undefined =>
@@ -203,7 +204,11 @@ export function WeekLoadSummary({ settings }: WidgetProps<LoadSettings>) {
               ]
             }
           >
-            <MiniBars data={weeks} unit={` ${metric.label}`} digits={metric.digits} />
+            {settings.chart === "line" ? (
+              <MiniCurve data={weeks} unit={` ${metric.label}`} digits={metric.digits} />
+            ) : (
+              <MiniBars data={weeks} unit={` ${metric.label}`} digits={metric.digits} />
+            )}
           </SummaryLayout>
         );
       }}
@@ -217,8 +222,17 @@ registerWidget<LoadSettings>({
   description: "Temps, distance, D+ et D− vs semaine précédente et moyenne 4 semaines, avec le repère +10 %.",
   defaultSize: { w: 3, h: 6 },
   minSize: { w: 3, h: 3 },
-  defaultSettings: { week: "current", metric: "km" },
+  defaultSettings: { week: "current", metric: "km", chart: "bars" },
   settingsSchema: [
+    {
+      key: "chart",
+      label: "Type de graphique",
+      type: "select",
+      options: [
+        { value: "bars", label: "Histogramme" },
+        { value: "line", label: "Courbe" },
+      ],
+    },
     {
       key: "metric",
       label: "Graphique",

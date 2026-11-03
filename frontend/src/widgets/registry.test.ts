@@ -4,11 +4,11 @@ import { BREAKPOINTS } from "../layout/model";
 import { getWidget, HOME_WIDGET_TYPES, listWidgets, specFor } from ".";
 
 describe("catalogue des widgets", () => {
-  it("les 16 widgets sont enregistrés avec réglages, taille minimale et export", () => {
+  it("les 17 widgets sont enregistrés avec réglages, taille minimale et export", () => {
     const ids = listWidgets().map((w) => w.id).sort();
     expect(ids).toEqual(
       [
-        "activity-detail", "evening-entry", "fatigue", "fitness", "fueling", "gear", "intensity", "monotony", "note",
+        "activity-detail", "custom-metric", "evening-entry", "fatigue", "fitness", "fueling", "gear", "intensity", "monotony", "note",
         "race-goal", "recent-activities", "recovery", "strength", "weather", "week-load", "week-plan",
       ].sort(),
     );

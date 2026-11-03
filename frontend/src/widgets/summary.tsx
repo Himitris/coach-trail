@@ -120,6 +120,50 @@ export function MiniBars({ data, reference, unit = "", digits = 0 }: { data: Min
   );
 }
 
+/** Courbe lissée avec aire, points et même info-bulle détaillée que l'histogramme ; dernier point plein. */
+export function MiniCurve({ data, reference, unit = "", digits = 0 }: { data: MiniPoint[]; reference?: number; unit?: string; digits?: number }) {
+  const last = data.length - 1;
+  return (
+    <div className="summary-chart">
+      <ChartBox minHeight={40}>
+        {({ width, height }) => (
+          <AreaChart width={width} height={height} data={data} margin={{ top: 16, right: 8, bottom: 0, left: 8 }}>
+            <XAxis dataKey="label" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+            <YAxis hide domain={[0, "auto"]} />
+            <Tooltip cursor={{ stroke: "var(--muted)", strokeDasharray: "3 3" }} content={<BarTip unit={unit} digits={digits} />} />
+            {reference !== undefined && <ReferenceLine y={reference} stroke="var(--muted)" strokeDasharray="3 3" />}
+            <Area
+              type="monotone"
+              dataKey="value"
+              stroke="var(--accent)"
+              strokeWidth={2.5}
+              fill="var(--accent)"
+              fillOpacity={0.15}
+              isAnimationActive={false}
+              dot={(p: { cx?: number; cy?: number; index?: number }) =>
+                p.cx === undefined || p.cy === undefined ? <g key={p.index} /> : (
+                  <circle key={p.index} cx={p.cx} cy={p.cy} r={p.index === last ? 4.5 : 3} fill={p.index === last ? "var(--accent)" : "var(--surface)"} stroke="var(--accent)" strokeWidth={2} />
+                )
+              }
+              activeDot={{ r: 5, fill: "var(--accent)" }}
+            >
+              {data.length <= 10 && (
+                <LabelList
+                  dataKey="value"
+                  position="top"
+                  fontSize={10}
+                  fill="var(--text)"
+                  formatter={(v: unknown) => (typeof v === "number" ? v.toLocaleString("fr-FR", { maximumFractionDigits: digits }) : "")}
+                />
+              )}
+            </Area>
+          </AreaChart>
+        )}
+      </ChartBox>
+    </div>
+  );
+}
+
 export interface LineSpec {
   key: string;
   color: string;
