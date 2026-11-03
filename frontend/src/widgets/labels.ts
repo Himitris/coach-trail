@@ -7,6 +7,8 @@ export const SESSION_TYPE_OPTIONS: { value: SessionType; label: string }[] = [
   { value: "longue", label: "Sortie longue" },
   { value: "fractionne", label: "Fractionné" },
   { value: "course", label: "Course" },
+  { value: "velo", label: "Vélo" },
+  { value: "rando", label: "Randonnée" },
   { value: "renfo", label: "Renforcement" },
   { value: "repos", label: "Repos" },
   { value: "autre", label: "Autre" },

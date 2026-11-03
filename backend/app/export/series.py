@@ -208,7 +208,7 @@ def hrv_table(ctx: Ctx) -> Table:
 
 
 def load_table(ctx: Ctx) -> Table:
-    all_rows = service.load_rows(ctx.session, ctx.priority, ctx.tz)
+    all_rows = service.load_rows(ctx.session, ctx.priority, ctx.tz, foot_only=True)
     report = service.fitness(ctx.session, all_rows, ctx.today, ctx.start, ctx.end)
     rows = [
         [p.date.isoformat(), _r(p.load, 1), _r(p.ctl, 2), _r(p.atl, 2), _r(p.tsb, 2)]
@@ -224,7 +224,7 @@ def load_table(ctx: Ctx) -> Table:
 
 
 def intensity_table(ctx: Ctx) -> Table:
-    rows_all = service.load_rows(ctx.session, ctx.priority, ctx.tz)
+    rows_all = service.load_rows(ctx.session, ctx.priority, ctx.tz, foot_only=True)
     report = service.intensity(ctx.session, rows_all, ctx.reference_day, min(ctx.weeks, 52))
     rows = []
     for w in report.weeks:
@@ -258,7 +258,7 @@ def intensity_table(ctx: Ctx) -> Table:
 
 
 def monotony_table(ctx: Ctx) -> Table:
-    rows_all = service.load_rows(ctx.session, ctx.priority, ctx.tz)
+    rows_all = service.load_rows(ctx.session, ctx.priority, ctx.tz, foot_only=True)
     report = phase2.monotony(ctx.session, rows_all, ctx.reference_day, ctx.weeks)
     return Table(
         "monotony",
@@ -280,7 +280,7 @@ def monotony_table(ctx: Ctx) -> Table:
 
 
 def fatigue_table(ctx: Ctx) -> Table:
-    rows_all = service.load_rows(ctx.session, ctx.priority, ctx.tz)
+    rows_all = service.load_rows(ctx.session, ctx.priority, ctx.tz, foot_only=True)
     report = phase2.fatigue(ctx.session, rows_all, ctx.reference_day, ctx.weeks)
     return Table(
         "fatigue",
@@ -316,7 +316,7 @@ def strength_table(ctx: Ctx) -> Table:
 
 
 def fueling_table(ctx: Ctx) -> Table:
-    rows_all = service.load_rows(ctx.session, ctx.priority, ctx.tz)
+    rows_all = service.load_rows(ctx.session, ctx.priority, ctx.tz, foot_only=True)
     outings = phase2.fueling_outings(ctx.session, ctx.priority, rows_all)
     series = fueling_series(outings, ctx.min_hours)
     return Table(

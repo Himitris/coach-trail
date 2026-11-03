@@ -12,6 +12,7 @@ from app.metrics.fitness import FitnessReport
 from app.metrics.intensity import IntensityReport
 from app.metrics.models import Evidence
 from app.metrics.recovery import BaselineComparison, GarminAcwr, ProprietaryMetric
+from app.metrics.sports import FAMILY_LABELS, other_by_family
 from app.metrics.srpe import EntryReader, SRPESummary, srpe_summary
 from app.metrics.volume import WeekVolumeReport, week_report
 from app.routes.deps import get_db
@@ -35,8 +36,20 @@ def _priority(request: Request) -> list[str]:
     return priority
 
 
+class OtherActivity(BaseModel):
+    """Vélo, randonnée, autres sports : comptés à part des volumes de course."""
+
+    family: str
+    label: str
+    sessions: int
+    time_s: float
+    distance_m: float
+    gain_m: float
+
+
 class WeekMetrics(WeekVolumeReport):
     srpe: SRPESummary | None = None
+    other: list[OtherActivity] = []
 
 
 @router.get("/week", response_model=WeekMetrics)
@@ -46,11 +59,24 @@ def week(
     date_: Annotated[date | None, Query(alias="date")] = None,
 ) -> WeekMetrics:
     today = _today(request)
-    rows = service.load_rows(db, _priority(request), _tz(request))
+    rows = service.load_rows(db, _priority(request), _tz(request), foot_only=True)
     report = week_report(rows, date_ or today, today)
     reader: EntryReader = request.app.state.entry_reader
     entries = reader.read_srpe(report.week_start, report.week_end)
-    return WeekMetrics(**report.model_dump(), srpe=srpe_summary(entries))
+    everything = service.load_rows(db, _priority(request), _tz(request))
+    in_week = [r for r in everything if report.week_start <= r.day <= report.week_end]
+    other = [
+        OtherActivity(
+            family=fam,
+            label=FAMILY_LABELS[fam],
+            sessions=len(items),
+            time_s=sum(r.duration_s for r in items),
+            distance_m=sum(r.distance_m or 0.0 for r in items),
+            gain_m=sum(r.gain_m or 0.0 for r in items),
+        )
+        for fam, items in other_by_family(in_week).items()
+    ]
+    return WeekMetrics(**report.model_dump(), srpe=srpe_summary(entries), other=other)
 
 
 @router.get("/intensity", response_model=IntensityReport)
@@ -59,7 +85,7 @@ def intensity(
     db: Annotated[Session, Depends(get_db)],
     weeks: Annotated[int, Query(ge=1, le=52)] = 8,
 ) -> IntensityReport:
-    rows = service.load_rows(db, _priority(request), _tz(request))
+    rows = service.load_rows(db, _priority(request), _tz(request), foot_only=True)
     return service.intensity(db, rows, _today(request), weeks)
 
 
@@ -81,7 +107,7 @@ def fitness(
         raise HTTPException(422, "« from » doit précéder « to ».")
     if (end - start).days > MAX_FITNESS_SPAN_DAYS:
         raise HTTPException(422, f"Période limitée à {MAX_FITNESS_SPAN_DAYS} jours.")
-    rows = service.load_rows(db, _priority(request), _tz(request))
+    rows = service.load_rows(db, _priority(request), _tz(request), foot_only=True)
     report = service.fitness(db, rows, today, start, end)
     return FitnessWithReference(**report.model_dump(), reference=service.load_reference(db, report))
 

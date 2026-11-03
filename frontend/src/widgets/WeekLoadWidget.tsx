@@ -104,6 +104,18 @@ export function WeekLoad({ week }: { week: WeekMetrics }) {
           sont celles de la semaine jusqu'ici.
         </p>
       )}
+      {week.other && week.other.length > 0 && (
+        <p>
+          Hors course (comptés à part) :{" "}
+          {week.other.map((o, i) => (
+            <span key={o.family}>
+              {i > 0 && " · "}
+              <strong>{o.label}</strong> {formatKm(o.distance_m / 1000)} · {formatDurationS(o.time_s)}
+              {o.gain_m > 0 && ` · ${formatMeters(o.gain_m)} D+`}
+            </span>
+          ))}
+        </p>
+      )}
       {week.srpe && (
         <p>
           Charge perçue (RPE × minutes) : <strong>{formatNumber(week.srpe.total_load_au)} u.a.</strong>{" "}
@@ -173,7 +185,7 @@ export function WeekLoadSummary({ settings }: WidgetProps<LoadSettings>) {
       {(items) => {
         const weeks = Array.from({ length: 8 }, (_, i) => {
           const start = addDays(from, 7 * i);
-          const inWeek = items.filter((a) => mondayOf(a.day) === start);
+          const inWeek = items.filter((a) => a.sport_group !== "other" && mondayOf(a.day) === start); // course seulement
           const value = inWeek.reduce((sum, a) => sum + metric.pick(a), 0);
           const sum = (pick: (a: Activity) => number) => inWeek.reduce((t, a) => t + pick(a), 0);
           const detail = [
@@ -201,6 +213,7 @@ export function WeekLoadSummary({ settings }: WidgetProps<LoadSettings>) {
                 { label: "D−", value: formatMeters(w.current.loss_m) },
                 { label: "Séances", value: formatNumber(w.current.sessions) },
                 ...(change === null ? [] : [{ label: "Temps vs préc.", value: formatSignedPct(change) }]),
+                ...(w.other ?? []).map((o) => ({ label: o.label.split(" ")[0] ?? o.label, value: `${formatKm(o.distance_m / 1000)}` })),
               ]
             }
           >
@@ -219,7 +232,7 @@ export function WeekLoadSummary({ settings }: WidgetProps<LoadSettings>) {
 registerWidget<LoadSettings>({
   id: "week-load",
   title: "Charge de la semaine",
-  description: "Temps, distance, D+ et D− vs semaine précédente et moyenne 4 semaines, avec le repère +10 %.",
+  description: "Temps, distance, D+ et D− de course vs semaine précédente et moyenne 4 semaines, avec le repère +10 %. Vélo et randonnée sont comptés à part.",
   defaultSize: { w: 3, h: 6 },
   minSize: { w: 3, h: 3 },
   defaultSettings: { week: "current", metric: "km", chart: "bars" },

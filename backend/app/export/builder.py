@@ -432,7 +432,7 @@ def build_export(
     sections = [s for s in SECTIONS if s in scope]
     data = ExportData(generated_on=today, start=start, end=end, days=days, sections=sections)
 
-    all_rows = service.load_rows(session, priority, tz)
+    all_rows = service.load_rows(session, priority, tz, foot_only=True)
     rows = [r for r in all_rows if start <= r.day <= end]
     acts = [
         a

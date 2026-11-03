@@ -25,6 +25,8 @@ export type SessionType =
   | "longue"
   | "fractionne"
   | "course"
+  | "velo"
+  | "rando"
   | "renfo"
   | "repos"
   | "autre";
@@ -162,7 +164,18 @@ export interface VolumeTotals {
   gain_per_km: number | null;
 }
 
+export interface OtherActivity {
+  family: string;
+  label: string;
+  sessions: number;
+  time_s: number;
+  distance_m: number;
+  gain_m: number;
+}
+
 export interface WeekMetrics {
+  /** Vélo, randonnée, autres sports : comptés à part des volumes de course. */
+  other?: OtherActivity[];
   week_start: string;
   week_end: string;
   complete: boolean;

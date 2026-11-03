@@ -83,7 +83,7 @@ function issuesOf(error: unknown): string[] | null {
 
 // --- Programme de la semaine -------------------------------------------------------------------
 
-export const PLAN_TYPES = "footing | cotes | seuil | longue | fractionne | course | renfo | repos | autre";
+export const PLAN_TYPES = "footing | cotes | seuil | longue | fractionne | course | velo | rando | renfo | repos | autre";
 
 const PLAN_FORMAT = `Réponds uniquement avec un bloc de code JSON, sans commentaire autour.
 

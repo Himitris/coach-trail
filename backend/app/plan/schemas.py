@@ -13,7 +13,17 @@ from pydantic import (
 from app.plan.workout import Conformity, DetectedWorkout
 
 SessionType = Literal[
-    "footing", "cotes", "seuil", "longue", "fractionne", "course", "renfo", "repos", "autre"
+    "footing",
+    "cotes",
+    "seuil",
+    "longue",
+    "fractionne",
+    "course",
+    "velo",
+    "rando",
+    "renfo",
+    "repos",
+    "autre",
 ]
 
 TYPE_LABELS: dict[str, str] = {
@@ -23,6 +33,8 @@ TYPE_LABELS: dict[str, str] = {
     "longue": "Sortie longue",
     "fractionne": "Fractionné",
     "course": "Course",
+    "velo": "Vélo",
+    "rando": "Randonnée",
     "renfo": "Renforcement",
     "repos": "Repos",
     "autre": "Autre",

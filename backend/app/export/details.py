@@ -89,7 +89,7 @@ def widget_markdown(
     today: date,
 ) -> str | None:
     """Markdown d'un widget d'après son type et ses réglages ; `None` = rien à exporter."""
-    rows = service.load_rows(session, priority, tz)
+    rows = service.load_rows(session, priority, tz, foot_only=True)
     if widget_type == "note":
         text = str(settings.get("text") or "").strip()
         return f"## Note libre\n\n{text}\n" if text else None

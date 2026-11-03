@@ -34,6 +34,7 @@ from app.metrics.recovery import (
     garmin_acwr,
     proprietary_metric,
 )
+from app.metrics.sports import foot_only as only_foot
 from app.metrics.volume import ActivityRow
 from app.models import AthleteProfile, RawPayload, SourceStatus, WellnessDaily
 from app.sync.dedup import primary_activities, stream_row
@@ -44,9 +45,15 @@ def local_day(start_utc: datetime, tz: ZoneInfo) -> date:
     return start_utc.replace(tzinfo=UTC).astimezone(tz).date()
 
 
-def load_rows(session: Session, priority: Sequence[str], tz: ZoneInfo) -> list[ActivityRow]:
-    """Activités dédupliquées (source la plus prioritaire de chaque groupe), jour local."""
-    return [
+def load_rows(
+    session: Session, priority: Sequence[str], tz: ZoneInfo, *, foot_only: bool = False
+) -> list[ActivityRow]:
+    """Activités dédupliquées (source la plus prioritaire de chaque groupe), jour local.
+
+    `foot_only` : seulement la course à pied (volumes, intensité, forme) ; vélo, randonnée et
+    autres sports sont comptés à part.
+    """
+    rows = [
         ActivityRow(
             id=a.id,
             day=local_day(a.start_utc, tz),
@@ -62,6 +69,7 @@ def load_rows(session: Session, priority: Sequence[str], tz: ZoneInfo) -> list[A
         )
         for a in primary_activities(session, priority)
     ]
+    return only_foot(rows) if foot_only else rows
 
 
 def hr_stream(

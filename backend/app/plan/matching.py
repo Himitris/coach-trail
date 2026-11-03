@@ -30,6 +30,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date
 
+from app.metrics.sports import family
 from app.metrics.volume import ActivityRow
 
 FAIT = "fait"
@@ -55,7 +56,7 @@ STRENGTH_SPORTS = frozenset(
     {"strength_training", "fitness_equipment", "hiit", "indoor_cardio", "pilates", "yoga"}
 )
 RUN_TYPES = frozenset({"footing", "cotes", "seuil", "longue", "fractionne", "course"})
-SESSION_TYPES = RUN_TYPES | {"renfo", "repos", "autre"}
+SESSION_TYPES = RUN_TYPES | {"velo", "rando", "renfo", "repos", "autre"}
 
 
 def compatible(session_type: str, activity: ActivityRow) -> bool:
@@ -65,6 +66,10 @@ def compatible(session_type: str, activity: ActivityRow) -> bool:
         return True
     if session_type in RUN_TYPES:
         return activity.sport in RUN_SPORTS or activity.is_race
+    if session_type == "velo":
+        return family(activity.sport) == "velo"
+    if session_type == "rando":
+        return family(activity.sport) == "rando"
     if session_type == "renfo":
         return activity.sport in STRENGTH_SPORTS
     return False

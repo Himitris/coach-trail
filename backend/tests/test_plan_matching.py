@@ -146,3 +146,16 @@ def test_deterministic_tie_break_on_start_time() -> None:
     m = match_day(DAY, [plan(1, "footing", 60)], acts, PAST_TODAY)
     assert m.results[0].activity is not None and m.results[0].activity.id == 10  # la plus tôt
     assert timedelta(0) == timedelta(0)
+
+
+def test_bike_and_hike_sessions_match_their_own_sports() -> None:
+    assert compatible("velo", act(1, 90, "cycling")) and compatible(
+        "velo", act(1, 90, "mountain_biking")
+    )
+    assert not compatible("velo", act(1, 90, "trail_running"))
+    assert compatible("rando", act(2, 120, "hiking")) and not compatible(
+        "rando", act(2, 120, "cycling")
+    )
+    assert not compatible("footing", act(3, 60, "cycling"))  # un footing n'est pas une sortie vélo
+    result = match_day(DAY, [PlannedRow(1, "velo", 90)], [act(4, 85, "cycling")], PAST_TODAY)
+    assert result.results[0].status == FAIT and result.unplanned == []

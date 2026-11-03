@@ -130,3 +130,26 @@ def test_week_boundaries_monday_to_sunday() -> None:
     assert r.current.sessions == 2 and r.previous.sessions == 1
     assert totals([], 4).time_s == 0
     assert (date(2026, 10, 12) - timedelta(days=7)) == r.week_start
+
+
+def test_sport_families_and_foot_only() -> None:
+    from app.metrics.sports import family, foot_only, other_by_family
+
+    assert [family(s) for s in ("trail_running", "cycling", "mountain_biking", "gravel_cycling")] == [
+        "course", "velo", "velo", "velo",
+    ]  # fmt: skip
+    assert [family(s) for s in ("hiking", "walking", "yoga", "alpineski")] == [
+        "rando", "rando", "renfo", "autre",
+    ]  # fmt: skip
+    assert family("cycling", is_race=True) == "course"
+    from datetime import UTC, date, datetime
+
+    def row(i: int, sport: str) -> ActivityRow:
+        return ActivityRow(i, date(2026, 11, 2), datetime(2026, 11, 2, tzinfo=UTC), sport, 3600.0)
+
+    rows = [row(1, "trail_running"), row(2, "cycling"), row(3, "hiking"), row(4, "yoga")]
+    assert [r.id for r in foot_only(rows)] == [1]
+    assert {k: [r.id for r in v] for k, v in other_by_family(rows).items()} == {
+        "velo": [2],
+        "rando": [3],
+    }

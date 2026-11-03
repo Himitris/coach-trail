@@ -42,7 +42,7 @@ def monotony(
     weeks: Annotated[int, Query(ge=2, le=52)] = 12,
 ) -> MonotonyReport:
     priority, tz, today = _ctx(request)
-    return phase2.monotony(db, service.load_rows(db, priority, tz), today, weeks)
+    return phase2.monotony(db, service.load_rows(db, priority, tz, foot_only=True), today, weeks)
 
 
 @router.get("/metrics/fatigue", response_model=FatigueReport)
@@ -52,7 +52,7 @@ def fatigue(
     weeks: Annotated[int, Query(ge=1, le=52)] = 8,
 ) -> FatigueReport:
     priority, tz, today = _ctx(request)
-    return phase2.fatigue(db, service.load_rows(db, priority, tz), today, weeks)
+    return phase2.fatigue(db, service.load_rows(db, priority, tz, foot_only=True), today, weeks)
 
 
 @router.get("/metrics/strength", response_model=StrengthReport)
@@ -82,7 +82,7 @@ def race_goal(
         ).first()
     if goal is None:
         raise HTTPException(404, "Aucun objectif de course à venir.")
-    return phase2.race_goal(db, service.load_rows(db, priority, tz), goal, today)
+    return phase2.race_goal(db, service.load_rows(db, priority, tz, foot_only=True), goal, today)
 
 
 # --- nutrition en course --------------------------------------------------------------------
@@ -130,7 +130,9 @@ def fueling_progress(
     min_hours: Annotated[float, Query(gt=0, le=24)] = DEFAULT_MIN_HOURS,
 ) -> FuelingSeries:
     priority, tz, _ = _ctx(request)
-    outings = phase2.fueling_outings(db, priority, service.load_rows(db, priority, tz))
+    outings = phase2.fueling_outings(
+        db, priority, service.load_rows(db, priority, tz, foot_only=True)
+    )
     return fueling_series(outings, min_hours)
 
 
