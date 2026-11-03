@@ -570,3 +570,17 @@ html { scrollbar-color: var(--border) transparent; scrollbar-width: thin; }
 .weather-chart { min-height: 90px; }
 .wind-bar { display: block; height: 4px; margin-top: 0.3rem; border-radius: 2px; background: var(--surface-2); overflow: hidden; }
 .wind-bar > span { display: block; height: 100%; background: var(--accent); }
+
+/* Segments Strava : médailles, cartes, courbe mensuelle */
+.seg-chart { min-height: 70px; }
+.seg-legend { display: flex; gap: 1rem; margin: 0 0 0.4rem; font-size: 0.72rem; color: var(--muted); }
+.seg-legend i { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px; margin-right: 0.3rem; vertical-align: -0.1em; }
+.seg-grid { list-style: none; margin: 0.4rem 0 0; padding: 0; display: grid; gap: 0.4rem; }
+.seg-grid-detail { grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); }
+.seg-card { display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0.5rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); min-width: 0; }
+.seg-medals { display: flex; gap: 0.25rem; flex-shrink: 0; }
+.seg-medal { display: inline-flex; align-items: center; justify-content: center; width: 1.9rem; height: 1.9rem; border: 2px solid; border-radius: 50%; font-size: 0.85rem; font-weight: 700; font-variant-numeric: tabular-nums; background: var(--surface); }
+.seg-body { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.seg-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85rem; }
+.seg-meta { color: var(--muted); font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.seg-spark { width: 5.5rem; height: 1.8rem; flex-shrink: 0; }
