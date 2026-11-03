@@ -589,3 +589,14 @@ html { scrollbar-color: var(--border) transparent; scrollbar-width: thin; }
 
 /* Activités détectées par la montre (marche…) */
 .plan-detected { display: flex; flex-wrap: wrap; gap: 0.1rem 0.8rem; margin: 0.25rem 0 0; font-size: 0.7rem; color: var(--muted); opacity: 0.85; }
+
+/* Programme : cartes de jour condensées */
+.plan-day header { flex-wrap: nowrap; }
+.plan-days .plan-day header { flex-wrap: nowrap; gap: 0.3rem; }
+.plan-days .plan-day h3 { flex: 1 1 auto; flex-basis: auto; min-width: 0; }
+.plan-planned-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 0.4rem; }
+.plan-result { display: flex; flex-wrap: wrap; align-items: center; gap: 0.15rem 0.5rem; }
+.plan-result .plan-done { flex-direction: row; flex-wrap: wrap; gap: 0 0.4rem; }
+.plan-workout { margin: 0; }
+.plan-day .icon-btn { padding: 0 0.3rem; line-height: 1.2; }
+.plan-session .plan-conformity-note { margin: 0; }

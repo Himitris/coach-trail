@@ -104,10 +104,9 @@ function WorkoutLine({ activityId, workout }: { activityId: number; workout: Det
     <div className="plan-workout">
       <span className="plan-workout-type">
         <span className="muted">Type :</span>{" "}
-        <Tip text={workout.reasons[0] ?? origin}>
+        <Tip text={[workout.reasons[0], origin].filter(Boolean).join(" — ")}>
           <strong>{workout.label}</strong>
-        </Tip>{" "}
-        <span className="muted">({origin})</span>
+        </Tip>
       </span>
       {editing ? (
         <>
@@ -173,25 +172,33 @@ function SessionRow({
       onDragEnd={() => { onDragStateChange(null); }}
     >
       <button type="button" className="plan-planned" onClick={() => { onEdit(planned); }}>
-        <strong>{planned.titre}</strong>
-        <span className="muted">
-          {planned.type_label}
-          {plannedText(planned) && ` · ${plannedText(planned)}`}
+        <span className="plan-planned-line">
+          <strong>{planned.titre}</strong>
+          <span className="muted">
+            {[
+              planned.titre.toLowerCase().includes(planned.type_label.toLowerCase()) ? "" : planned.type_label,
+              plannedText(planned),
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </span>
         </span>
       </button>
-      <div className="plan-done">
-        {activity ? (
-          <>
-            <span>{activityText(activity)}</span>
-            {gap && <span className="muted">{gap}</span>}
-          </>
-        ) : (
-          <span className="muted">—</span>
-        )}
-      </div>
-      <div className="plan-chips">
-        <StatusChip status={match.status} />
-        <ConformityChip conformity={match.conformity} reason={match.conformity_reason} />
+      <div className="plan-result">
+        <div className="plan-done">
+          {activity ? (
+            <>
+              <span>{activityText(activity)}</span>
+              {gap && <span className="muted">{gap}</span>}
+            </>
+          ) : (
+            <span className="muted">—</span>
+          )}
+        </div>
+        <div className="plan-chips">
+          <StatusChip status={match.status} />
+          <ConformityChip conformity={match.conformity} reason={match.conformity_reason} />
+        </div>
       </div>
       {activity?.workout && <WorkoutLine activityId={activity.id} workout={activity.workout} />}
       {match.conformity_reason && match.conformity === "ecart" && (
@@ -246,7 +253,7 @@ function DayBlock({
           {highlighted && <span className="plan-today-tag">Aujourd'hui · </span>}
           <span className="plan-weekday">{day.weekday}</span> <span className="muted">{formatDay(day.date)}</span>
         </h3>
-        <StatusChip status={day.sessions.length === 0 && !day.status ? null : day.status} />
+        {day.sessions.length === 0 && <StatusChip status={day.status} />}
         <button
           type="button"
           className="icon-btn"

@@ -147,11 +147,11 @@ describe("Programme de la semaine", () => {
     expect(within(today).getByText(/\+6 min vs prévu · D\+ \+30 m/)).toBeInTheDocument();
     expect(within(today).getByText("Footing facile :", { exact: false })).toBeInTheDocument(); // consignes du jour
     expect(within(today).getAllByText("fait").length).toBeGreaterThan(0);
-    // le jour et sa séance portent chacun leur statut, écrit en toutes lettres
-    expect(within(screen.getByRole("region", { name: "mercredi" })).getAllByText("à venir", { selector: ".chip" })).toHaveLength(2);
+    // un jour avec séance n'affiche que le statut de la séance (pas de doublon), en toutes lettres
+    expect(within(screen.getByRole("region", { name: "mercredi" })).getAllByText("à venir", { selector: ".chip" })).toHaveLength(1);
     const thursday = screen.getByRole("region", { name: "jeudi" });
     expect(within(thursday).getByText("Sortie non prévue")).toBeInTheDocument();
-    expect(within(thursday).getAllByText("imprévu")).toHaveLength(2); // jour + sortie
+    expect(within(thursday).getAllByText("imprévu")).toHaveLength(2); // jour sans séance + sortie
     expect(screen.getByRole("region", { name: "vendredi" })).toHaveTextContent("rien de prévu");
     expect(document.querySelector(".plan-summary")).toHaveTextContent(/prévu\s+7\s?h\s?45\s+·\s+réalisé\s+1\s?h\s?06/);
   });
