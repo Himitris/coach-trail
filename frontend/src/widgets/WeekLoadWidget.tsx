@@ -110,7 +110,7 @@ export function WeekLoad({ week }: { week: WeekMetrics }) {
           {week.other.map((o, i) => (
             <span key={o.family}>
               {i > 0 && " · "}
-              <strong>{o.label}</strong> {formatKm(o.distance_m / 1000)} · {formatDurationS(o.time_s)}
+              <strong>{o.label}</strong>{o.distance_m > 0 && ` ${formatKm(o.distance_m / 1000)} ·`} {formatDurationS(o.time_s)}
               {o.gain_m > 0 && ` · ${formatMeters(o.gain_m)} D+`}
             </span>
           ))}
@@ -213,7 +213,7 @@ export function WeekLoadSummary({ settings }: WidgetProps<LoadSettings>) {
                 { label: "D−", value: formatMeters(w.current.loss_m) },
                 { label: "Séances", value: formatNumber(w.current.sessions) },
                 ...(change === null ? [] : [{ label: "Temps vs préc.", value: formatSignedPct(change) }]),
-                ...(w.other ?? []).map((o) => ({ label: o.label.split(" ")[0] ?? o.label, value: `${formatKm(o.distance_m / 1000)}` })),
+                ...(w.other ?? []).map((o) => ({ label: o.label.split(" ")[0] ?? o.label, value: o.distance_m > 0 ? formatKm(o.distance_m / 1000) : formatDurationS(o.time_s) })),
               ]
             }
           >

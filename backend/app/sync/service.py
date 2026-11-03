@@ -26,6 +26,7 @@ from app.sync.streams import encode_stream
 from app.sync.types import (
     RAW_ACTIVITY,
     RAW_CALENDAR,
+    RAW_EVENTS,
     RAW_PROFILE,
     RAW_SEGMENTS,
     RAW_STREAM,
@@ -44,6 +45,8 @@ from app.sync.types import (
 
 BATCH_SIZE = 25
 MAX_CONSECUTIVE_STREAM_FAILURES = 3
+EVENT_DAYS = 45  # fenêtre des activités détectées par la montre (1 appel par jour)
+MAX_EVENT_FETCHES = 50
 MAX_SEGMENT_FETCHES = 60  # détails d'activité par synchronisation (quota Strava)
 CHECK_TRIGGER = "check"  # vérification rapide : seulement les activités récentes
 CHECK_MARGIN = timedelta(days=1)
@@ -410,6 +413,7 @@ class SyncService:
                 self._ingest(name, RAW_ACTIVITY, connector.fetch_activities(since), result)
                 self._sync_streams(name, connector, result, fetched_after=started)
                 self._sync_segments(name, connector, result)
+                self._sync_events(name, connector, result)
             finally:
                 with self._factory() as session:
                     assign_dedup_groups(session)
@@ -448,6 +452,7 @@ class SyncService:
                 self._ingest(name, RAW_PROFILE, [rec] if rec else [], result)
             self._sync_streams(name, connector, result)
             self._sync_segments(name, connector, result)
+            self._sync_events(name, connector, result)
         finally:
             with self._factory() as session:
                 assign_dedup_groups(session)
@@ -569,6 +574,44 @@ class SyncService:
                 self._warn_stream(name, ext_id, f"{type(exc).__name__}: {exc}", result)
                 if failures >= MAX_CONSECUTIVE_STREAM_FAILURES:
                     break
+
+    def _sync_events(self, name: str, connector: SourceConnector, result: SourceResult) -> None:
+        """Activités détectées par la montre (marche, etc.) des derniers jours, jour par jour.
+
+        Les jours absents sont récupérés ; hier et aujourd'hui sont toujours rafraîchis (la journée
+        n'est pas finie). Un échec n'interrompt pas la synchronisation de la source.
+        """
+        fetch = getattr(connector, "fetch_day_events", None)
+        if fetch is None:
+            return
+        today = utcnow().date()
+        wanted = [(today - timedelta(days=i)).isoformat() for i in range(EVENT_DAYS)]
+        with self._factory() as session:
+            have = set(
+                session.scalars(
+                    select(RawPayload.external_key).where(
+                        RawPayload.source == name, RawPayload.type == RAW_EVENTS
+                    )
+                )
+            )
+        refresh = set(wanted[:2])
+        missing = [d for d in wanted if d in refresh or d not in have][:MAX_EVENT_FETCHES]
+        for day in missing:
+            try:
+                rec = fetch(day)
+                if rec is None:
+                    continue
+                with self._factory() as session:
+                    self._upsert_raw(session, name, RAW_EVENTS, rec, SourceResult(name))
+                    session.commit()
+            except SourceError as exc:
+                if exc.state == STATE_AUTH_REQUIRED:
+                    raise
+                self._warn_stream(name, day, exc.user_message, result)
+                break
+            except Exception as exc:  # ces événements sont un plus : jamais bloquants
+                self._warn_stream(name, day, f"{type(exc).__name__}: {exc}", result)
+                break
 
     def _warn_stream(self, name: str, ext_id: str, detail: str, result: SourceResult) -> None:
         msg = self._masker.mask(f"flux {ext_id} : {detail}")[:300]

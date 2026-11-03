@@ -15,6 +15,7 @@ from app.metrics.recovery import BaselineComparison, GarminAcwr, ProprietaryMetr
 from app.metrics.sports import FAMILY_LABELS, other_by_family
 from app.metrics.srpe import EntryReader, SRPESummary, srpe_summary
 from app.metrics.volume import WeekVolumeReport, week_report
+from app.plan.movement import detected_movements
 from app.routes.deps import get_db
 
 router = APIRouter(prefix="/metrics")
@@ -76,6 +77,25 @@ def week(
         )
         for fam, items in other_by_family(in_week).items()
     ]
+    walks = [
+        m
+        for day_moves in detected_movements(
+            db, report.week_start, report.week_end, in_week
+        ).values()
+        for m in day_moves
+        if m.type == "walking"
+    ]
+    if walks:
+        other.append(
+            OtherActivity(
+                family="marche",
+                label="Marche détectée",
+                sessions=len(walks),
+                time_s=sum(m.duration_min for m in walks) * 60.0,
+                distance_m=0.0,
+                gain_m=0.0,
+            )
+        )
     return WeekMetrics(**report.model_dump(), srpe=srpe_summary(entries), other=other)
 
 

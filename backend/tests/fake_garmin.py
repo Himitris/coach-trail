@@ -24,6 +24,7 @@ class FakeGarminAPI:
         self.raises: dict[str, Exception] = {}
         self.calls: list[tuple[str, tuple[Any, ...]]] = []
         self.activity_ids = ["17000000001"]
+        self.day_events: dict[str, list[dict[str, Any]]] = {}
         self.gear: Any = [{"displayName": "Speedcross 6", "gearTypeName": "Shoes"}]
 
     def _do(self, name: str, args: tuple[Any, ...], value: Any) -> Any:
@@ -88,6 +89,9 @@ class FakeGarminAPI:
 
     def get_weigh_ins(self, startdate: str, enddate: str) -> dict[str, Any]:
         return self._do("get_weigh_ins", (startdate, enddate), fixture("weigh_ins.json"))  # type: ignore[no-any-return]
+
+    def get_all_day_events(self, cdate: str) -> Any:
+        return self._do("get_all_day_events", (cdate,), self.day_events.get(cdate, []))
 
     def get_heart_rate_zones(self) -> list[dict[str, Any]]:
         return self._do("get_heart_rate_zones", (), fixture("heart_rate_zones.json"))  # type: ignore[no-any-return]

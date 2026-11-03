@@ -125,6 +125,14 @@ export interface EntryInput {
   sessions?: { activity_id: number; rpe: number | null }[];
 }
 
+export interface DetectedMovement {
+  date: string;
+  start: string;
+  type: string;
+  label: string;
+  duration_min: number;
+}
+
 export interface DayPlan {
   date: string;
   weekday: string;
@@ -132,6 +140,8 @@ export interface DayPlan {
   status: PlanStatus | null;
   sessions: SessionMatch[];
   unplanned_activities: ActivityBrief[];
+  /** Petites activités détectées par la montre (marche…), non enregistrées comme séance. */
+  detected?: DetectedMovement[];
   entry: Entry | null;
 }
 

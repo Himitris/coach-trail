@@ -266,3 +266,27 @@ def test_partial_failure_resumes_from_last_received_data(
     service.run_all()
     first_day_requested = api.called("get_user_summary")[0][0]
     assert first_day_requested > "2026-09-06"  # reprise après les jours déjà reçus
+
+
+def test_day_events_are_stored_once_per_day_and_today_is_refreshed(
+    factory: sessionmaker[Session],
+) -> None:
+    from datetime import timedelta
+
+    from app.models import RawPayload
+    from app.sync.service import EVENT_DAYS, utcnow
+    from app.sync.types import RAW_EVENTS
+
+    today = utcnow().date()
+    api = FakeGarminAPI()
+    api.day_events[(today - timedelta(days=3)).isoformat()] = [
+        {"activityType": "walking", "duration": 31}
+    ]
+    service, api, _ = setup(factory, api)
+    assert service.run_all().results[0].ok
+    with factory() as s:
+        keys = set(s.scalars(select(RawPayload.external_key).where(RawPayload.type == RAW_EVENTS)))
+    assert len(keys) == EVENT_DAYS and (today - timedelta(days=3)).isoformat() in keys
+    first_calls = len(api.called("get_all_day_events"))
+    assert service.run_all().results[0].ok
+    assert len(api.called("get_all_day_events")) - first_calls == 2  # hier et aujourd'hui seulement

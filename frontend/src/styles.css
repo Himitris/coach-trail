@@ -586,3 +586,6 @@ html { scrollbar-color: var(--border) transparent; scrollbar-width: thin; }
 .seg-spark { width: 5.5rem; height: 1.8rem; flex-shrink: 0; }
 .seg-link { color: inherit; text-decoration: none; }
 .seg-link:hover, .seg-link:focus-visible { text-decoration: underline; color: var(--accent-2); }
+
+/* Activités détectées par la montre (marche…) */
+.plan-detected { margin: 0.2rem 0; padding: 0.2rem 0.5rem; font-size: 0.78rem; color: var(--muted); border-left: 3px solid var(--border); border-radius: 2px; }

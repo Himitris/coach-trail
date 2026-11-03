@@ -268,6 +268,11 @@ function DayBlock({
           {a.workout && <WorkoutLine activityId={a.id} workout={a.workout} />}
         </div>
       ))}
+      {(day.detected ?? []).map((m) => (
+        <div className="plan-detected" key={`${m.start}-${m.type}`} title="Détecté automatiquement par la montre, non enregistré comme séance">
+          <span aria-hidden="true">{DETECTED_ICONS[m.type] ?? "•"}</span> {m.label} détectée · {m.start} · {formatDuration(m.duration_min)}
+        </div>
+      ))}
       {highlighted && day.sessions.some((s) => s.planned.consignes) && (
         <ul className="plan-notes">
           {day.sessions
@@ -282,6 +287,8 @@ function DayBlock({
     </section>
   );
 }
+
+const DETECTED_ICONS: Record<string, string> = { walking: "🚶", running: "🏃", hiking: "🥾", cycling: "🚴", fitness_equipment: "🏋️" };
 
 function WeekNav({ start, current, onGo }: { start: string; current: boolean; onGo: (date: string | undefined) => void }) {
   return (
@@ -329,7 +336,7 @@ export function WeekPlanWidget() {
       {query.data && <WeekNav start={query.data.week_start} current={weekDate === undefined} onGo={setWeekDate} />}
       <WidgetData
         query={query}
-        isEmpty={(w) => w.days.every((d) => d.sessions.length === 0 && d.unplanned_activities.length === 0)}
+        isEmpty={(w) => w.days.every((d) => d.sessions.length === 0 && d.unplanned_activities.length === 0 && (d.detected ?? []).length === 0)}
         emptyMessage="Aucune séance prévue ni réalisée cette semaine."
       >
         {(week) => {
@@ -362,7 +369,7 @@ export function WeekPlanWidget() {
           );
         }}
       </WidgetData>
-      {query.data?.days.every((d) => d.sessions.length === 0 && d.unplanned_activities.length === 0) && (
+      {query.data?.days.every((d) => d.sessions.length === 0 && d.unplanned_activities.length === 0 && (d.detected ?? []).length === 0) && (
         <div className="widget-actions-row">
           <button
             type="button"

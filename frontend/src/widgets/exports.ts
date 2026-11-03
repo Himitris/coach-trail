@@ -59,7 +59,8 @@ export function formatWeekPlan(week: WeekPlan): string {
     ]
       .map((a) => `${sportLabel(a.sport)} ${formatDuration(a.duration_min)}${a.distance_km ? `, ${formatKm(a.distance_km)}` : ""}${a.dplus_m ? `, D+ ${formatMeters(a.dplus_m)}` : ""}`)
       .join(" + ");
-    return row(formatWeekdayDay(day.date), planned, done, day.status);
+    const detected = (day.detected ?? []).map((m) => `${m.label} détectée ${formatDuration(m.duration_min)}`).join(" + ");
+    return row(formatWeekdayDay(day.date), planned, [done, detected && `(${detected})`].filter(Boolean).join(" "), day.status);
   });
   return [
     `## Programme de la semaine (${formatDay(week.week_start)} – ${formatDay(week.week_end)})`,
