@@ -5,6 +5,7 @@ from typing import Any, Protocol
 
 RAW_ACTIVITY = "activity"
 RAW_STREAM = "activity_stream"
+RAW_SEGMENTS = "activity_segments"  # efforts de segments (Strava), conservés bruts
 RAW_WELLNESS = "wellness"
 RAW_PROFILE = "profile"
 RAW_CALENDAR = "calendar"  # conservé brut, non normalisé

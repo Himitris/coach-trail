@@ -37,6 +37,7 @@ class FakeStrava:
     def __init__(self) -> None:
         self.activities: list[dict[str, Any]] = []
         self.streams: dict[str, dict[str, Any]] = {}
+        self.details: dict[str, dict[str, Any]] = {}
         self.token_calls: list[dict[str, str]] = []
         self.usage = "5,50"
         self.limit = "200,2000"
@@ -77,6 +78,9 @@ class FakeStrava:
             if ext in self.streams:
                 return httpx.Response(200, headers=headers, json=self.streams[ext])
             return httpx.Response(404, headers=headers, json={})
+        parts = request.url.path.split("/")
+        if len(parts) == 5 and parts[3] == "activities" and parts[4] in self.details:
+            return httpx.Response(200, headers=headers, json=self.details[parts[4]])
         return httpx.Response(404, headers=headers)
 
     def client(self) -> httpx.Client:
@@ -509,3 +513,80 @@ def test_callback_survives_a_failing_token_exchange(
     fake.status = 500
     r = client.get(f"/api/strava/callback?code=abc&state={state}")
     assert r.headers["location"] == "/sources?strava=erreur" and not auth.connected()
+
+
+# --- segments (KOM top 10, records personnels) ---------------------------------------------------
+
+
+def effort(name: str, kom: int | None, pr: int | None, **over: Any) -> dict[str, Any]:
+    return {
+        "name": name, "elapsed_time": 95, "distance": 500, "start_date": "2026-10-30T07:40:00Z",
+        "kom_rank": kom, "pr_rank": pr,
+        "segment": {"id": hash(name) % 1000, "average_grade": 6.5, "distance": 500}, **over,
+    }  # fmt: skip
+
+
+def test_segments_keep_only_ranked_efforts(tmp_path: Path) -> None:
+    fake = FakeStrava()
+    fake.details["9"] = {
+        "segment_efforts": [
+            effort("Montée du fort", 3, None),
+            effort("Crête", None, 1),
+            effort("Descente", None, None),
+        ]
+    }
+    record = make_connector(tmp_path, fake, []).fetch_activity_segments("9")
+    assert record is not None
+    assert [(e["name"], e["kom_rank"], e["pr_rank"]) for e in record.payload["efforts"]] == [
+        ("Montée du fort", 3, None),
+        ("Crête", None, 1),
+    ]
+    call = next(r for r in fake.requests if r.url.path.endswith("/activities/9"))
+    assert call.url.params["include_all_efforts"] == "true"
+
+
+def test_segments_unknown_activity_gives_nothing_and_quota_is_an_error(tmp_path: Path) -> None:
+    fake = FakeStrava()
+    connector = make_connector(tmp_path, fake, [])
+    assert connector.fetch_activity_segments("404") is None
+    fake.usage = f"{200 - MARGIN},400"
+    quota = make_connector(tmp_path, fake, [], clock=NOW - NOW % 900 + 100)
+    fake.details["1"] = {"segment_efforts": []}
+    quota.fetch_activity_segments("1")  # première requête : passe, remplit le quota
+    with pytest.raises(SourceError) as err:
+        quota.fetch_activity_segments("1")
+    assert err.value.state == STATE_DOWN
+
+
+def test_sync_stores_segments_once_and_route_lists_them(tmp_path: Path) -> None:
+    settings = Settings(database_path=str(tmp_path / "s.db"), scheduler_enabled=False)
+    app = create_app(settings)
+    fake = FakeStrava()
+    fake.activities = [strava_activity(7, "2026-10-30T07:35:19Z")]
+    fake.details["7"] = {
+        "segment_efforts": [effort("Montée du fort", 1, 1), effort("Crête", 8, None)]
+    }
+    connector = StravaConnector(
+        connected_auth(tmp_path, fake),
+        client=fake.client(),
+        today=lambda: date(2026, 11, 3),
+        sleep=lambda _: None,
+        clock=lambda: NOW,
+    )
+    service = SyncService(
+        app.state.session_factory, {"strava": connector}, {"strava": STRAVA_NORMALIZER}
+    )
+    with TestClient(app) as client:
+        service.run_all()
+        service.run_all()  # idempotent : pas de second appel de détail
+        details = [r for r in fake.requests if r.url.path.endswith("/activities/7")]
+        assert len(details) == 1
+        resp = client.get("/api/strava/segments?days=730")
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert (body["activities_scanned"], body["top10"], body["kom"], body["pr"]) == (1, 2, 1, 1)
+        assert [e["name"] for e in body["efforts"]] == ["Montée du fort", "Crête"] or {
+            e["name"] for e in body["efforts"]
+        } == {"Montée du fort", "Crête"}
+        assert all(e["activity_id"] is not None for e in body["efforts"])
+        assert "Local Legends" in body["note"]

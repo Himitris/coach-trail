@@ -362,6 +362,33 @@ export interface StravaStatus {
 
 export const fetchStravaStatus = (): Promise<StravaStatus> => request("GET", "/api/strava/status");
 export const stravaAuthorize = (): Promise<{ url: string }> => request("POST", "/api/strava/authorize");
+export interface SegmentEffort {
+  segment_id: number | null;
+  name: string;
+  distance_m: number | null;
+  grade_pct: number | null;
+  elapsed_s: number | null;
+  date: string | null;
+  activity_id: number | null;
+  /** Rang au classement général au moment de l'envoi (top 10 seulement). */
+  kom_rank: number | null;
+  /** Rang parmi tes propres efforts (top 3 seulement). */
+  pr_rank: number | null;
+}
+
+export interface StravaSegments {
+  connected: boolean;
+  activities_scanned: number;
+  top10: number;
+  kom: number;
+  pr: number;
+  efforts: SegmentEffort[];
+  note: string;
+}
+
+export const fetchStravaSegments = (days: number): Promise<StravaSegments> =>
+  request("GET", `/api/strava/segments${search({ days })}`);
+
 export const stravaDisconnect = (): Promise<null> => request("POST", "/api/strava/disconnect");
 
 // --- matériel -----------------------------------------------------------------------------------

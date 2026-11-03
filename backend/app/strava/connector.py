@@ -60,6 +60,7 @@ class StravaConnector:
         self._limiter = RateLimiter(WINDOWS_S, margin=MARGIN, clock=clock, sleep=sleep)
         self._warnings: list[str] = []
         self._soft = False
+        self._quota_stop = False
 
     def pop_warnings(self) -> list[str]:
         warnings, self._warnings = self._warnings, []
@@ -73,6 +74,7 @@ class StravaConnector:
         if wait > MAX_WAIT_S:
             if WARN_QUOTA not in self._warnings:
                 self._warnings.append(WARN_QUOTA)
+            self._quota_stop = True
             return False
         if wait > 0:
             self._sleep(wait)
@@ -151,6 +153,41 @@ class StravaConnector:
             if isinstance(v, dict) and isinstance(v.get("data"), list)
         }
         return RawRecord(external_id, {"streams": streams}) if streams else None
+
+    def fetch_activity_segments(self, external_id: str) -> RawRecord | None:
+        """Efforts de segments classés (KOM top 10, record personnel top 3) d'une activité.
+
+        Le détail d'activité coûte une requête ; seuls les efforts avec un rang sont conservés.
+        Quota atteint : SourceError (pas de marqueur « vide », l'activité sera retentée).
+        """
+        self._quota_stop = False
+        data = self._get(f"/activities/{external_id}", {"include_all_efforts": "true"})
+        if data is None and self._quota_stop:
+            raise SourceError(STATE_DOWN, MSG_RATE)
+        if not isinstance(data, dict):
+            return None
+        efforts = []
+        for e in data.get("segment_efforts") or []:
+            if not isinstance(e, dict):
+                continue
+            kom, pr = e.get("kom_rank"), e.get("pr_rank")
+            if not isinstance(kom, int) and not isinstance(pr, int):
+                continue
+            raw_seg = e.get("segment")
+            seg: dict[str, Any] = raw_seg if isinstance(raw_seg, dict) else {}
+            efforts.append(
+                {
+                    "segment_id": seg.get("id"),
+                    "name": e.get("name") or seg.get("name"),
+                    "distance_m": e.get("distance") or seg.get("distance"),
+                    "grade_pct": seg.get("average_grade"),
+                    "elapsed_s": e.get("elapsed_time"),
+                    "start": e.get("start_date"),
+                    "kom_rank": kom if isinstance(kom, int) else None,
+                    "pr_rank": pr if isinstance(pr, int) else None,
+                }
+            )
+        return RawRecord(external_id, {"efforts": efforts})
 
     def fetch_wellness(self, since: date | None) -> Iterable[RawRecord]:
         return []  # Strava ne fournit ni HRV, ni sommeil, ni FC de repos

@@ -168,6 +168,20 @@ const GOALS = [
   { id: 2, nom: "Trail de Bruniquel", date: "2027-02-14", distance_km: 39, dplus_m: null, priorite: 2 },
 ];
 
+const SEGMENTS = {
+  connected: true,
+  activities_scanned: 42,
+  top10: 3,
+  kom: 1,
+  pr: 2,
+  note: "Exemple : rangs fournis par Strava au moment de l'envoi de la séance.",
+  efforts: [
+    { segment_id: 1, name: "Montée du fort", distance_m: 820, grade_pct: 9.1, elapsed_s: 312, date: "2026-10-30", activity_id: 1, kom_rank: 1, pr_rank: 1 },
+    { segment_id: 2, name: "Crête des Rocs", distance_m: 1500, grade_pct: 4.2, elapsed_s: 401, date: "2026-10-12", activity_id: 2, kom_rank: 7, pr_rank: null },
+    { segment_id: 3, name: "Descente du bois", distance_m: 640, grade_pct: -8.0, elapsed_s: 118, date: "2026-09-28", activity_id: 3, kom_rank: null, pr_rank: 1 },
+  ],
+};
+
 /** Réponse d'exemple pour un chemin d'API, ou `undefined` si le chemin n'est pas simulé. */
 export function demoResponse(method: string, fullPath: string): unknown {
   if (method !== "GET") return undefined;
@@ -206,6 +220,8 @@ export function demoResponse(method: string, fullPath: string): unknown {
       return WEATHER;
     case "/api/weather/location":
       return PLACE;
+    case "/api/strava/segments":
+      return SEGMENTS;
     case "/api/activities":
       return query.get("races_only") === "true" ? [] : ACTIVITIES;
     default: {

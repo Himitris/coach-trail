@@ -27,6 +27,7 @@ from app.sync.types import (
     RAW_ACTIVITY,
     RAW_CALENDAR,
     RAW_PROFILE,
+    RAW_SEGMENTS,
     RAW_STREAM,
     RAW_WELLNESS,
     STATE_AUTH_REQUIRED,
@@ -43,6 +44,7 @@ from app.sync.types import (
 
 BATCH_SIZE = 25
 MAX_CONSECUTIVE_STREAM_FAILURES = 3
+MAX_SEGMENT_FETCHES = 60  # détails d'activité par synchronisation (quota Strava)
 CHECK_TRIGGER = "check"  # vérification rapide : seulement les activités récentes
 CHECK_MARGIN = timedelta(days=1)
 
@@ -407,6 +409,7 @@ class SyncService:
             try:
                 self._ingest(name, RAW_ACTIVITY, connector.fetch_activities(since), result)
                 self._sync_streams(name, connector, result, fetched_after=started)
+                self._sync_segments(name, connector, result)
             finally:
                 with self._factory() as session:
                     assign_dedup_groups(session)
@@ -444,6 +447,7 @@ class SyncService:
                 rec = fetch_profile()
                 self._ingest(name, RAW_PROFILE, [rec] if rec else [], result)
             self._sync_streams(name, connector, result)
+            self._sync_segments(name, connector, result)
         finally:
             with self._factory() as session:
                 assign_dedup_groups(session)
@@ -521,6 +525,50 @@ class SyncService:
             if failures >= MAX_CONSECUTIVE_STREAM_FAILURES:
                 result.warnings.append("Récupération des flux interrompue après plusieurs échecs")
                 break
+
+    def _sync_segments(self, name: str, connector: SourceConnector, result: SourceResult) -> None:
+        """Efforts de segments des activités qui n'en ont pas encore (si la source en fournit).
+
+        Les plus récentes d'abord, au plus MAX_SEGMENT_FETCHES par synchronisation : l'historique
+        se complète au fil des synchronisations sans épuiser le quota.
+        """
+        fetch = getattr(connector, "fetch_activity_segments", None)
+        if fetch is None:
+            return
+        with self._factory() as session:
+            have = select(RawPayload.external_key).where(
+                RawPayload.source == name, RawPayload.type == RAW_SEGMENTS
+            )
+            missing = list(
+                session.scalars(
+                    select(RawPayload.external_key)
+                    .where(
+                        RawPayload.source == name,
+                        RawPayload.type == RAW_ACTIVITY,
+                        RawPayload.external_key.not_in(have),
+                    )
+                    .order_by(RawPayload.id.desc())
+                    .limit(MAX_SEGMENT_FETCHES)
+                )
+            )
+        failures = 0
+        for ext_id in missing:
+            try:
+                rec = fetch(ext_id) or RawRecord(ext_id, {"efforts": []})
+                with self._factory() as session:
+                    self._upsert_raw(session, name, RAW_SEGMENTS, rec, SourceResult(name))
+                    session.commit()
+                failures = 0
+            except SourceError as exc:
+                if exc.state == STATE_AUTH_REQUIRED:
+                    raise
+                self._warn_stream(name, ext_id, exc.user_message, result)
+                break  # quota ou panne : reprise à la prochaine synchronisation
+            except Exception as exc:  # des segments manquants ne font pas échouer la source
+                failures += 1
+                self._warn_stream(name, ext_id, f"{type(exc).__name__}: {exc}", result)
+                if failures >= MAX_CONSECUTIVE_STREAM_FAILURES:
+                    break
 
     def _warn_stream(self, name: str, ext_id: str, detail: str, result: SourceResult) -> None:
         msg = self._masker.mask(f"flux {ext_id} : {detail}")[:300]

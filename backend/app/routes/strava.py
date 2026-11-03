@@ -1,16 +1,21 @@
 """Connexion Strava (optionnelle) : état, autorisation OAuth2, retour, déconnexion."""
 
 import logging
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.config import Settings
+from app.models import Activity, RawPayload
+from app.routes.deps import get_db
 from app.strava.auth import SCOPE, StravaAuth
 from app.sync.registry import strava_enabled
-from app.sync.types import SourceError
+from app.sync.types import RAW_SEGMENTS, SourceError
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/strava")
@@ -107,3 +112,83 @@ def callback(
 def disconnect(request: Request) -> Response:
     _auth(request).disconnect()
     return Response(status_code=204)
+
+
+class SegmentEffort(BaseModel):
+    segment_id: int | None
+    name: str
+    distance_m: float | None
+    grade_pct: float | None
+    elapsed_s: float | None
+    date: str | None
+    activity_id: int | None
+    kom_rank: int | None  # rang au classement général au moment de l'envoi (top 10 seulement)
+    pr_rank: int | None  # rang parmi tes propres efforts (top 3 seulement)
+
+
+class SegmentsOut(BaseModel):
+    connected: bool
+    activities_scanned: int
+    top10: int
+    kom: int  # efforts classés 1er
+    pr: int  # records personnels (1er de tes efforts)
+    efforts: list[SegmentEffort]
+    note: str
+
+
+NOTE = (
+    "Rangs fournis par Strava au moment de l'envoi de la séance (KOM : top 10 ; record personnel : "
+    "top 3). Les Local Legends ne sont pas exposés par l'API Strava."
+)
+
+
+@router.get("/segments", response_model=SegmentsOut)
+def segments(
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    days: Annotated[int, Query(ge=7, le=730)] = 365,
+) -> SegmentsOut:
+    """Efforts classés (KOM top 10, records personnels) des activités Strava récentes."""
+    since = (datetime.now(UTC) - timedelta(days=days)).replace(tzinfo=None)
+    rows = db.execute(
+        select(RawPayload.external_key, RawPayload.payload).where(
+            RawPayload.source == "strava", RawPayload.type == RAW_SEGMENTS
+        )
+    ).all()
+    group_of = {
+        a.external_id: a.dedup_group_id or a.id
+        for a in db.scalars(select(Activity).where(Activity.source == "strava"))
+    }
+    efforts: list[SegmentEffort] = []
+    for key, payload in rows:
+        for e in payload.get("efforts", []):
+            date_ = e.get("start")
+            if (
+                date_
+                and datetime.fromisoformat(date_.replace("Z", "+00:00")).replace(tzinfo=None)
+                < since
+            ):
+                continue
+            efforts.append(
+                SegmentEffort(
+                    segment_id=e.get("segment_id"),
+                    name=str(e.get("name") or "Segment"),
+                    distance_m=e.get("distance_m"),
+                    grade_pct=e.get("grade_pct"),
+                    elapsed_s=e.get("elapsed_s"),
+                    date=date_[:10] if date_ else None,
+                    activity_id=group_of.get(key),
+                    kom_rank=e.get("kom_rank"),
+                    pr_rank=e.get("pr_rank"),
+                )
+            )
+    efforts.sort(key=lambda e: (e.date or "", e.name), reverse=True)
+    return SegmentsOut(
+        connected=_auth(request).connected(),
+        activities_scanned=len(rows),
+        top10=sum(1 for e in efforts if e.kom_rank is not None),
+        kom=sum(1 for e in efforts if e.kom_rank == 1),
+        pr=sum(1 for e in efforts if e.pr_rank == 1),
+        efforts=efforts,
+        note=NOTE,
+    )
