@@ -37,8 +37,12 @@ export function rankLabels(e: Pick<SegmentEffort, "kom_rank" | "pr_rank">): stri
 const keep = (kind: Kind) => (e: SegmentEffort) =>
   kind === "kom" ? e.kom_rank !== null : kind === "pr" ? e.pr_rank !== null : true;
 
+/** Page du segment (classement, KOM) sur Strava. */
+export const segmentUrl = (segmentId: number): string => `https://www.strava.com/segments/${segmentId}`;
+
 export interface SegmentGroup {
   key: string;
+  segmentId: number | null;
   name: string;
   distance_m: number | null;
   grade_pct: number | null;
@@ -56,7 +60,7 @@ export function groupBySegment(efforts: SegmentEffort[]): SegmentGroup[] {
   for (const e of efforts) {
     const key = e.segment_id !== null ? String(e.segment_id) : e.name;
     const g = map.get(key) ?? {
-      key, name: e.name, distance_m: e.distance_m, grade_pct: e.grade_pct,
+      key, segmentId: e.segment_id, name: e.name, distance_m: e.distance_m, grade_pct: e.grade_pct,
       bestKom: null, bestPr: null, count: 0, lastDate: null, times: [],
     }; // fmt: skip
     g.count += 1;
@@ -131,7 +135,20 @@ function SegmentCard({ g, full }: { g: SegmentGroup; full: boolean }) {
         {g.bestPr !== null && <Medal rank={g.bestPr} kind="pr" />}
       </div>
       <div className="seg-body">
-        <strong className="seg-name">{g.name}</strong>
+        {g.segmentId !== null ? (
+          <a
+            className="seg-name seg-link"
+            href={segmentUrl(g.segmentId)}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Voir le segment et son classement sur Strava"
+            onClick={(event) => { event.stopPropagation(); }}
+          >
+            {g.name} ↗
+          </a>
+        ) : (
+          <strong className="seg-name">{g.name}</strong>
+        )}
         <span className="seg-meta">
           {g.distance_m !== null && `${formatNumber(g.distance_m)} m`}
           {g.grade_pct !== null && ` · ${formatNumber(g.grade_pct, 1)} %`}

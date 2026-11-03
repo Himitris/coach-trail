@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SegmentEffort } from "../api/endpoints";
-import { byMonth, groupBySegment, rankLabels } from "./StravaSegmentsWidget";
+import { byMonth, groupBySegment, rankLabels, segmentUrl } from "./StravaSegmentsWidget";
 
 const effort = (over: Partial<SegmentEffort>): SegmentEffort => ({
   segment_id: 1, name: "Montée", distance_m: 800, grade_pct: 8, elapsed_s: 300, date: "2026-10-30",
@@ -41,5 +41,12 @@ describe("byMonth", () => {
     );
     expect(rows.map((r) => r.month)).toEqual(["2026-08", "2026-09", "2026-10", "2026-11"]);
     expect(rows.map((r) => [r.kom, r.pr])).toEqual([[0, 1], [0, 0], [1, 1], [0, 0]]);
+  });
+});
+
+describe("segmentUrl", () => {
+  it("pointe vers la page du segment sur Strava", () => {
+    expect(segmentUrl(12345)).toBe("https://www.strava.com/segments/12345");
+    expect(groupBySegment([effort({ segment_id: 12345 })])[0]?.segmentId).toBe(12345);
   });
 });
