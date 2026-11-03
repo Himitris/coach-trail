@@ -562,3 +562,11 @@ html { scrollbar-color: var(--border) transparent; scrollbar-width: thin; }
 .chart-tip-value { font-family: var(--mono); font-size: 1.15rem; font-weight: 700; margin-bottom: 0.25rem; }
 .chart-tip-line { color: var(--muted); font-size: 0.75rem; }
 .plan-workout-type { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; }
+
+/* Météo plus visuelle */
+.weather-icon { font-size: 1.35em; line-height: 1; vertical-align: -0.1em; }
+.weather-hero { display: flex; align-items: center; gap: 0.6rem; margin: 0 0 0.4rem; font-size: 1.15rem; }
+.weather-hero .weather-icon { font-size: 2.2rem; }
+.weather-chart { min-height: 90px; }
+.wind-bar { display: block; height: 4px; margin-top: 0.3rem; border-radius: 2px; background: var(--surface-2); overflow: hidden; }
+.wind-bar > span { display: block; height: 100%; background: var(--accent); }

@@ -147,3 +147,10 @@ def test_report_start_before_first_data_starts_at_origin() -> None:
     r = fitness_report(loads, D0 + timedelta(days=5), D0, D0 + timedelta(days=6))
     assert [p.ctl for p in r.points[:5]] == [0, 0, 0, 0, 0]  # avant la première séance
     assert r.points[5].ctl == pytest.approx(2.35283, abs=1e-4)
+
+
+def test_hr_params_prefers_recent_wellness_resting_hr_over_the_default() -> None:
+    p, notes = hr_params(190, None, 170, recent_rest=48)
+    assert p.fc_rest == 48 and "30 derniers jours" in notes[0] and "48" in notes[0]
+    p, notes = hr_params(190, 50, 170, recent_rest=48)  # le profil prime sur la médiane
+    assert p.fc_rest == 50 and notes == []

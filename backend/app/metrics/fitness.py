@@ -55,11 +55,24 @@ class HrParams:
 
 
 def hr_params(
-    fc_max: int, fc_rest: int | None, fc_threshold: int | None
+    fc_max: int,
+    fc_rest: int | None,
+    fc_threshold: int | None,
+    recent_rest: int | None = None,
 ) -> tuple[HrParams, list[str]]:
-    """Paramètres de FC du profil, avec la liste des substitutions faites (à afficher)."""
+    """Paramètres de FC du profil, avec la liste des substitutions faites (à afficher).
+
+    `recent_rest` : médiane des FC de repos quotidiennes récentes (bien-être), utilisée à défaut
+    d'une FC de repos dans le profil.
+    """
     notes: list[str] = []
-    if fc_rest is None:
+    if fc_rest is None and recent_rest is not None:
+        fc_rest = recent_rest
+        notes.append(
+            f"FC repos absente du profil : médiane de tes FC de repos des 30 derniers jours "
+            f"({recent_rest} bpm) utilisée."
+        )
+    elif fc_rest is None:
         fc_rest = REST_FALLBACK_BPM
         notes.append(f"FC repos absente du profil : {REST_FALLBACK_BPM} bpm utilisée par défaut.")
     if fc_threshold is None:

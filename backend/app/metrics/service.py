@@ -1,5 +1,6 @@
 """Lecture des tables normalisées -> entrées des fonctions pures de `app.metrics`."""
 
+import statistics
 from collections.abc import Sequence
 from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -134,12 +135,34 @@ def intensity(
 # --- forme / charge -------------------------------------------------------------------------
 
 
+def _recent_resting_hr(session: Session, end: date, days: int = 30) -> int | None:
+    """Médiane des FC de repos quotidiennes (Garmin / Intervals) des `days` jours jusqu'à `end`."""
+    since = end - timedelta(days=days)
+    values = [
+        v
+        for v in session.scalars(
+            select(WellnessDaily.fc_repos).where(
+                WellnessDaily.date >= since,
+                WellnessDaily.date <= end,
+                WellnessDaily.fc_repos.is_not(None),
+            )
+        )
+        if v
+    ]
+    return round(statistics.median(values)) if len(values) >= 5 else None
+
+
 def daily_loads(
     session: Session, rows: Sequence[ActivityRow], end: date
 ) -> tuple[dict[date, float], date | None, list[str]]:
     """Charge quotidienne (points FC) jusqu'à `end`, premier jour de données, notes à afficher."""
     profile = get_profile(session)
-    params, notes = hr_params(profile.fc_max, profile.fc_repos, profile.seuil_lactique_fc)
+    params, notes = hr_params(
+        profile.fc_max,
+        profile.fc_repos,
+        profile.seuil_lactique_fc,
+        recent_rest=_recent_resting_hr(session, end),
+    )
     age_days = (datetime.now(UTC).replace(tzinfo=None) - profile.updated_at).days
     if age_days > STALE_PROFILE_DAYS:
         notes.append(

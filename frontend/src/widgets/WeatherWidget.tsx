@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { Area, Bar, ComposedChart, Tooltip, XAxis, YAxis } from "recharts";
 import { ApiError } from "../api/client";
 import { fetchWeather, fetchWeatherLocation, geocodePlace, setWeatherLocation } from "../api/endpoints";
-import type { WeatherPlace, WeatherResponse } from "../api/types";
+import type { WeatherHour, WeatherPlace, WeatherResponse } from "../api/types";
 import { formatDay, formatDuration, formatNumber } from "../app/format";
-import { EvidenceNote } from "./common";
+import { ChartBox, EvidenceNote } from "./common";
 import { formatWeather } from "./exports";
 import { REFRESH_MS } from "./queries";
 import { registerWidget } from "./registry";
@@ -18,6 +19,64 @@ interface WeatherSettings extends Record<string, unknown> {
 
 const dayFor = (value: unknown): "session" | "today" | "tomorrow" => (value === "today" || value === "tomorrow" ? value : "session");
 const t = (v: number | null, unit: string, digits: 0 | 1 | 2 = 0): string => (v === null ? "—" : `${formatNumber(v, digits)} ${unit}`);
+
+/** Pictogramme du libellé de météo (les libellés viennent du serveur, codes WMO en français). */
+export function weatherIcon(label: string, hour?: number): string {
+  const l = label.toLowerCase();
+  if (l.includes("orage")) return "⛈️";
+  if (l.includes("neige") || l.includes("grain")) return "❄️";
+  if (l.includes("brouillard")) return "🌫️";
+  if (l.includes("averse")) return "🌦️";
+  if (l.includes("pluie") || l.includes("bruine")) return "🌧️";
+  if (l.includes("couvert")) return "☁️";
+  if (l.includes("partiellement")) return "⛅";
+  if (l.includes("plutôt")) return "🌤️";
+  if (l.includes("dégagé")) return hour !== undefined && (hour < 6 || hour >= 21) ? "🌙" : "☀️";
+  return "🌡️";
+}
+
+const RAIN = "#5b8fd9";
+
+/** Heure par heure : courbe de température, barres de probabilité de pluie, vent au survol. */
+function HourlyChart({ hours, height = 90 }: { hours: WeatherHour[]; height?: number }) {
+  const data = hours
+    .filter((h) => h.hour >= 5 && h.hour <= 22)
+    .map((h) => ({ ...h, name: `${h.hour} h`, temp: h.temp_c, rain: h.rain_prob_pct ?? 0 }));
+  if (data.length === 0) return null;
+  return (
+    <div className="summary-chart weather-chart">
+      <ChartBox minHeight={height}>
+        {({ width, height: h }) => (
+          <ComposedChart width={width} height={h} data={data} margin={{ top: 6, right: 4, bottom: 0, left: 4 }}>
+            <XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--muted)" }} axisLine={false} tickLine={false} interval={2} />
+            <YAxis yAxisId="temp" hide domain={["dataMin - 2", "dataMax + 2"]} />
+            <YAxis yAxisId="rain" hide domain={[0, 100]} />
+            <Tooltip
+              contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12, padding: "2px 8px" }}
+              formatter={(value, name) => (name === "temp" ? [`${String(value)}°C`, "Température"] : [`${String(value)} %`, "Pluie"])}
+              labelFormatter={(label, items) => {
+                const p = (items[0] as { payload?: WeatherHour } | undefined)?.payload;
+                return p ? `${String(label)} · ${weatherIcon(p.label, p.hour)} ${p.label} · vent ${t(p.wind_kmh, "km/h")}` : String(label);
+              }}
+            />
+            <Bar yAxisId="rain" dataKey="rain" name="rain" fill={RAIN} fillOpacity={0.45} radius={[2, 2, 0, 0]} isAnimationActive={false} />
+            <Area yAxisId="temp" type="monotone" dataKey="temp" name="temp" stroke="var(--accent)" strokeWidth={2.5} fill="var(--accent)" fillOpacity={0.12} dot={false} isAnimationActive={false} />
+          </ComposedChart>
+        )}
+      </ChartBox>
+    </div>
+  );
+}
+
+/** Jauge de vent : de calme à fort (50 km/h = pleine). */
+function WindBar({ kmh }: { kmh: number | null }) {
+  const pct = Math.min(100, Math.round(((kmh ?? 0) / 50) * 100));
+  return (
+    <span className="wind-bar" aria-hidden="true">
+      <span style={{ width: `${pct}%` }} />
+    </span>
+  );
+}
 
 function PlacePicker({ current, onDone }: { current: WeatherPlace | null; onDone: () => void }) {
   const queryClient = useQueryClient();
@@ -90,6 +149,13 @@ export function WeatherView({ data, onChangePlace }: { data: WeatherResponse; on
           <>Aucune séance prévue : météo du {formatDay(d.date)}.</>
         )}
       </p>
+      <p className="weather-hero">
+        <span className="weather-icon" aria-hidden="true">{weatherIcon(d.label)}</span>
+        <span>
+          <strong>{t(d.temp_min_c, "")}–{t(d.temp_max_c, "°C")}</strong> · {d.label}
+        </span>
+      </p>
+      <HourlyChart hours={w.hours} height={130} />
       <div className="stats">
         <div className="stat">
           <span className="stat-label">{w.place.nom}</span>
@@ -112,6 +178,7 @@ export function WeatherView({ data, onChangePlace }: { data: WeatherResponse; on
           <span className="stat-label">Vent</span>
           <span className="stat-value">{t(d.wind_max_kmh, "km/h")}</span>
           <span className="stat-sub">rafales {t(d.gust_max_kmh, "km/h")}</span>
+          <WindBar kmh={d.wind_max_kmh} />
         </div>
       </div>
       {w.stale && (
@@ -163,7 +230,7 @@ export function WeatherView({ data, onChangePlace }: { data: WeatherResponse; on
                 .map((h) => (
                   <tr key={h.hour}>
                     <th scope="row">{h.hour} h</th>
-                    <td>{h.label}</td>
+                    <td>{weatherIcon(h.label, h.hour)} {h.label}</td>
                     <td>{t(h.temp_c, "°C")}</td>
                     <td>{t(h.rain_prob_pct, "%")}</td>
                     <td>{t(h.wind_kmh, "km/h")}</td>
@@ -233,10 +300,15 @@ export function WeatherSummary({ settings }: WidgetProps<WeatherSettings>) {
   if (place === null) return <WidgetEmpty message="Lieu à choisir : ouvrez le détail." />;
   if (forecast.isError) return <WidgetError message={forecast.error.message} onRetry={() => void forecast.refetch()} />;
   if (!forecast.data) return <WidgetLoading />;
-  const { day: d, periods } = forecast.data.weather;
+  const { day: d, periods, hours } = forecast.data.weather;
   return (
     <SummaryLayout
-      value={`${formatNumber(d.temp_min_c)}–${formatNumber(d.temp_max_c)}°`}
+      value={
+        <>
+          <span className="weather-icon" aria-hidden="true">{weatherIcon(d.label)}</span>{" "}
+          {`${formatNumber(d.temp_min_c)}–${formatNumber(d.temp_max_c)}°`}
+        </>
+      }
       unit={d.label}
       sub={`${place.nom}${forecast.data.session ? ` · ${forecast.data.session.titre}` : ""}`}
       stats={[
@@ -247,6 +319,7 @@ export function WeatherSummary({ settings }: WidgetProps<WeatherSettings>) {
         { label: "Soleil", value: `${d.sunrise ?? "—"}–${d.sunset ?? "—"}` },
       ]}
     >
+      <HourlyChart hours={hours} />
       {periods.length > 0 && (
         <table className="summary-table">
           <tbody>

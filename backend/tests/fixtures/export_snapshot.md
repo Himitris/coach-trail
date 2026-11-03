@@ -45,9 +45,9 @@ _Zones 1–2 Garmin = bas d'intensité ; cible 75–80 % du temps sur la semaine
 
 ### Forme (CTL / ATL / TSB)
 
-Au 15 oct. 2026 : CTL 2,1 · ATL 4,7 · TSB −2,7. Rampe de CTL sur 4 semaines : +1,4 (en hausse).
+Au 15 oct. 2026 : CTL 2,1 · ATL 4,9 · TSB −2,7. Rampe de CTL sur 4 semaines : +1,4 (en hausse).
 _Courbes de tendance (constantes 42 j / 7 j) calculées depuis la FC des séances ; approximation du modèle charge/fatigue, pas un verdict ni un prédicteur de blessure._
-- FC repos absente du profil : 55 bpm utilisée par défaut.
+- FC repos absente du profil : médiane de tes FC de repos des 30 derniers jours (48 bpm) utilisée.
 - Seuil lactique absent du profil : estimé à 88 % de la FC max (172 bpm).
 - 2 séance(s) sans flux de FC : charge estimée avec la FC moyenne.
 - Moins de 42 jours d'historique avant le début de la période : le CTL est sous-estimé (montée en charge incomplète).

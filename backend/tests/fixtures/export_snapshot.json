@@ -66,23 +66,23 @@
   "days": 25,
   "end": "2026-10-15",
   "fitness": {
-    "atl": 4.713122350850496,
-    "ctl": 2.059581152745921,
-    "ctl_ramp_4w": 1.3525636578342204,
+    "atl": 4.866143688379062,
+    "ctl": 2.1302289483703607,
+    "ctl_ramp_4w": 1.392840522088528,
     "date": "2026-10-15",
     "evidence": {
       "level": "indicatif",
       "summary": "Courbes de tendance (constantes 42 j / 7 j) calculées depuis la FC des séances ; approximation du modèle charge/fatigue, pas un verdict ni un prédicteur de blessure."
     },
     "trend": {
-      "delta": 1.3525636578342204,
+      "delta": 1.392840522088528,
       "delta_pct": null,
       "direction": "hausse",
       "window": "CTL sur 4 semaines"
     },
-    "tsb": -2.6535411981045747,
+    "tsb": -2.7359147400087016,
     "warnings": [
-      "FC repos absente du profil : 55 bpm utilisée par défaut.",
+      "FC repos absente du profil : médiane de tes FC de repos des 30 derniers jours (48 bpm) utilisée.",
       "Seuil lactique absent du profil : estimé à 88 % de la FC max (172 bpm).",
       "2 séance(s) sans flux de FC : charge estimée avec la FC moyenne.",
       "Moins de 42 jours d'historique avant le début de la période : le CTL est sous-estimé (montée en charge incomplète)."

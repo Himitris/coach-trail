@@ -105,6 +105,24 @@ function FitnessView({ report, goals, raceDates, today }: { report: FitnessRepor
           utilise son propre calcul.
         </p>
       )}
+      <details className="explain" open>
+        <summary>En clair, comment lire ça ?</summary>
+        <ul className="notes">
+          <li>
+            <strong>Forme (CTL)</strong> : ta condition de fond, construite sur les ~6 dernières semaines. Elle monte
+            doucement quand tu t'entraînes régulièrement et redescend doucement si tu lèves le pied.
+          </li>
+          <li>
+            <strong>Fatigue (ATL)</strong> : ce que tu as encaissé cette dernière semaine. Elle grimpe vite après de
+            grosses séances et retombe vite avec du repos.
+          </li>
+          <li>
+            <strong>Fraîcheur (TSB)</strong> : forme moins fatigue. Positive, tu es plutôt frais ; négative, tu es en
+            plein bloc de charge, ce qui est normal en préparation.
+          </li>
+          <li>Ce qui compte, c'est la tendance de la forme (la ligne de fond monte-t-elle sur plusieurs semaines ?), pas le chiffre exact.</li>
+        </ul>
+      </details>
       <p className="muted">Courbes de tendance (constantes 42 j / 7 j), pas un verdict : aucune valeur ne dit « prêt » ou « pas prêt ».</p>
       {report.warnings.length > 0 && (
         <ul className="notes">
@@ -161,7 +179,8 @@ export function FitnessSummary({ settings }: WidgetProps<FitnessSettings>) {
         return (
           <SummaryLayout
             value={formatNumber(last.ctl, 1)}
-            unit="CTL · forme"
+            unit="CTL · ta forme de fond"
+            sub="Monte quand tu t'entraînes régulièrement sur plusieurs semaines."
             tag={<TrendWord trend={report.trend} />}
             stats={[
               { label: "ATL fatigue", value: formatNumber(last.atl, 1) },
