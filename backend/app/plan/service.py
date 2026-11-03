@@ -21,7 +21,7 @@ from app.plan.matching import (
     SessionResult,
     match_day,
 )
-from app.plan.movement import detected_movements
+from app.plan.movement import daily_steps, detected_movements
 from app.plan.schemas import (
     TYPE_LABELS,
     WEEKDAYS_FR,
@@ -190,6 +190,7 @@ def _days(
     by_id = {p.id: p for p in planned}
     workouts = detect_workouts(session, rows) if with_workouts else {}
     moves = detected_movements(session, start, end, rows)
+    steps = daily_steps(session, start, end)
 
     days: list[DayPlanOut] = []
     for offset in range((end - start).days + 1):
@@ -226,6 +227,7 @@ def _days(
                 sessions=sessions,
                 unplanned_activities=[brief(a, workouts.get(a.id)) for a in m.unplanned],
                 detected=moves.get(day, []),
+                steps=steps.get(day),
                 entry=entries.get(day),
             )
         )

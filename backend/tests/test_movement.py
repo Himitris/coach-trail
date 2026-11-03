@@ -51,3 +51,27 @@ def test_keeps_long_unrecorded_movements_only(tmp_path: Path) -> None:
         found = detected_movements(session, date(2026, 10, 27), date(2026, 11, 2), [run_row])
     items = found[date(2026, 10, 31)]
     assert [(m.label, m.duration_min, m.start) for m in items] == [("Marche", 26, "08:47")]
+
+
+def test_daily_steps_come_from_the_garmin_daily_summary(tmp_path: Path) -> None:
+    from app.plan.movement import daily_steps
+
+    app = create_app(Settings(database_path=str(tmp_path / "s.db"), scheduler_enabled=False))
+    with TestClient(app), app.state.session_factory() as session:
+        for day, summary in (
+            ("2026-10-31", {"totalSteps": 8420, "dailyStepGoal": 12450}),
+            ("2026-11-01", {"totalSteps": 0}),  # pas de donnée utile : ignoré
+            ("2026-11-02", {"totalSteps": 5100}),
+        ):
+            session.add(
+                RawPayload(
+                    source="garmin", type="wellness", external_key=day,
+                    fetched_at=datetime(2026, 11, 3), payload={"summary": summary}, hash=day,
+                )
+            )  # fmt: skip
+        session.commit()
+        steps = daily_steps(session, date(2026, 10, 30), date(2026, 11, 3))
+    assert {d.isoformat(): (s.steps, s.goal) for d, s in steps.items()} == {
+        "2026-10-31": (8420, 12450),
+        "2026-11-02": (5100, None),
+    }

@@ -19,7 +19,7 @@ import type {
   SessionType,
   WorkoutType,
 } from "../api/types";
-import { addDays, formatDay, formatDuration, formatKm, formatMeters, formatSigned } from "../app/format";
+import { addDays, formatDay, formatDuration, formatKm, formatMeters, formatNumber, formatSigned } from "../app/format";
 import { EvidenceBadge, Tip } from "./common";
 import { formatWeekPlan } from "./exports";
 import { SESSION_TYPE_OPTIONS, sportLabel, STATUS_CLASS } from "./labels";
@@ -268,11 +268,21 @@ function DayBlock({
           {a.workout && <WorkoutLine activityId={a.id} workout={a.workout} />}
         </div>
       ))}
-      {(day.detected ?? []).map((m) => (
-        <div className="plan-detected" key={`${m.start}-${m.type}`} title="Détecté automatiquement par la montre, non enregistré comme séance">
-          <span aria-hidden="true">{DETECTED_ICONS[m.type] ?? "•"}</span> {m.label} détectée · {m.start} · {formatDuration(m.duration_min)}
-        </div>
-      ))}
+      {(day.steps || (day.detected ?? []).length > 0) && (
+        <p className="plan-detected" title="Données de la montre : pas du jour et activités détectées automatiquement, non enregistrées comme séance">
+          {day.steps && (
+            <span>
+              <span aria-hidden="true">👣</span> {formatNumber(day.steps.steps)} pas
+              {day.steps.goal ? ` (${Math.round((day.steps.steps / day.steps.goal) * 100)} %)` : ""}
+            </span>
+          )}
+          {(day.detected ?? []).map((m) => (
+            <span key={`${m.start}-${m.type}`}>
+              <span aria-hidden="true">{DETECTED_ICONS[m.type] ?? "•"}</span> {m.label} {m.start} · {formatDuration(m.duration_min)}
+            </span>
+          ))}
+        </p>
+      )}
       {highlighted && day.sessions.some((s) => s.planned.consignes) && (
         <ul className="plan-notes">
           {day.sessions

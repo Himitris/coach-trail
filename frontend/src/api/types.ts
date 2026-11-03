@@ -142,6 +142,8 @@ export interface DayPlan {
   unplanned_activities: ActivityBrief[];
   /** Petites activités détectées par la montre (marche…), non enregistrées comme séance. */
   detected?: DetectedMovement[];
+  /** Pas du jour (résumé Garmin) et objectif quotidien. */
+  steps?: { steps: number; goal: number | null } | null;
   entry: Entry | null;
 }
 

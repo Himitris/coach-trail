@@ -10,7 +10,7 @@ from pydantic import (
     model_validator,
 )
 
-from app.plan.movement import DetectedMovement
+from app.plan.movement import DaySteps, DetectedMovement
 from app.plan.workout import Conformity, DetectedWorkout
 
 SessionType = Literal[
@@ -196,6 +196,7 @@ class DayPlanOut(BaseModel):
     sessions: list[SessionMatchOut]
     unplanned_activities: list[ActivityBrief]
     detected: list[DetectedMovement] = []
+    steps: DaySteps | None = None
     entry: EntryOut | None
 
 

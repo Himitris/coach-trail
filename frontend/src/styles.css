@@ -588,4 +588,4 @@ html { scrollbar-color: var(--border) transparent; scrollbar-width: thin; }
 .seg-link:hover, .seg-link:focus-visible { text-decoration: underline; color: var(--accent-2); }
 
 /* Activités détectées par la montre (marche…) */
-.plan-detected { margin: 0.2rem 0; padding: 0.2rem 0.5rem; font-size: 0.78rem; color: var(--muted); border-left: 3px solid var(--border); border-radius: 2px; }
+.plan-detected { display: flex; flex-wrap: wrap; gap: 0.1rem 0.8rem; margin: 0.25rem 0 0; font-size: 0.7rem; color: var(--muted); opacity: 0.85; }

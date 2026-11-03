@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.metrics.volume import ActivityRow
 from app.models import RawPayload
-from app.sync.types import RAW_EVENTS
+from app.sync.types import RAW_EVENTS, RAW_WELLNESS
 
 MIN_MOVE_MIN = 20
 OVERLAP_MARGIN = timedelta(minutes=5)
@@ -50,6 +50,34 @@ def _overlaps(start: datetime, end: datetime, rows: Sequence[ActivityRow]) -> bo
         if start < r_end + OVERLAP_MARGIN and end > r_start - OVERLAP_MARGIN:
             return True
     return False
+
+
+class DaySteps(BaseModel):
+    steps: int
+    goal: int | None = None
+
+
+def daily_steps(session: Session, start: date, end: date) -> dict[date, DaySteps]:
+    """Pas du jour (résumé quotidien Garmin) ; le jour en cours est celui de la dernière synchro."""
+    keys = [(start + timedelta(days=i)).isoformat() for i in range((end - start).days + 1)]
+    rows = session.execute(
+        select(RawPayload.external_key, RawPayload.payload).where(
+            RawPayload.source == "garmin",
+            RawPayload.type == RAW_WELLNESS,
+            RawPayload.external_key.in_(keys),
+        )
+    )
+    out: dict[date, DaySteps] = {}
+    for key, payload in rows:
+        summary = payload.get("summary") if isinstance(payload, dict) else None
+        if not isinstance(summary, dict):
+            continue
+        steps, goal = summary.get("totalSteps"), summary.get("dailyStepGoal")
+        if isinstance(steps, int | float) and steps > 0:
+            out[date.fromisoformat(key)] = DaySteps(
+                steps=round(steps), goal=round(goal) if isinstance(goal, int | float) else None
+            )
+    return out
 
 
 def detected_movements(
