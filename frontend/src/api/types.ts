@@ -601,4 +601,5 @@ export interface RacePlanOut {
   data: RacePlanDoc;
   updated_at: string;
   warnings: string[];
+  checks: string[];
 }

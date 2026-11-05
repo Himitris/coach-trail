@@ -295,3 +295,5 @@ class RacePlan(Base):
     )
     data: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    # étapes cochées de la feuille de route (partagées entre appareils)
+    checks: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)

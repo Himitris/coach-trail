@@ -101,3 +101,21 @@ def test_delete_and_cascade_with_goal(client: TestClient) -> None:
 
 def test_unknown_goal(client: TestClient) -> None:
     assert client.put("/api/goals/999/race-plan", json=doc()).status_code == 404
+
+
+def test_checks_are_shared_and_reset_with_a_new_plan(client: TestClient) -> None:
+    gid = goal_id(client)
+    assert client.post(f"/api/goals/{gid}/race-plan/checks", json={"key": "a", "done": True}).status_code == 404
+    client.put(f"/api/goals/{gid}/race-plan", json=doc())
+    assert client.get(f"/api/goals/{gid}/race-plan").json()["checks"] == []
+    client.post(f"/api/goals/{gid}/race-plan/checks", json={"key": "j-1:repas:0", "done": True})
+    r = client.post(f"/api/goals/{gid}/race-plan/checks", json={"key": "m:2", "done": True})
+    assert sorted(r.json()) == ["j-1:repas:0", "m:2"]
+    r = client.post(f"/api/goals/{gid}/race-plan/checks", json={"key": "m:2", "done": False})
+    assert r.json() == ["j-1:repas:0"]
+    assert client.get(f"/api/goals/{gid}/race-plan").json()["checks"] == ["j-1:repas:0"]
+    client.put(f"/api/goals/{gid}/race-plan", json=doc())
+    assert client.get(f"/api/goals/{gid}/race-plan").json()["checks"] == []
+    client.post(f"/api/goals/{gid}/race-plan/checks", json={"key": "x", "done": True})
+    assert client.delete(f"/api/goals/{gid}/race-plan/checks").json() == []
+    assert client.get(f"/api/goals/{gid}/race-plan").json()["checks"] == []

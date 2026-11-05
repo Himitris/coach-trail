@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { deleteRacePlan, fetchGoals, fetchRaceGoal, fetchRacePlan } from "../api/endpoints";
-import type { Goal } from "../api/types";
+import { clearRaceChecks, deleteRacePlan, fetchGoals, fetchRaceGoal, fetchRacePlan, setRaceCheck } from "../api/endpoints";
+import type { Goal, RacePlanOut } from "../api/types";
 import { writeClipboard } from "../app/export";
 import { formatDay, formatDuration, formatKm, formatMeters, isoDate, todayIso } from "../app/format";
 import { useToast } from "../app/toasts";
@@ -27,7 +27,6 @@ import { ProfileChart, ProfileEditor } from "../widgets/RaceGoalWidget";
 import { daysUntil } from "./CoursesPage";
 
 const SELECTED_KEY = "coach-trail:course-selected";
-const checksKey = (goalId: number): string => `coach-trail:race-checks:${goalId}`;
 
 function readSelected(): number | null {
   try {
@@ -44,38 +43,40 @@ export function defaultGoal(goals: Goal[], today: string = todayIso()): Goal | u
   return sorted.find((g) => g.date >= today) ?? sorted[sorted.length - 1];
 }
 
-/** Cases cochées d'une course, mémorisées sur cet appareil. */
-function useChecks(goalId: number): { done: Set<string>; toggle: (key: string) => void; reset: () => void } {
-  const [done, setDone] = useState<Set<string>>(new Set());
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(checksKey(goalId));
-      setDone(new Set(raw ? (JSON.parse(raw) as string[]) : []));
-    } catch {
-      setDone(new Set());
-    }
-  }, [goalId]);
-  const store = useCallback(
-    (next: Set<string>) => {
-      setDone(next);
-      try {
-        localStorage.setItem(checksKey(goalId), JSON.stringify([...next]));
-      } catch {
-        // stockage indisponible : les cases restent cochées jusqu'au rechargement
-      }
+/**
+ * Cases cochées d'une course, enregistrées sur le serveur : le téléphone et l'ordinateur voient les
+ * mêmes. Chaque appareil n'envoie que sa modification ; le plan est relu toutes les 20 s.
+ */
+function useChecks(goalId: number, serverChecks: string[]): { done: Set<string>; toggle: (key: string) => void; reset: () => void } {
+  const queryClient = useQueryClient();
+  const { notify } = useToast();
+  const queryKey = ["race-plan", goalId];
+  const apply = (checks: string[]) => {
+    queryClient.setQueryData<RacePlanOut | null>(queryKey, (old) => (old ? { ...old, checks } : old));
+  };
+  const toggleMutation = useMutation({
+    mutationFn: ({ key, done }: { key: string; done: boolean }) => setRaceCheck(goalId, key, done),
+    onMutate: ({ key, done }) => {
+      const old = queryClient.getQueryData<RacePlanOut | null>(queryKey)?.checks ?? [];
+      apply(done ? [...old.filter((k) => k !== key), key] : old.filter((k) => k !== key));
     },
-    [goalId],
-  );
-  const toggle = useCallback(
-    (key: string) => {
-      const next = new Set(done);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      store(next);
+    onSuccess: apply,
+    onError: (error: Error) => {
+      notify(`Case non enregistrée : ${error.message}`, "error");
+      void queryClient.invalidateQueries({ queryKey });
     },
-    [done, store],
-  );
-  return { done, toggle, reset: () => { store(new Set()); } };
+  });
+  const resetMutation = useMutation({
+    mutationFn: () => clearRaceChecks(goalId),
+    onSuccess: apply,
+    onError: (error: Error) => { notify(error.message, "error"); },
+  });
+  const done = useMemo(() => new Set(serverChecks), [serverChecks]);
+  return {
+    done,
+    toggle: (key) => { toggleMutation.mutate({ key, done: !done.has(key) }); },
+    reset: () => { resetMutation.mutate(); },
+  };
 }
 
 function useNow(everyMs = 30_000): Date {
@@ -346,10 +347,10 @@ function Gear({ items, done, toggle }: { items: string[]; done: Set<string>; tog
   );
 }
 
-function PlanView({ doc, goal }: { doc: RacePlanDoc; goal: Goal }) {
+function PlanView({ doc, goal, serverChecks }: { doc: RacePlanDoc; goal: Goal; serverChecks: string[] }) {
   const now = useNow();
   const today = isoDate(now);
-  const { done, toggle, reset } = useChecks(goal.id);
+  const { done, toggle, reset } = useChecks(goal.id, serverChecks);
   const profile = useQuery({ queryKey: ["race-goal", goal.id], queryFn: () => fetchRaceGoal(goal.id), retry: false });
   const groups = useMemo(() => buildAgenda(goal.date, doc), [goal.date, doc]);
   const nowTime = hhmm(now);
@@ -429,6 +430,7 @@ export function CoursePage() {
     queryKey: ["race-plan", goal?.id],
     queryFn: () => fetchRacePlan(goal?.id ?? 0),
     enabled: goal !== undefined,
+    refetchInterval: 20_000,
   });
   const remove = useMutation({
     mutationFn: () => deleteRacePlan(goal?.id ?? 0),
@@ -518,7 +520,7 @@ export function CoursePage() {
           </p>
         </div>
       )}
-      {doc && <PlanView doc={doc} goal={goal} />}
+      {doc && <PlanView doc={doc} goal={goal} serverChecks={plan.data?.checks ?? []} />}
       {importing && <RaceImportDialog goal={goal} hasPlan={doc !== undefined} onClose={() => { setImporting(false); }} />}
     </section>
   );

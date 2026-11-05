@@ -470,4 +470,9 @@ export const fetchRacePlan = (goalId: number): Promise<RacePlanOut | null> =>
 export const putRacePlan = (goalId: number, doc: unknown, dryRun = false): Promise<RacePlanOut> =>
   request("PUT", `/api/goals/${goalId}/race-plan${dryRun ? "?dry_run=true" : ""}`, { body: doc });
 
+export const setRaceCheck = (goalId: number, key: string, done: boolean): Promise<string[]> =>
+  request("POST", `/api/goals/${goalId}/race-plan/checks`, { body: { key, done } });
+
+export const clearRaceChecks = (goalId: number): Promise<string[]> => request("DELETE", `/api/goals/${goalId}/race-plan/checks`);
+
 export const deleteRacePlan = (goalId: number): Promise<null> => request("DELETE", `/api/goals/${goalId}/race-plan`);
