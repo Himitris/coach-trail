@@ -1,22 +1,27 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link, useMatch, useNavigate } from "react-router-dom";
+import { Link, useLocation, useMatch, useNavigate } from "react-router-dom";
 import { MAX_PAGE_TITLE } from "../layout/reducer";
 import { useDashboard } from "./DashboardProvider";
 import { newId } from "./ids";
+import { TOOLS, toolActive } from "./navigation";
 import { shortcutLabel } from "./shortcuts";
 import { NavMenu } from "./NavMenu";
+import { useSources } from "./useSources";
 
 /** Barre d'onglets fixe : une page par onglet, glisser pour réordonner, menu ⋯ pour le reste. */
 export function TabBar() {
   const { layout, dispatch } = useDashboard();
   const navigate = useNavigate();
   const pageMatch = useMatch("/p/:pageId");
+  const { pathname } = useLocation();
   const activeId = pageMatch?.params.pageId;
   const [menuId, setMenuId] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
+  const sources = useSources();
+  const attention = (sources.data ?? []).some((s) => s.state === "auth_required" || s.state === "down");
 
   const createPage = () => {
     const id = newId();
@@ -120,6 +125,24 @@ export function TabBar() {
         <button type="button" className="tab tab-add" onClick={createPage} aria-label="Nouvelle page" title="Nouvelle page">
           +
         </button>
+        <span className="tabs-sep" aria-hidden="true" />
+        {TOOLS.map((tool, i) => {
+          const index = layout.pages.length + i;
+          const active = toolActive(pathname, tool.to);
+          return (
+            <div key={tool.to} className={`tab tab-tool${active ? " tab-active" : ""}`}>
+              <Link
+                to={tool.to}
+                aria-current={active ? "page" : undefined}
+                title={shortcutLabel(index) ? `${tool.hint} — touche ${shortcutLabel(index) ?? ""}` : tool.hint}
+              >
+                {shortcutLabel(index) && <span className="tab-index" aria-hidden="true">{shortcutLabel(index)}</span>}
+                {tool.label}
+                {tool.to === "/sources" && attention && <span className="dot dot-warn" aria-label="Attention requise" />}
+              </Link>
+            </div>
+          );
+        })}
       </div>
       <NavMenu />
     </nav>

@@ -600,3 +600,30 @@ html { scrollbar-color: var(--border) transparent; scrollbar-width: thin; }
 .plan-workout { margin: 0; }
 .plan-day .icon-btn { padding: 0 0.3rem; line-height: 1.2; }
 .plan-session .plan-conformity-note { margin: 0; }
+
+/* Onglets d'outils (ordinateur) : le menu ☰ ne sert plus que sur téléphone */
+.tabs-sep { flex: none; width: 1px; margin: 0.5rem 0.4rem; background: var(--border); }
+.tab-tool a { padding: 0 0.15rem; }
+@media (min-width: 641px) { .nav-menu-btn { display: none; } }
+
+/* Onglet Course : une seule page, deux colonnes sur grand écran */
+.course-page { display: flex; flex-direction: column; gap: 0.4rem; }
+.race-title { font-size: 0.95rem; }
+.race-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.race-head-main { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; min-width: 0; }
+.race-select { font-weight: 600; max-width: 100%; }
+.race-meta { color: var(--muted); font-size: 0.9rem; }
+.race-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 0.5rem; align-items: start; }
+.race-col { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+.race-panel { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 0.5rem 0.7rem; font-size: 0.875rem; }
+.race-panel h2 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 0 0 0.3rem; }
+.race-panel p { margin: 0.2rem 0; }
+.race-times { display: flex; flex-wrap: wrap; gap: 0.2rem 1rem; }
+.race-list { margin: 0.2rem 0; padding-left: 1.1rem; }
+.race-list li { margin: 0.1rem 0; }
+.race-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; list-style: none; margin: 0; padding: 0; }
+.race-chips li { padding: 0.1rem 0.55rem; border-radius: 999px; background: var(--surface-2); }
+.race-table th[scope="row"] { white-space: nowrap; }
+.race-table tfoot th, .race-table tfoot td { font-weight: 700; border-top: 2px solid var(--border); }
+.race-empty { text-align: center; padding: 2rem 1rem; }
+@media (max-width: 900px) { .race-grid { grid-template-columns: 1fr; } }

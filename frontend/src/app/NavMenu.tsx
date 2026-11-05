@@ -2,15 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useMatch } from "react-router-dom";
 import { useDashboard } from "./DashboardProvider";
+import { TOOLS, toolActive } from "./navigation";
 import { shortcutLabel } from "./shortcuts";
 import { useSources } from "./useSources";
-
-const SECTIONS = [
-  { to: "/courses", label: "Courses", hint: "Courses et plans attribués" },
-  { to: "/importer", label: "Importer", hint: "Plan, courses, saisies ou matériel produits par Claude" },
-  { to: "/docs", label: "Documentation", hint: "Widgets, imports et prompts" },
-  { to: "/sources", label: "Sources", hint: "Garmin, Intervals.icu, Strava, import FIT/GPX" },
-] as const;
 
 /** Menu unique : pages du tableau de bord et autres écrans. Fiche plein écran sur téléphone. */
 export function NavMenu() {
@@ -23,7 +17,7 @@ export function NavMenu() {
   const attention = (sources.data ?? []).some((s) => s.state === "auth_required" || s.state === "down");
   const current =
     layout.pages.find((p) => p.id === pageMatch?.params.pageId)?.title ??
-    SECTIONS.find((s) => location.pathname.startsWith(s.to))?.label ??
+    TOOLS.find((s) => toolActive(location.pathname, s.to))?.label ??
     "Menu";
 
   useEffect(() => {
@@ -85,11 +79,12 @@ export function NavMenu() {
               </ul>
               <h2 className="nav-menu-title">Outils</h2>
               <ul>
-                {SECTIONS.map((s) => (
+                {TOOLS.map((s, i) => (
                   <li key={s.to}>
-                    <Link to={s.to} aria-current={location.pathname.startsWith(s.to) ? "page" : undefined}>
+                    <Link to={s.to} aria-current={toolActive(location.pathname, s.to) ? "page" : undefined}>
                       <span>
                         {s.label}
+                        {shortcutLabel(layout.pages.length + i) && <kbd>{shortcutLabel(layout.pages.length + i)}</kbd>}
                         {s.to === "/sources" && attention && <span className="dot dot-warn" aria-label="Attention requise" />}
                       </span>
                       <small className="muted">{s.hint}</small>

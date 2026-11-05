@@ -283,3 +283,15 @@ class ActivityWorkoutLabel(Base):
     )
     type: Mapped[str] = mapped_column(String, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
+class RacePlan(Base):
+    """Plan du jour J d une course : document validé (voir app.race_plan), un par objectif."""
+
+    __tablename__ = "race_plan"
+
+    goal_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("goal.id", ondelete="CASCADE"), primary_key=True
+    )
+    data: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

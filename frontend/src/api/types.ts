@@ -1,5 +1,7 @@
 /** Réponses de l'API (reflet des modèles Pydantic du backend). */
 
+import type { RacePlanDoc } from "../race/types";
+
 export type EvidenceLevel = "etabli" | "indicatif" | "non_valide" | "avis_montre";
 
 export interface Evidence {
@@ -592,4 +594,11 @@ export interface WeatherResponse {
     attribution: string;
     evidence: Evidence;
   };
+}
+
+export interface RacePlanOut {
+  goal_id: number;
+  data: RacePlanDoc;
+  updated_at: string;
+  warnings: string[];
 }

@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { Link, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { DashboardPage } from "../pages/DashboardPage";
+import { CoursePage } from "../pages/CoursePage";
 import { CoursesPage } from "../pages/CoursesPage";
 import { DocsPage } from "../pages/DocsPage";
 import { SourcesPage } from "../pages/SourcesPage";
@@ -8,6 +9,7 @@ import { ImportPage } from "../imports/ImportPanel";
 import { ExportButton } from "./ExportButtons";
 import { useDashboard } from "./DashboardProvider";
 import { newId } from "./ids";
+import { TOOLS } from "./navigation";
 import { usePageShortcuts } from "./shortcuts";
 import { TabBar } from "./TabBar";
 import { useTheme } from "./theme";
@@ -75,11 +77,17 @@ export function Shell() {
   const goToPage = useCallback(
     (index: number) => {
       const page = layout.pages[index];
-      if (page) void navigate(`/p/${page.id}`);
+      if (page) {
+        void navigate(`/p/${page.id}`);
+        return;
+      }
+      // au-delà des pages, les raccourcis continuent sur les onglets d'outils (même ordre que la barre)
+      const tool = TOOLS[index - layout.pages.length];
+      if (tool) void navigate(tool.to);
     },
     [layout.pages, navigate],
   );
-  usePageShortcuts(layout.pages.length, goToPage);
+  usePageShortcuts(layout.pages.length + TOOLS.length, goToPage);
 
   return (
     <>
@@ -91,6 +99,7 @@ export function Shell() {
           <Route path="/" element={<HomeRedirect />} />
           <Route path="/p/:pageId" element={<DashboardPage />} />
           <Route path="/calendrier" element={<Navigate to="/" replace />} />
+          <Route path="/course" element={<CoursePage />} />
           <Route path="/courses" element={<CoursesPage />} />
           <Route path="/sources" element={<SourcesPage />} />
           <Route path="/docs" element={<DocsPage />} />

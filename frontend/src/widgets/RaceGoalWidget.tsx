@@ -37,7 +37,7 @@ export function parseProfile(text: string): { points: [number, number][] } | { e
   return { points };
 }
 
-function ProfileEditor({ report }: { report: RaceGoalReport }) {
+export function ProfileEditor({ report }: { report: RaceGoalReport }) {
   const queryClient = useQueryClient();
   const [text, setText] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -95,7 +95,7 @@ function ProfileEditor({ report }: { report: RaceGoalReport }) {
   );
 }
 
-function ProfileChart({ profile }: { profile: [number, number][] }) {
+export function ProfileChart({ profile }: { profile: [number, number][] }) {
   const data = profile.map(([km, alt]) => ({ km, alt }));
   return (
     <ChartBox minHeight={140}>

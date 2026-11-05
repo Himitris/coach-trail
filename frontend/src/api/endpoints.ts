@@ -1,5 +1,5 @@
 import type { DashboardLayout } from "../layout/model";
-import { request } from "./client";
+import { ApiError, request } from "./client";
 import type {
   Activity,
   ActivityDetail,
@@ -16,6 +16,7 @@ import type {
   GpxSummary,
   MonotonyReport,
   RaceGoalReport,
+  RacePlanOut,
   WeatherPlace,
   WeatherResponse,
   StrengthReport,
@@ -457,3 +458,16 @@ export interface GoalInput {
 export const createGoal = (body: GoalInput): Promise<Goal> => request("POST", "/api/goals", { body });
 export const updateGoal = (id: number, body: GoalInput): Promise<Goal> => request("PUT", `/api/goals/${id}`, { body });
 export const deleteGoal = (id: number): Promise<null> => request("DELETE", `/api/goals/${id}`);
+
+// --- plan du jour J d'une course ---------------------------------------------------------------
+
+export const fetchRacePlan = (goalId: number): Promise<RacePlanOut | null> =>
+  request<RacePlanOut>("GET", `/api/goals/${goalId}/race-plan`).catch((error: unknown) => {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  });
+
+export const putRacePlan = (goalId: number, doc: unknown, dryRun = false): Promise<RacePlanOut> =>
+  request("PUT", `/api/goals/${goalId}/race-plan${dryRun ? "?dry_run=true" : ""}`, { body: doc });
+
+export const deleteRacePlan = (goalId: number): Promise<null> => request("DELETE", `/api/goals/${goalId}/race-plan`);
