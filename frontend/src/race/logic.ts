@@ -1,5 +1,5 @@
-import { formatDuration } from "../app/format";
-import type { JourAvant, RacePlanDoc, Tranche } from "./types";
+import { addDays, formatDuration, formatWeekdayDay } from "../app/format";
+import type { JourAvant, RacePlanDoc, Repas, Tranche } from "./types";
 
 export interface Totals {
   minutes: number;
@@ -43,9 +43,104 @@ export function fcLabel(t: Tranche): string | null {
   return null;
 }
 
+const baseLabel = (jour: number): string => (jour === -1 ? "Veille" : jour === -2 ? "Avant-veille" : `J${jour}`);
+
 export function dayLabel(d: JourAvant): string {
-  const base = d.jour === -1 ? "Veille" : d.jour === -2 ? "Avant-veille" : `J${d.jour}`;
-  return d.titre ? `${base} · ${d.titre}` : base;
+  const base = baseLabel(d.jour);
+  const extra = d.titre?.trim();
+  // « Veille · Veille » n'apporte rien : le titre n'est repris que s'il dit autre chose.
+  return extra && extra.toLowerCase() !== base.toLowerCase() ? `${base} · ${extra}` : base;
+}
+
+// --- feuille de route : ce qu'il reste à faire, dans l'ordre -------------------------------------
+
+export type AgendaKind = "activite" | "repas" | "hydratation" | "sommeil" | "note" | "echauffement" | "reveil" | "depart";
+
+export interface AgendaItem {
+  key: string;
+  kind: AgendaKind;
+  time: string | null;
+  text: string;
+  extra?: string;
+}
+
+export interface AgendaGroup {
+  id: string;
+  title: string;
+  /** Jour calendaire (AAAA-MM-JJ). */
+  date: string;
+  items: AgendaItem[];
+}
+
+const byTime = (a: { heure?: string }, b: { heure?: string }): number => (a.heure ?? "99:99").localeCompare(b.heure ?? "99:99");
+
+function meals(prefix: string, list: Repas[] | undefined): AgendaItem[] {
+  return [...(list ?? [])].sort(byTime).map((r, i) => ({
+    key: `${prefix}:repas:${i}`,
+    kind: "repas",
+    time: r.heure ?? null,
+    text: r.description,
+    extra: r.glucides_g === undefined ? undefined : `${r.glucides_g} g glucides`,
+  }));
+}
+
+function notes(prefix: string, list: string[] | undefined): AgendaItem[] {
+  return (list ?? []).map((n, i) => ({ key: `${prefix}:note:${i}`, kind: "note", time: null, text: n }));
+}
+
+/** Groupes chronologiques : jours avant la course, matin, après la course. */
+export function buildAgenda(goalDate: string, doc: RacePlanDoc): AgendaGroup[] {
+  const groups: AgendaGroup[] = [];
+  for (const d of daysBefore(doc)) {
+    const id = `j${d.jour}`;
+    const items: AgendaItem[] = [];
+    if (d.activite) items.push({ key: `${id}:activite`, kind: "activite", time: null, text: d.activite });
+    items.push(...meals(id, d.repas));
+    if (d.hydratation) items.push({ key: `${id}:hydratation`, kind: "hydratation", time: null, text: d.hydratation });
+    if (d.sommeil) items.push({ key: `${id}:sommeil`, kind: "sommeil", time: null, text: d.sommeil });
+    items.push(...notes(id, d.notes));
+    const title = dayLabel(d);
+    if (items.length) groups.push({ id, title, date: addDays(goalDate, d.jour), items });
+  }
+  const m = doc.matin;
+  if (m) {
+    const items: AgendaItem[] = [];
+    if (m.reveil) items.push({ key: "matin:reveil", kind: "reveil", time: m.reveil, text: "Réveil" });
+    items.push(...meals("matin", m.repas));
+    if (m.echauffement) items.push({ key: "matin:echauffement", kind: "echauffement", time: null, text: m.echauffement });
+    if (m.hydratation) items.push({ key: "matin:hydratation", kind: "hydratation", time: null, text: m.hydratation });
+    items.push(...notes("matin", m.notes));
+    if (m.depart) items.push({ key: "matin:depart", kind: "depart", time: m.depart, text: "Départ de la course" });
+    if (items.length) groups.push({ id: "matin", title: "Matin de course", date: goalDate, items });
+  }
+  const a = doc.apres_course;
+  if (a) {
+    const items = [...meals("apres", a.repas), ...notes("apres", a.notes)];
+    if (items.length) groups.push({ id: "apres", title: "Après la course", date: goalDate, items });
+  }
+  return groups;
+}
+
+/** « ven. 7 nov. », avec « aujourd'hui » / « demain » quand c'est le cas. */
+export function relativeDay(date: string, today: string): string {
+  if (date === today) return "aujourd'hui";
+  if (date === addDays(today, 1)) return "demain";
+  return formatWeekdayDay(date);
+}
+
+/** Zone numérique la plus haute citée (« Z2-Z3 » → 3), pour la couleur ; null si illisible. */
+export function zoneNumber(zone: string | undefined): number | null {
+  const digits = [...(zone ?? "").matchAll(/[1-5]/g)].map((m) => Number(m[0]));
+  return digits.length ? Math.max(...digits) : null;
+}
+
+/** Minutes écoulées depuis le départ (négatif avant), null si l'heure de départ est inconnue. */
+export function elapsedMinutes(goalDate: string, depart: string | undefined, now: Date): number | null {
+  if (!depart) return null;
+  const [y, mo, d] = goalDate.split("-").map(Number);
+  const [h, mi] = depart.split(":").map(Number);
+  const start = new Date(y ?? 1970, (mo ?? 1) - 1, d ?? 1, h ?? 0, mi ?? 0);
+  return (now.getTime() - start.getTime()) / 60000;
 }
 
 /** Plan trié : veille la plus proche en dernier (ordre chronologique). */
@@ -143,6 +238,8 @@ Règles :
 - « tranches » : une par heure de course (ou par segment), temps écoulé en minutes depuis le départ (debut_min < fin_min). « zone » : zone cible (ex. « Z2 », « Z2-Z3 ») ; « fc_min » / « fc_max » : fourchette de FC en bpm ; « gels » peut être décimal (0,5).
 - « glucides_g », « boisson_ml », « sodium_mg » : quantités pour la tranche entière (pas par heure).
 - « jours_avant » : « jour » est négatif (-1 = veille, -2 = avant-veille…), au plus 7 jours, un seul bloc par jour.
+- Sois concis : une phrase courte par élément (100 caractères au plus), actions concrètes et chiffrées, 4 notes au plus par section, aucune généralité ni mise en garde. Pas de commentaire sur l'import dans « notes ».
+- « jours_avant » : seulement les jours utiles (3 au plus). Donne une « heure » aux repas quand tu peux, pour que l'appli les classe dans la journée.
 - Heures au format HH:MM. Pas de champ inconnu. N'invente pas de chiffres que tu ne connais pas : omets le champ.
 - Ne remplace pas un plan existant sans le dire : l'import remplace entièrement le plan de cette course.`;
 

@@ -606,24 +606,71 @@ html { scrollbar-color: var(--border) transparent; scrollbar-width: thin; }
 .tab-tool a { padding: 0 0.15rem; }
 @media (min-width: 641px) { .nav-menu-btn { display: none; } }
 
-/* Onglet Course : une seule page, deux colonnes sur grand écran */
-.course-page { display: flex; flex-direction: column; gap: 0.4rem; }
+/* Onglet Course : bandeau, bande de course, feuille de route à cocher */
+.course-page { display: flex; flex-direction: column; gap: 0.5rem; }
 .race-title { font-size: 0.95rem; }
 .race-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; }
 .race-head-main { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; min-width: 0; }
 .race-select { font-weight: 600; max-width: 100%; }
 .race-meta { color: var(--muted); font-size: 0.9rem; }
-.race-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 0.5rem; align-items: start; }
+.race-hero { display: grid; grid-template-columns: auto 1fr auto; gap: 0.4rem 1.25rem; align-items: center; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); padding: 0.7rem 1rem; }
+.race-countdown { font-size: 2rem; font-weight: 800; line-height: 1; white-space: nowrap; }
+.race-chips-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.race-kpi { display: flex; flex-direction: column; padding: 0.25rem 0.7rem; border-radius: 8px; background: var(--surface-2); min-width: 4.5rem; }
+.race-kpi span { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.race-kpi strong { font-size: 1.05rem; }
+.race-progress { display: flex; flex-direction: column; align-items: flex-end; gap: 0.15rem; font-size: 0.78rem; color: var(--muted); min-width: 6rem; }
+.race-progress progress { width: 6rem; height: 8px; accent-color: var(--ok); }
+.race-strategy { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 0.875rem; }
+.race-next { grid-column: 1 / -1; margin: 0; padding: 0.45rem 0.7rem; border-radius: 8px; border-left: 4px solid var(--accent-2); background: var(--surface-2); }
+.race-next-tag { display: inline-block; margin-right: 0.6rem; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent-2); font-weight: 700; }
+.race-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 0.5rem; align-items: start; }
 .race-col { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
-.race-panel { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 0.5rem 0.7rem; font-size: 0.875rem; }
-.race-panel h2 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 0 0 0.3rem; }
-.race-panel p { margin: 0.2rem 0; }
-.race-times { display: flex; flex-wrap: wrap; gap: 0.2rem 1rem; }
-.race-list { margin: 0.2rem 0; padding-left: 1.1rem; }
-.race-list li { margin: 0.1rem 0; }
-.race-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; list-style: none; margin: 0; padding: 0; }
-.race-chips li { padding: 0.1rem 0.55rem; border-radius: 999px; background: var(--surface-2); }
+.race-panel { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 0.55rem 0.75rem; font-size: 0.875rem; }
+.race-panel h2 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 0 0 0.4rem; }
+.race-panel summary { cursor: pointer; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; }
+.race-list { margin: 0.3rem 0 0; padding-left: 1.1rem; }
+.race-strip-wrap { margin-bottom: 0.5rem; }
+.race-strip { position: relative; display: flex; gap: 2px; min-height: 4.2rem; padding-top: 1rem; }
+.race-block { flex-basis: 0; min-width: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 0.05rem; padding: 0.35rem 0.2rem; border-radius: 6px; color: #1d1b18; text-align: center; line-height: 1.15; }
+.race-block strong { font-size: 1rem; }
+.race-block span { font-size: 0.75rem; }
+.race-block-fuel { font-weight: 600; }
+.race-block-now { outline: 3px solid var(--accent); outline-offset: 1px; }
+.race-stop { position: absolute; top: 0; transform: translateX(-50%); font-size: 0.68rem; color: var(--accent-2); font-weight: 700; white-space: nowrap; }
+.race-cursor { position: absolute; top: 1rem; bottom: 0; width: 2px; background: var(--accent); }
+.race-axis { display: flex; gap: 2px; font-size: 0.7rem; color: var(--muted); margin-top: 0.15rem; }
+.race-axis span { flex-basis: 0; min-width: 0; }
+.race-axis-end { flex: none !important; }
+.race-legend { margin: 0.2rem 0 0; font-size: 0.72rem; }
 .race-table th[scope="row"] { white-space: nowrap; }
 .race-table tfoot th, .race-table tfoot td { font-weight: 700; border-top: 2px solid var(--border); }
+.race-note { text-align: left; white-space: normal; min-width: 12rem; font-family: inherit; }
+.race-zone-dot { display: inline-block; width: 0.6rem; height: 0.6rem; border-radius: 50%; margin-right: 0.4rem; }
+.race-row-now { background: var(--surface-2); outline: 2px solid var(--accent); }
+.race-stops { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+.race-stops li { display: flex; gap: 0.6rem; align-items: baseline; }
+.race-stop-time { color: var(--muted); font-size: 0.78rem; min-width: 3.5rem; }
+.road-group { margin-bottom: 0.6rem; }
+.road-group h3 { display: flex; align-items: baseline; gap: 0.5rem; margin: 0 0 0.2rem; padding-bottom: 0.2rem; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+.road-date { color: var(--muted); font-weight: 400; font-size: 0.78rem; }
+.road-today h3 .road-date { color: var(--accent-2); font-weight: 700; }
+.road-count { margin-left: auto; font-size: 0.72rem; color: var(--muted); font-weight: 400; }
+.road-group ul, .race-gear { list-style: none; margin: 0; padding: 0; }
+.road-item label, .race-gear label { display: flex; align-items: flex-start; gap: 0.45rem; padding: 0.22rem 0.3rem; border-radius: 6px; cursor: pointer; }
+.road-item label:hover, .race-gear label:hover { background: var(--surface-2); }
+.road-item input, .race-gear input { margin-top: 0.2rem; flex: none; }
+.road-icon { flex: none; width: 1.2rem; text-align: center; }
+.road-time { flex: none; font-family: var(--mono); font-size: 0.8rem; margin-top: 0.05rem; }
+.road-text { min-width: 0; }
+.road-done .road-text, .road-done label > span:last-child { text-decoration: line-through; color: var(--muted); }
+.road-next label { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--accent-2); }
+.road-late .road-time { color: var(--danger); }
+.road-past-btn { margin-bottom: 0.5rem; }
+.race-gear { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 0.1rem 0.5rem; }
 .race-empty { text-align: center; padding: 2rem 1rem; }
-@media (max-width: 900px) { .race-grid { grid-template-columns: 1fr; } }
+@media (max-width: 900px) {
+  .race-grid { grid-template-columns: 1fr; }
+  .race-hero { grid-template-columns: 1fr; }
+  .race-progress { align-items: flex-start; }
+}

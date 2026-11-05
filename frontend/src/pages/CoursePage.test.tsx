@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { carbsPerHour, raceMarkdown, totalsOf } from "../race/logic";
+import { buildAgenda, carbsPerHour, dayLabel, elapsedMinutes, raceMarkdown, relativeDay, totalsOf, zoneNumber } from "../race/logic";
 import type { RacePlanDoc } from "../race/types";
 import { toolActive } from "../app/navigation";
 import { defaultGoal } from "./CoursePage";
@@ -38,5 +38,34 @@ describe("plan de course", () => {
     expect(toolActive("/courses", "/course")).toBe(false);
     expect(toolActive("/course", "/course")).toBe(true);
   });
-});
 
+  it("construit la feuille de route chronologique avec les dates", () => {
+    const full: RacePlanDoc = {
+      version: 1,
+      jours_avant: [
+        { jour: -1, titre: "Veille", repas: [{ heure: "19:30", description: "Dîner" }, { heure: "12:30", description: "Déjeuner" }], sommeil: "Tôt" },
+        { jour: -2, activite: "Footing" },
+      ],
+      matin: { reveil: "05:30", depart: "08:00", repas: [{ heure: "05:45", description: "Petit-déj" }] },
+      apres_course: { notes: ["Manger"] },
+    };
+    const groups = buildAgenda("2026-11-08", full);
+    expect(groups.map((g) => [g.id, g.date])).toEqual([["j-2", "2026-11-06"], ["j-1", "2026-11-07"], ["matin", "2026-11-08"], ["apres", "2026-11-08"]]);
+    expect(groups[1]?.items.map((i) => i.text)).toEqual(["Déjeuner", "Dîner", "Tôt"]);
+    expect(groups[2]?.items.map((i) => i.kind)).toEqual(["reveil", "repas", "depart"]);
+  });
+
+  it("n'écrit pas « Veille · Veille » et nomme les jours relatifs", () => {
+    expect(dayLabel({ jour: -1, titre: "Veille" })).toBe("Veille");
+    expect(dayLabel({ jour: -3, titre: "Charger" })).toBe("J-3 · Charger");
+    expect(relativeDay("2026-11-05", "2026-11-05")).toBe("aujourd'hui");
+    expect(relativeDay("2026-11-06", "2026-11-05")).toBe("demain");
+  });
+
+  it("lit la zone et le temps écoulé", () => {
+    expect(zoneNumber("Z2-Z3")).toBe(3);
+    expect(zoneNumber("facile")).toBeNull();
+    expect(elapsedMinutes("2026-11-08", "08:00", new Date(2026, 10, 8, 9, 30))).toBe(90);
+    expect(elapsedMinutes("2026-11-08", undefined, new Date())).toBeNull();
+  });
+});

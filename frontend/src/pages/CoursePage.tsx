@@ -1,18 +1,33 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { deleteRacePlan, fetchGoals, fetchRaceGoal, fetchRacePlan } from "../api/endpoints";
 import type { Goal } from "../api/types";
 import { writeClipboard } from "../app/export";
-import { formatDay, formatDuration, formatKm, formatMeters, todayIso } from "../app/format";
+import { formatDay, formatDuration, formatKm, formatMeters, isoDate, todayIso } from "../app/format";
 import { useToast } from "../app/toasts";
-import { carbsPerHour, clock, dayLabel, daysBefore, fcLabel, rangeLabel, raceMarkdown, totalsOf } from "../race/logic";
+import {
+  buildAgenda,
+  carbsPerHour,
+  clock,
+  elapsedMinutes,
+  fcLabel,
+  rangeLabel,
+  raceMarkdown,
+  relativeDay,
+  totalsOf,
+  zoneNumber,
+  type AgendaGroup,
+  type AgendaItem,
+  type AgendaKind,
+} from "../race/logic";
 import { RaceImportDialog } from "../race/RaceImportDialog";
-import type { Matin, RacePlanDoc, Repas } from "../race/types";
+import type { RacePlanDoc, Tranche } from "../race/types";
 import { ProfileChart, ProfileEditor } from "../widgets/RaceGoalWidget";
 import { daysUntil } from "./CoursesPage";
 
 const SELECTED_KEY = "coach-trail:course-selected";
+const checksKey = (goalId: number): string => `coach-trail:race-checks:${goalId}`;
 
 function readSelected(): number | null {
   try {
@@ -29,187 +44,379 @@ export function defaultGoal(goals: Goal[], today: string = todayIso()): Goal | u
   return sorted.find((g) => g.date >= today) ?? sorted[sorted.length - 1];
 }
 
-function Panel({ title, children, className = "" }: { title: string; children: ReactNode; className?: string }) {
-  return (
-    <section className={`race-panel ${className}`}>
-      <h2>{title}</h2>
-      {children}
-    </section>
+/** Cases cochées d'une course, mémorisées sur cet appareil. */
+function useChecks(goalId: number): { done: Set<string>; toggle: (key: string) => void; reset: () => void } {
+  const [done, setDone] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(checksKey(goalId));
+      setDone(new Set(raw ? (JSON.parse(raw) as string[]) : []));
+    } catch {
+      setDone(new Set());
+    }
+  }, [goalId]);
+  const store = useCallback(
+    (next: Set<string>) => {
+      setDone(next);
+      try {
+        localStorage.setItem(checksKey(goalId), JSON.stringify([...next]));
+      } catch {
+        // stockage indisponible : les cases restent cochées jusqu'au rechargement
+      }
+    },
+    [goalId],
   );
+  const toggle = useCallback(
+    (key: string) => {
+      const next = new Set(done);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      store(next);
+    },
+    [done, store],
+  );
+  return { done, toggle, reset: () => { store(new Set()); } };
 }
 
-function MealList({ meals }: { meals?: Repas[] }) {
-  if (!meals?.length) return null;
-  return (
-    <ul className="race-list">
-      {meals.map((r, i) => (
-        <li key={i}>
-          {r.heure && <strong>{r.heure} </strong>}
-          {r.description}
-          {r.glucides_g !== undefined && <span className="muted"> · {r.glucides_g} g glucides</span>}
-        </li>
-      ))}
-    </ul>
-  );
+function useNow(everyMs = 30_000): Date {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => { setNow(new Date()); }, everyMs);
+    return () => { clearInterval(id); };
+  }, [everyMs]);
+  return now;
 }
 
-function Notes({ notes }: { notes?: string[] }) {
-  if (!notes?.length) return null;
-  return (
-    <ul className="race-list">
-      {notes.map((n, i) => <li key={i}>{n}</li>)}
-    </ul>
-  );
-}
+const ICONS: Record<AgendaKind, string> = {
+  activite: "🏃",
+  repas: "🍝",
+  hydratation: "💧",
+  sommeil: "😴",
+  note: "•",
+  echauffement: "🔥",
+  reveil: "⏰",
+  depart: "🏁",
+};
 
-function MorningPanel({ matin }: { matin: Matin }) {
-  return (
-    <Panel title="Matin de course">
-      <p className="race-times">
-        {matin.reveil && <span>Réveil <strong>{matin.reveil}</strong></span>}
-        {matin.depart && <span>Départ <strong>{matin.depart}</strong></span>}
-      </p>
-      <MealList meals={matin.repas} />
-      {matin.echauffement && <p><strong>Échauffement :</strong> {matin.echauffement}</p>}
-      {matin.hydratation && <p><strong>Hydratation :</strong> {matin.hydratation}</p>}
-      <Notes notes={matin.notes} />
-    </Panel>
-  );
-}
+const hhmm = (d: Date): string => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 
-function SlicesTable({ doc }: { doc: RacePlanDoc }) {
-  const slices = doc.tranches ?? [];
-  const tot = totalsOf(slices);
-  const has = (pick: (t: (typeof slices)[number]) => unknown) => slices.some((t) => pick(t) !== undefined);
-  return (
-    <Panel title="Course heure par heure" className="race-slices">
-      {slices.length === 0 ? (
-        <p className="muted">Aucune tranche : importez le plan pour voir les zones et la nutrition heure par heure.</p>
-      ) : (
-        <div className="table-scroll">
-          <table className="data-table race-table">
-            <thead>
-              <tr>
-                <th scope="col">Temps</th>
-                {has((t) => t.km_debut ?? t.km_fin) && <th scope="col">Km</th>}
-                <th scope="col">Zone</th>
-                <th scope="col">FC</th>
-                {has((t) => t.allure) && <th scope="col">Allure</th>}
-                <th scope="col">Glucides</th>
-                <th scope="col">Gels</th>
-                <th scope="col">Boisson</th>
-                {has((t) => t.sodium_mg) && <th scope="col">Sodium</th>}
-                <th scope="col">À faire</th>
-              </tr>
-            </thead>
-            <tbody>
-              {slices.map((t, i) => (
-                <tr key={i}>
-                  <th scope="row">{rangeLabel(t)}</th>
-                  {has((x) => x.km_debut ?? x.km_fin) && <td>{t.km_debut ?? "?"}–{t.km_fin ?? "?"}</td>}
-                  <td>{t.zone ?? "—"}</td>
-                  <td>{fcLabel(t) ?? "—"}</td>
-                  {has((x) => x.allure) && <td>{t.allure ?? "—"}</td>}
-                  <td>
-                    {t.glucides_g === undefined ? "—" : `${t.glucides_g} g`}
-                    {carbsPerHour(t) !== null && (t.fin_min - t.debut_min) !== 60 && <small className="muted"> ({carbsPerHour(t)} g/h)</small>}
-                  </td>
-                  <td>{t.gels ?? "—"}</td>
-                  <td>{t.boisson_ml === undefined ? "—" : `${t.boisson_ml} ml`}</td>
-                  {has((x) => x.sodium_mg) && <td>{t.sodium_mg === undefined ? "—" : `${t.sodium_mg} mg`}</td>}
-                  <td>{[t.aliment, t.note].filter(Boolean).join(" — ") || "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr>
-                <th scope="row">Total · {clock(tot.minutes)}</th>
-                {has((t) => t.km_debut ?? t.km_fin) && <td></td>}
-                <td></td>
-                <td></td>
-                {has((t) => t.allure) && <td></td>}
-                <td>{tot.carbs} g</td>
-                <td>{tot.gels}</td>
-                <td>{tot.drinkMl} ml</td>
-                {has((t) => t.sodium_mg) && <td>{tot.sodiumMg} mg</td>}
-                <td></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      )}
-    </Panel>
-  );
-}
+// --- bandeau du haut ----------------------------------------------------------------------------
 
-function PlanView({ doc, goal }: { doc: RacePlanDoc; goal: Goal }) {
-  const days = daysBefore(doc);
+function Hero({ goal, doc, next, total, doneCount, now }: { goal: Goal; doc: RacePlanDoc; next: AgendaItem | null; total: number; doneCount: number; now: Date }) {
+  const days = daysUntil(goal.date, isoDate(now));
+  const tot = totalsOf(doc.tranches ?? []);
   const o = doc.objectif;
-  const profile = useQuery({ queryKey: ["race-goal", goal.id], queryFn: () => fetchRaceGoal(goal.id), retry: false });
+  const start = elapsedMinutes(goal.date, doc.matin?.depart, now);
+  const countdown = (() => {
+    if (start !== null && start >= 0 && start <= Math.max(tot.minutes, 1)) return `En course · ${clock(start)}`;
+    if (start !== null && start < 0 && days <= 1) {
+      const left = Math.round(-start);
+      return left >= 120 ? `Départ dans ${Math.floor(left / 60)} h ${String(left % 60).padStart(2, "0")}` : `Départ dans ${left} min`;
+    }
+    if (days === 0) return "Jour de course";
+    return days > 0 ? `J−${days}` : `Terminée il y a ${-days} j`;
+  })();
+  const chips: [string, string][] = [];
+  if (o?.temps_cible_min !== undefined) chips.push(["Objectif", formatDuration(o.temps_cible_min)]);
+  if (o?.allure_cible) chips.push(["Allure", o.allure_cible]);
+  if (tot.carbs) chips.push(["Glucides", `${tot.carbs} g`]);
+  if (tot.gels) chips.push(["Gels", String(tot.gels)]);
+  if (tot.drinkMl) chips.push(["Boisson", `${(tot.drinkMl / 1000).toFixed(1).replace(".", ",")} L`]);
+  if (tot.sodiumMg) chips.push(["Sodium", `${tot.sodiumMg} mg`]);
   return (
-    <div className="race-grid">
-      <div className="race-col">
-        {(o || profile.data) && (
-          <Panel title="Objectif">
-            <p className="race-times">
-              {o?.temps_cible_min !== undefined && <span>Temps cible <strong>{formatDuration(o.temps_cible_min)}</strong></span>}
-              {o?.allure_cible && <span>Allure <strong>{o.allure_cible}</strong></span>}
-            </p>
-            {o?.strategie && <p>{o.strategie}</p>}
-            {profile.data &&
-              (profile.data.profile ? <ProfileChart profile={profile.data.profile} /> : <p className="muted">Profil altimétrique non renseigné.</p>)}
-            {profile.data && <ProfileEditor report={profile.data} />}
-          </Panel>
-        )}
-        <SlicesTable doc={doc} />
-      </div>
-      <div className="race-col">
-        {days.map((d) => (
-          <Panel key={d.jour} title={dayLabel(d)}>
-            {d.activite && <p><strong>Activité :</strong> {d.activite}</p>}
-            <MealList meals={d.repas} />
-            {d.hydratation && <p><strong>Hydratation :</strong> {d.hydratation}</p>}
-            {d.sommeil && <p><strong>Sommeil :</strong> {d.sommeil}</p>}
-            <Notes notes={d.notes} />
-          </Panel>
+    <div className="race-hero">
+      <div className="race-countdown">{countdown}</div>
+      <div className="race-chips-row">
+        {chips.map(([label, value]) => (
+          <div key={label} className="race-kpi">
+            <span>{label}</span>
+            <strong>{value}</strong>
+          </div>
         ))}
-        {doc.matin && <MorningPanel matin={doc.matin} />}
-        {doc.ravitaillements && doc.ravitaillements.length > 0 && (
-          <Panel title="Ravitaillements">
-            <ul className="race-list">
-              {doc.ravitaillements.map((r, i) => (
-                <li key={i}>
-                  <strong>km {r.km}</strong>
-                  {r.nom && ` · ${r.nom}`}
-                  {r.temps_estime_min !== undefined && <span className="muted"> · vers {clock(r.temps_estime_min)}</span>}
-                  {r.action && ` — ${r.action}`}
-                </li>
-              ))}
-            </ul>
-          </Panel>
-        )}
-        {doc.materiel && doc.materiel.length > 0 && (
-          <Panel title="Matériel">
-            <ul className="race-chips">{doc.materiel.map((m, i) => <li key={i}>{m}</li>)}</ul>
-          </Panel>
-        )}
-        {doc.apres_course && (
-          <Panel title="Après la course">
-            <MealList meals={doc.apres_course.repas} />
-            <Notes notes={doc.apres_course.notes} />
-          </Panel>
-        )}
-        {doc.notes && doc.notes.length > 0 && (
-          <Panel title="Notes">
-            <Notes notes={doc.notes} />
-          </Panel>
-        )}
       </div>
+      <div className="race-progress" title="Cases cochées">
+        <span>{doneCount} / {total}</span>
+        <progress max={Math.max(total, 1)} value={doneCount} />
+      </div>
+      {o?.strategie && <p className="race-strategy">{o.strategie}</p>}
+      {next && (
+        <p className="race-next">
+          <span className="race-next-tag">Prochaine étape</span>
+          <span aria-hidden="true">{ICONS[next.kind]}</span> {next.time && <strong>{next.time} </strong>}
+          {next.text}
+          {next.extra && <span className="muted"> · {next.extra}</span>}
+        </p>
+      )}
     </div>
   );
 }
 
-/** Onglet Course : tout le jour J d'une course sur une page (plan, zones, nutrition, veille, matin). */
+// --- bande visuelle de la course ----------------------------------------------------------------
+
+function RaceStrip({ doc, elapsed }: { doc: RacePlanDoc; elapsed: number | null }) {
+  const slices = [...(doc.tranches ?? [])].sort((a, b) => a.debut_min - b.debut_min);
+  if (slices.length === 0) return <p className="muted">Aucune tranche : importez le plan pour voir la course heure par heure.</p>;
+  const end = Math.max(...slices.map((t) => t.fin_min));
+  const stops = (doc.ravitaillements ?? []).filter((r) => r.temps_estime_min !== undefined && r.temps_estime_min <= end);
+  return (
+    <div className="race-strip-wrap">
+      <div className="race-strip" role="img" aria-label="Course découpée par tranche, colorée selon la zone">
+        {slices.map((t, i) => {
+          const z = zoneNumber(t.zone);
+          const current = elapsed !== null && elapsed >= t.debut_min && elapsed < t.fin_min;
+          return (
+            <div
+              key={i}
+              className={`race-block${current ? " race-block-now" : ""}`}
+              style={{ flexGrow: t.fin_min - t.debut_min, background: z ? `var(--zone-${z})` : "var(--surface-2)" }}
+            >
+              <strong>{t.zone ?? "—"}</strong>
+              <span>{fcLabel(t) ?? ""}</span>
+              <span className="race-block-fuel">
+                {t.glucides_g !== undefined && `${t.glucides_g} g`}
+                {t.gels ? ` · ${"●".repeat(Math.floor(t.gels))}${t.gels % 1 ? "◐" : ""}` : ""}
+              </span>
+            </div>
+          );
+        })}
+        {stops.map((r, i) => (
+          <span key={i} className="race-stop" style={{ left: `${((r.temps_estime_min ?? 0) / end) * 100}%` }} title={r.action ?? r.nom ?? ""}>
+            ▼ km {r.km}
+          </span>
+        ))}
+        {elapsed !== null && elapsed > 0 && elapsed < end && <span className="race-cursor" style={{ left: `${(elapsed / end) * 100}%` }} aria-hidden="true" />}
+      </div>
+      <div className="race-axis" aria-hidden="true">
+        {slices.map((t, i) => (
+          <span key={i} style={{ flexGrow: t.fin_min - t.debut_min }}>{clock(t.debut_min)}</span>
+        ))}
+        <span className="race-axis-end">{clock(end)}</span>
+      </div>
+      <p className="race-legend muted">● = un gel · couleur = zone d'intensité · ▼ = ravitaillement</p>
+    </div>
+  );
+}
+
+function SlicesTable({ slices, elapsed }: { slices: Tranche[]; elapsed: number | null }) {
+  const tot = totalsOf(slices);
+  const has = (pick: (t: Tranche) => unknown) => slices.some((t) => pick(t) !== undefined);
+  const km = has((t) => t.km_debut ?? t.km_fin);
+  const pace = has((t) => t.allure);
+  const sodium = has((t) => t.sodium_mg);
+  const drink = has((t) => t.boisson_ml);
+  return (
+    <div className="table-scroll">
+      <table className="data-table race-table">
+        <thead>
+          <tr>
+            <th scope="col">Temps</th>
+            {km && <th scope="col">Km</th>}
+            <th scope="col">FC</th>
+            {pace && <th scope="col">Allure</th>}
+            <th scope="col">Glucides</th>
+            <th scope="col">Gels</th>
+            {drink && <th scope="col">Boisson</th>}
+            {sodium && <th scope="col">Sodium</th>}
+            <th scope="col">À faire</th>
+          </tr>
+        </thead>
+        <tbody>
+          {slices.map((t, i) => {
+            const current = elapsed !== null && elapsed >= t.debut_min && elapsed < t.fin_min;
+            return (
+              <tr key={i} className={current ? "race-row-now" : undefined}>
+                <th scope="row">
+                  <span className="race-zone-dot" style={{ background: `var(--zone-${zoneNumber(t.zone) ?? 1})` }} aria-hidden="true" />
+                  {rangeLabel(t)}
+                </th>
+                {km && <td>{t.km_debut ?? "?"}–{t.km_fin ?? "?"}</td>}
+                <td>{fcLabel(t) ?? "—"}</td>
+                {pace && <td>{t.allure ?? "—"}</td>}
+                <td>
+                  {t.glucides_g === undefined ? "—" : `${t.glucides_g} g`}
+                  {carbsPerHour(t) !== null && t.fin_min - t.debut_min !== 60 && <small className="muted"> ({carbsPerHour(t)} g/h)</small>}
+                </td>
+                <td>{t.gels ?? "—"}</td>
+                {drink && <td>{t.boisson_ml === undefined ? "—" : `${t.boisson_ml} ml`}</td>}
+                {sodium && <td>{t.sodium_mg === undefined ? "—" : `${t.sodium_mg} mg`}</td>}
+                <td className="race-note">{[t.aliment, t.note].filter(Boolean).join(" — ") || "—"}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th scope="row">Total · {clock(tot.minutes)}</th>
+            {km && <td></td>}
+            <td></td>
+            {pace && <td></td>}
+            <td>{tot.carbs} g</td>
+            <td>{tot.gels}</td>
+            {drink && <td>{tot.drinkMl} ml</td>}
+            {sodium && <td>{tot.sodiumMg} mg</td>}
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  );
+}
+
+// --- feuille de route ---------------------------------------------------------------------------
+
+function Roadmap({
+  groups,
+  today,
+  nowTime,
+  done,
+  nextKey,
+  toggle,
+}: {
+  groups: AgendaGroup[];
+  today: string;
+  nowTime: string;
+  done: Set<string>;
+  nextKey: string | null;
+  toggle: (key: string) => void;
+}) {
+  const [showPast, setShowPast] = useState(false);
+  const past = groups.filter((g) => g.date < today);
+  const upcoming = groups.filter((g) => g.date >= today);
+  const render = (g: AgendaGroup) => {
+    const finished = g.items.filter((i) => done.has(i.key)).length;
+    return (
+      <section key={g.id} className={`road-group${g.date === today ? " road-today" : ""}`}>
+        <h3>
+          <span>{g.title}</span>
+          <span className="road-date">{g.id === "apres" ? "" : relativeDay(g.date, today)}</span>
+          <span className="road-count">{finished}/{g.items.length}</span>
+        </h3>
+        <ul>
+          {g.items.map((item) => {
+            const isDone = done.has(item.key);
+            const late = !isDone && g.date === today && item.time !== null && item.time < nowTime;
+            return (
+              <li key={item.key} className={`road-item${isDone ? " road-done" : ""}${item.key === nextKey ? " road-next" : ""}${late ? " road-late" : ""}`}>
+                <label>
+                  <input type="checkbox" checked={isDone} onChange={() => { toggle(item.key); }} />
+                  <span className="road-icon" aria-hidden="true">{ICONS[item.kind]}</span>
+                  {item.time && <strong className="road-time">{item.time}</strong>}
+                  <span className="road-text">
+                    {item.text}
+                    {item.extra && <small className="muted"> · {item.extra}</small>}
+                  </span>
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    );
+  };
+  return (
+    <div className="race-panel road">
+      <h2>Feuille de route</h2>
+      {past.length > 0 && (
+        <button type="button" className="btn btn-small road-past-btn" onClick={() => { setShowPast(!showPast); }} aria-expanded={showPast}>
+          {showPast ? "Masquer" : "Afficher"} {past.length} jour(s) passé(s)
+        </button>
+      )}
+      {showPast && past.map(render)}
+      {upcoming.map(render)}
+      {groups.length === 0 && <p className="muted">Aucune étape dans le plan.</p>}
+    </div>
+  );
+}
+
+function Gear({ items, done, toggle }: { items: string[]; done: Set<string>; toggle: (key: string) => void }) {
+  return (
+    <section className="race-panel">
+      <h2>Matériel · {items.filter((_, i) => done.has(`m:${i}`)).length}/{items.length}</h2>
+      <ul className="race-gear">
+        {items.map((m, i) => (
+          <li key={i} className={done.has(`m:${i}`) ? "road-done" : undefined}>
+            <label>
+              <input type="checkbox" checked={done.has(`m:${i}`)} onChange={() => { toggle(`m:${i}`); }} />
+              <span>{m}</span>
+            </label>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function PlanView({ doc, goal }: { doc: RacePlanDoc; goal: Goal }) {
+  const now = useNow();
+  const today = isoDate(now);
+  const { done, toggle, reset } = useChecks(goal.id);
+  const profile = useQuery({ queryKey: ["race-goal", goal.id], queryFn: () => fetchRaceGoal(goal.id), retry: false });
+  const groups = useMemo(() => buildAgenda(goal.date, doc), [goal.date, doc]);
+  const nowTime = hhmm(now);
+  const live = groups.filter((g) => g.date >= today);
+  const next = live.flatMap((g) => g.items).find((i) => !done.has(i.key)) ?? null;
+  const all = groups.flatMap((g) => g.items);
+  const gear = doc.materiel ?? [];
+  const total = all.length + gear.length;
+  const doneCount = all.filter((i) => done.has(i.key)).length + gear.filter((_, i) => done.has(`m:${i}`)).length;
+  const elapsed = elapsedMinutes(goal.date, doc.matin?.depart, now);
+  const slices = [...(doc.tranches ?? [])].sort((a, b) => a.debut_min - b.debut_min);
+  const stops = doc.ravitaillements ?? [];
+  const notes = doc.notes ?? [];
+
+  return (
+    <>
+      <Hero goal={goal} doc={doc} next={next} total={total} doneCount={doneCount} now={now} />
+      <div className="race-grid">
+        <div className="race-col">
+          <section className="race-panel">
+            <h2>La course</h2>
+            <RaceStrip doc={doc} elapsed={elapsed} />
+            {slices.length > 0 && <SlicesTable slices={slices} elapsed={elapsed} />}
+          </section>
+          {gear.length > 0 && <Gear items={gear} done={done} toggle={toggle} />}
+          {stops.length > 0 && (
+            <section className="race-panel">
+              <h2>Ravitaillements</h2>
+              <ul className="race-stops">
+                {stops.map((r, i) => (
+                  <li key={i}>
+                    <strong>km {r.km}</strong>
+                    {r.temps_estime_min !== undefined && <span className="race-stop-time">{clock(r.temps_estime_min)}</span>}
+                    <span>{[r.nom, r.action].filter(Boolean).join(" — ")}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {profile.data && (
+            <details className="race-panel race-profile" open={profile.data.profile !== null}>
+              <summary>Profil altimétrique</summary>
+              {profile.data.profile ? <ProfileChart profile={profile.data.profile} /> : <p className="muted">Profil non renseigné.</p>}
+              <ProfileEditor report={profile.data} />
+            </details>
+          )}
+          {notes.length > 0 && (
+            <details className="race-panel">
+              <summary>Notes ({notes.length})</summary>
+              <ul className="race-list">{notes.map((n, i) => <li key={i}>{n}</li>)}</ul>
+            </details>
+          )}
+        </div>
+        <div className="race-col">
+          <Roadmap groups={groups} today={today} nowTime={nowTime} done={done} nextKey={next?.key ?? null} toggle={toggle} />
+          {done.size > 0 && (
+            <button type="button" className="btn btn-small" onClick={() => { if (window.confirm("Tout décocher ?")) reset(); }}>
+              Tout décocher
+            </button>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/** Onglet Course : tout le jour J d'une course (feuille de route à cocher, bande de course, nutrition). */
 export function CoursePage() {
   const queryClient = useQueryClient();
   const { notify } = useToast();
@@ -254,7 +461,6 @@ export function CoursePage() {
     );
   }
 
-  const days = daysUntil(goal.date);
   const stats = [goal.distance_km === null ? null : formatKm(goal.distance_km), goal.dplus_m === null ? null : `D+ ${formatMeters(goal.dplus_m)}`]
     .filter(Boolean)
     .join(" · ");
@@ -264,12 +470,7 @@ export function CoursePage() {
     <section className="course-page">
       <header className="race-head">
         <div className="race-head-main">
-          <select
-            aria-label="Course"
-            className="race-select"
-            value={goal.id}
-            onChange={(e) => { setSelectedId(Number(e.target.value)); }}
-          >
+          <select aria-label="Course" className="race-select" value={goal.id} onChange={(e) => { setSelectedId(Number(e.target.value)); }}>
             {[...goals.data]
               .sort((a, b) => a.date.localeCompare(b.date))
               .map((g) => (
@@ -278,10 +479,7 @@ export function CoursePage() {
                 </option>
               ))}
           </select>
-          <span className="race-meta">
-            <strong>{days === 0 ? "aujourd'hui" : days > 0 ? `J−${days}` : `il y a ${-days} j`}</strong>
-            {stats && ` · ${stats}`}
-          </span>
+          <span className="race-meta">{[formatDay(goal.date), stats].filter(Boolean).join(" · ")}</span>
         </div>
         <div className="toolbar-actions">
           <button
@@ -301,11 +499,7 @@ export function CoursePage() {
             Importer
           </button>
           {doc && (
-            <button
-              type="button"
-              className="btn btn-small"
-              onClick={() => { if (window.confirm(`Supprimer le plan de course de « ${goal.nom} » ?`)) remove.mutate(); }}
-            >
+            <button type="button" className="btn btn-small" onClick={() => { if (window.confirm(`Supprimer le plan de course de « ${goal.nom} » ?`)) remove.mutate(); }}>
               Supprimer le plan
             </button>
           )}
@@ -314,9 +508,7 @@ export function CoursePage() {
 
       {plan.isPending && <p role="status">Chargement du plan…</p>}
       {plan.isError && <p role="alert">Impossible de lire le plan : {plan.error.message}</p>}
-      {plan.data && plan.data.warnings.length > 0 && (
-        <p className="muted">{plan.data.warnings.map((w) => `⚠ ${w}`).join(" ")}</p>
-      )}
+      {plan.data && plan.data.warnings.length > 0 && <p className="muted">{plan.data.warnings.map((w) => `⚠ ${w}`).join(" ")}</p>}
       {plan.isSuccess && !doc && (
         <div className="race-empty">
           <p>Pas encore de plan de course pour « {goal.nom} ».</p>
